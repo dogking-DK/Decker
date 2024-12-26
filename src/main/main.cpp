@@ -10,12 +10,12 @@ int main(int argc, char** argv)
 {
     auto options = vsg::Options::create();
     auto windowTraits = vsg::WindowTraits::create();
-    windowTraits->windowTitle = "MyFirstVsgApplication";
+    windowTraits->windowTitle = "Decker";
 
     // set up defaults and read command line arguments to override them
     vsg::CommandLine arguments(&argc, argv);
-    windowTraits->debugLayer = arguments.read({"--debug","-d"});
-    windowTraits->apiDumpLayer = arguments.read({"--api","-a"});
+    //windowTraits->debugLayer = true;
+    //windowTraits->apiDumpLayer = true;
     if (arguments.read({"--fullscreen", "--fs"})) windowTraits->fullscreen = true;
     if (arguments.read({"--window", "-w"}, windowTraits->width, windowTraits->height)) { windowTraits->fullscreen = false; }
     auto horizonMountainHeight = arguments.value(0.0, "--hmh");
@@ -31,18 +31,9 @@ int main(int argc, char** argv)
 
     auto scene = vsg::Group::create();
 
-    // read any vsg files from command line arguments
-    for (int i=1; i<argc; ++i)
-    {
-        vsg::Path filename = arguments[i];
-        auto loaded_scene = vsg::read_cast<vsg::Node>(filename, options);
-        if (loaded_scene)
-        {
-            scene->addChild(loaded_scene);
-            arguments.remove(i, 1);
-            --i;
-        }
-    }
+
+    auto loaded_scene = vsg::read_cast<vsg::Node>("C:/code/data/gltf/just_a_girl/scene.gltf", options);
+    scene->addChild(loaded_scene);
 
     if (scene->children.empty())
     {

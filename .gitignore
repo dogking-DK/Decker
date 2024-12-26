@@ -70,3 +70,8 @@ DerivedData/
 build/
 local.properties
 
+# 排除 build 文件夹
+/build/
+
+# 排除 install 文件夹
+/install/
