@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.11)
 
 # 设置install目录
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install")
@@ -13,9 +13,9 @@ else()
 endif()
 
 # 添加vsg库的目录
-list(APPEND CMAKE_PREFIX_PATH "$ENV{VSG_PATH}/install/lib/cmake/vsg")
-list(APPEND CMAKE_PREFIX_PATH "$ENV{VSGXCHANGE_PATH}/install/lib/cmake/vsgXchange")
-list(APPEND CMAKE_PREFIX_PATH "$ENV{VSGIMGUI_PATH}/install/lib/cmake/vsgImGui")
+# list(APPEND CMAKE_PREFIX_PATH "$ENV{VSG_PATH}/install/lib/cmake/vsg")
+# list(APPEND CMAKE_PREFIX_PATH "$ENV{VSGXCHANGE_PATH}/install/lib/cmake/vsgXchange")
+# list(APPEND CMAKE_PREFIX_PATH "$ENV{VSGIMGUI_PATH}/install/lib/cmake/vsgImGui")
 
 project(Decker
         VERSION 0.0.1
@@ -31,7 +31,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-# find the vsg
 if (VULKAN_SDK)
     set(ENV{VULKAN_SDK} ${VULKAN_SDK})
 endif()
@@ -54,9 +53,10 @@ find_package(imgui CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 
 # 查找vsg的库
-find_package(vsg REQUIRED)
-find_package(vsgXchange REQUIRED)
-find_package(vsgImGui REQUIRED)
+# find_package(vsg REQUIRED)
+# find_package(vsgXchange REQUIRED)
+# find_package(vsgImGui REQUIRED)
+
 # set the use of C++20 globally as all examples require it
 set(CMAKE_CXX_STANDARD 20)
 
@@ -103,7 +103,6 @@ target_link_libraries(${PROJECT_NAME}
     GPUOpen::VulkanMemoryAllocator
     volk::volk
     volk::volk_headers
-    vsg::vsg 
     fmt::fmt
     vk-bootstrap::vk-bootstrap 
     vk-bootstrap::vk-bootstrap-compiler-warnings
@@ -121,6 +120,10 @@ target_link_libraries(${PROJECT_NAME}
     implot::implot
     imgui::imgui)
 
+if (vsg_FOUND)
+    target_link_libraries(${PROJECT_NAME} vsg::vsg)
+endif()
+
 if (vsgXchange_FOUND)
     target_compile_definitions(${PROJECT_NAME} PRIVATE vsgXchange_FOUND)
     target_link_libraries(${PROJECT_NAME} vsgXchange::vsgXchange)
@@ -131,6 +134,5 @@ if (vsgImGui_FOUND)
 endif()
 
 install(TARGETS ${PROJECT_NAME}
-        RUNTIME DESTINATION bin
-)
+        RUNTIME DESTINATION bin)
 
