@@ -4,27 +4,6 @@ MeshConverter::MeshConverter() {}
 
 MeshConverter::~MeshConverter() {}
 
-vsg::ref_ptr<vsg::Geometry> MeshConverter::convertToVSGMesh(const aiMesh* mesh)
-{
-    std::vector<float> vertices;
-    std::vector<unsigned int> indices;
-    extractMeshData(mesh, vertices, indices);
-
-    vsg::ref_ptr<vsg::Geometry> geometry = vsg::Geometry::create();
-
-    // Setup Vertex Buffer and Index Buffer
-    geometry->assignArrays({});
-    //geometry->setVertexData(vsg::Data::create(vertices));
-    //geometry->setIndexData(vsg::Data::create(indices));
-
-    // Setup material (if any)
-    //vsg::ref_ptr<vsg::Material> material;
-    //extractMeshMaterials(mesh, material);
-    //geometry->setMaterial(material);
-
-    return geometry;
-}
-
 void MeshConverter::extractMeshData(const aiMesh* mesh, std::vector<float>& vertices, std::vector<unsigned int>& indices)
 {
     for (unsigned int i = 0; i < mesh->mNumVertices; ++i)

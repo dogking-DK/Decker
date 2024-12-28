@@ -1,9 +1,8 @@
-// assimp_loader.h
-#pragma once
+ï»¿#pragma once
+
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-#include <vsg/all.h>
 
 class AssimpLoader
 {
@@ -11,10 +10,10 @@ public:
     AssimpLoader();
     ~AssimpLoader();
 
-    // ¼ÓÔØGLTFÎÄ¼ş
+    // åŠ è½½GLTFæ–‡ä»¶
     bool loadGLTF(const std::string& file_path);
 
-    // ·µ»ØAssimpµÄ³¡¾°¶ÔÏó£¬ÆäËûÄ£¿é¿ÉÒÔ´ÓÖĞÌáÈ¡Êı¾İ
+    // è¿”å›Assimpçš„åœºæ™¯å¯¹è±¡ï¼Œå…¶ä»–æ¨¡å—å¯ä»¥ä»ä¸­æå–æ•°æ®
     const aiScene* getScene() const { return _scene; }
 
 private:
