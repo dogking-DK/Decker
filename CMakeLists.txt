@@ -42,7 +42,6 @@ endif()
 find_package(Vulkan REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(vk-bootstrap CONFIG REQUIRED)
-find_package(volk CONFIG REQUIRED)
 find_package(VulkanUtilityLibraries CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG)
 
@@ -125,8 +124,6 @@ target_link_libraries(${PROJECT_NAME}
     Vulkan::UtilityHeaders 
     Vulkan::CompilerConfiguration
     GPUOpen::VulkanMemoryAllocator
-    volk::volk
-    volk::volk_headers
     fmt::fmt
     vk-bootstrap::vk-bootstrap 
     vk-bootstrap::vk-bootstrap-compiler-warnings

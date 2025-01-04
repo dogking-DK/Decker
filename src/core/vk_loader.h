@@ -65,3 +65,8 @@ private:
 };
 
 std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath);
+
+VKUTIL_BEGIN
+
+bool readShaderFile(const std::string& file_path, std::string& code);
+VKUTIL_END

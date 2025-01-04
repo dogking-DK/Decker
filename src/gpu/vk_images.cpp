@@ -1,12 +1,6 @@
 #include <vk_images.h>
 #include <vk_initializers.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-//> transition
-#include <vk_initializers.h>
-
 void vkutil::transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
 {
     VkImageMemoryBarrier2 imageBarrier {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};

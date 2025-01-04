@@ -3,6 +3,107 @@
 #include "vk_initializers.h"
 #include <fstream>
 
+VKUTIL_BEGIN
+
+bool load_shader_module(const char* filePath, VkDevice device, VkShaderModule* outShaderModule)
+{
+    // open the file. With cursor at the end
+    std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open())
+    {
+        return false;
+    }
+
+    size_t fileSize = (size_t)file.tellg();
+    std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+    file.seekg(0);
+    file.read((char*)buffer.data(), fileSize);
+    file.close();
+
+    // create a new shader module, using the buffer we loaded
+    VkShaderModuleCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.pNext = nullptr;
+
+    // codeSize has to be in bytes, so multply the ints in the buffer by size of
+    // int to know the real size of the buffer
+    createInfo.codeSize = buffer.size() * sizeof(uint32_t);
+    createInfo.pCode = buffer.data();
+
+    // check that the creation goes well.
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    {
+        return false;
+    }
+    *outShaderModule = shaderModule;
+    return true;
+}
+
+bool load_shader_module(std::vector<uint32_t>& spv, VkDevice device, VkShaderModule* outShaderModule)
+{
+    // create a new shader module, using the buffer we loaded
+    VkShaderModuleCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.pNext = nullptr;
+
+    // codeSize has to be in bytes, so multply the ints in the buffer by size of
+    // int to know the real size of the buffer
+    createInfo.codeSize = spv.size() * sizeof(uint32_t);
+    createInfo.pCode = spv.data();
+
+    // check that the creation goes well.
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    {
+        return false;
+    }
+    *outShaderModule = shaderModule;
+    return true;
+}
+
+bool ShaderCompiler::compileGLSLtoSPV(const std::string& src_code, std::vector<uint32_t>& dist_code, EShLanguage shader_type, bool isHLSL)
+{
+    glslang::TShader shader(shader_type);
+    const char* shader_source = src_code.c_str();
+
+    shader.setStrings(&shader_source, 1);
+
+    if (isHLSL)
+    {
+        shader.setEnvInput(glslang::EShSourceHlsl, shader_type, glslang::EShClientVulkan, 100);
+    }
+    else
+    {
+        shader.setEnvInput(glslang::EShSourceGlsl, shader_type, glslang::EShClientVulkan, 100);
+    }
+
+    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
+    shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_3);
+
+    EShMessages message = EShMessages::EShMsgDefault;
+
+    if (!shader.parse(GetDefaultResources(), 100, false, message))
+    {
+        fmt::print("GLSL/HLSL parsing fail: {}\n", shader.getInfoLog());
+        return false;
+    }
+
+    glslang::TProgram program;
+    program.addShader(&shader);
+
+    if (!program.link(message))
+    {
+        fmt::print("GLSL/HLSL link fail: {}\n", program.getInfoLog());
+        return false;
+    }
+
+    glslang::GlslangToSpv(*program.getIntermediate(shader_type), dist_code);
+    return true;
+}
+VKUTIL_END
+
 //> pipe_clear
 void PipelineBuilder::clear()
 {
@@ -230,51 +331,3 @@ void PipelineBuilder::enable_depthtest(bool depthWriteEnable, VkCompareOp op)
 }
 //< depth_enable
 
-//> load_shader
-bool vkutil::load_shader_module(const char* filePath,
-    VkDevice device,
-    VkShaderModule* outShaderModule)
-{
-    // open the file. With cursor at the end
-    std::ifstream file(filePath, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open()) {
-        return false;
-    }
-
-    // find what the size of the file is by looking up the location of the cursor
-    // because the cursor is at the end, it gives the size directly in bytes
-    size_t fileSize = (size_t)file.tellg();
-
-    // spirv expects the buffer to be on uint32, so make sure to reserve a int
-    // vector big enough for the entire file
-    std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
-
-    // put file cursor at beginning
-    file.seekg(0);
-
-    // load the entire file into the buffer
-    file.read((char*)buffer.data(), fileSize);
-
-    // now that the file is loaded into the buffer, we can close it
-    file.close();
-
-    // create a new shader module, using the buffer we loaded
-    VkShaderModuleCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-
-    // codeSize has to be in bytes, so multply the ints in the buffer by size of
-    // int to know the real size of the buffer
-    createInfo.codeSize = buffer.size() * sizeof(uint32_t);
-    createInfo.pCode = buffer.data();
-
-    // check that the creation goes well.
-    VkShaderModule shaderModule;
-    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-        return false;
-    }
-    *outShaderModule = shaderModule;
-    return true;
-}
-//< load_shader

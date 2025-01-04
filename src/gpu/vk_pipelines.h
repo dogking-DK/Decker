@@ -1,6 +1,32 @@
 ﻿#pragma once
 
 #include <vk_types.h>
+#include <glslang/Public/ShaderLang.h>
+#include <glslang/SPIRV/GlslangToSpv.h>
+#include <glslang/Public/ResourceLimits.h>
+
+VKUTIL_BEGIN
+
+class ShaderCompiler
+{
+public:
+    static ShaderCompiler& getInstance()
+    {
+        static ShaderCompiler instance;
+        return instance;
+    }
+
+    static void initGlslang() { glslang::InitializeProcess(); }
+    static void finalizeGlslang() { glslang::FinalizeProcess(); }
+    bool compileGLSLtoSPV(const std::string& src_code, std::vector<uint32_t>& dist_code, EShLanguage shader_type, bool isHLSL = false);
+
+private:
+    ShaderCompiler() = default;
+};
+bool load_shader_module(const char* filePath, VkDevice device, VkShaderModule* outShaderModule);
+bool load_shader_module(std::vector<uint32_t>& spv, VkDevice device, VkShaderModule* outShaderModule);
+
+VKUTIL_END
 
 class PipelineBuilder {
 //> pipeline
@@ -37,6 +63,3 @@ public:
     void enable_depthtest(bool depthWriteEnable,VkCompareOp op);
 };
 
-namespace vkutil {
-bool load_shader_module(const char* filePath, VkDevice device, VkShaderModule* outShaderModule);
-}

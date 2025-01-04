@@ -4,6 +4,7 @@
 #pragma once
 #define GLM_ENABLE_EXPERIMENTAL
 
+
 #include <memory>
 #include <optional>
 #include <string>
@@ -18,11 +19,14 @@
 #include <vk_mem_alloc.h>
 
 #include <fmt/core.h>
+#include <fmt/color.h>
 
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 //< intro 
 
+#define VKUTIL_BEGIN namespace vkutil {
+#define VKUTIL_END } // vkutil
 
 
 // we will add our main reusable types here
