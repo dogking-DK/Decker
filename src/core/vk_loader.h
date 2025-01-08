@@ -15,6 +15,8 @@ struct Bounds {
     glm::vec3 origin;
     float sphereRadius;
     glm::vec3 extents;
+    glm::vec3 max_edge;
+    glm::vec3 min_edge;
 };
 
 struct GLTFMaterial {

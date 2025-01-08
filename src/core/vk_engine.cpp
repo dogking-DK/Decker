@@ -20,6 +20,18 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
+
+template <>
+struct fmt::formatter<glm::vec3>
+{
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    template <typename Context>
+    constexpr auto format(glm::vec3 const& foo, Context& ctx) const
+    {
+        return format_to(ctx.out(), "[{:10.3f}, {:10.3f}, {:10.3f}]", foo.x, foo.y, foo.z);
+    }
+};
+
 constexpr bool bUseValidationLayers = true;
 
 // we want to immediately abort when there is an error. In normal engines this
@@ -75,13 +87,28 @@ void VulkanEngine::init()
 
     glm::vec3 geom_center{ 0,0,0 };
     int count = 0;
-    for (auto mesh : loadedScenes["structure"]->meshes)
+    glm::vec3 total_max{ -FLT_MAX,-FLT_MAX,-FLT_MAX };
+    glm::vec3 total_min{ FLT_MAX,FLT_MAX,FLT_MAX };
+    for (const auto& mesh : loadedScenes["structure"]->meshes)
     {
-        geom_center += mesh.second->surfaces[0].bounds.origin;
-        ++count;
+        for (const auto& surface : mesh.second->surfaces)
+        {
+            geom_center += surface.bounds.origin;
+            total_max.x = std::max(total_max.x, surface.bounds.max_edge.x);
+            total_max.y = std::max(total_max.y, surface.bounds.max_edge.y);
+            total_max.z = std::max(total_max.z, surface.bounds.max_edge.z);
+            total_min.x = std::min(total_min.x, surface.bounds.min_edge.x);
+            total_min.y = std::min(total_min.y, surface.bounds.min_edge.y);
+            total_min.z = std::min(total_min.z, surface.bounds.min_edge.z);
+            fmt::print("min edge: {}, max edge: {}\n", surface.bounds.min_edge, surface.bounds.max_edge);
+            ++count;
+        }
+        //geom_center += mesh.second->surfaces[0].bounds.sphereRadius* glm::vec3{ 1,0,0 };
     }
+    fmt::print("total min edge: {}, max edge: {}\n", total_min, total_max);
     geom_center /= count;
-    mainCamera.position = geom_center;
+    mainCamera.position = total_min + total_max;
+    mainCamera.position /= 2;
 
     mainCamera.pitch = 0;
     mainCamera.yaw = 0;
@@ -210,14 +237,14 @@ void VulkanEngine::init_background_pipelines()
     VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
 
     VkShaderModule gradientShader;
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/gradient_color.comp.spv", _device,
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/gradient_color.comp.spv", _device,
                                     &gradientShader))
     {
         fmt::print("Error when building the compute shader \n");
     }
 
     VkShaderModule skyShader;
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/sky.comp.spv", _device, &skyShader))
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/sky.comp.spv", _device, &skyShader))
     {
         fmt::print("Error when building the compute shader\n");
     }
@@ -704,9 +731,9 @@ void VulkanEngine::update_scene()
     glm::mat4 view = mainCamera.getViewMatrix();
 
     // camera projection
-    glm::mat4 projection = glm::perspective(glm::radians(70.f),
+    glm::mat4 projection = glm::perspective(glm::radians(60.f),
                                             static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.
-                                                height), 10000.f, 0.1f);
+                                                height), 1000.0f, 0.1f);
 
     // invert the Y direction on projection matrix so that we are more similar
     // to opengl and gltf axis
@@ -1197,7 +1224,9 @@ void VulkanEngine::init_sync_structures()
 
 void VulkanEngine::init_renderables()
 {
-    std::string structurePath = {"C:/code/data/gltf/just_a_girl/scene.gltf"};
+    std::string structurePath = { "C:/code/code_file/example/vulkan guide/vulkan-guide-all-chapters-2/assets/structure.glb" };
+    //std::string structurePath = { "C:/code/data/gltf/just_a_girl/scene.gltf" };
+    
     auto structureFile = loadGltf(this, structurePath);
 
     assert(structureFile.has_value());
@@ -1367,20 +1396,21 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     compiler.compileGLSLtoSPV(code1, spv_code1, EShLanguage::EShLangFragment, false);
     compiler.compileGLSLtoSPV(code2, spv_code2, EShLanguage::EShLangVertex, false);
     compiler.finalizeGlslang();
-
+                                                                                                                 fmt::print(fmt::fg(fmt::color::alice_blue), "-----------------------temp use shader-----------------------\n");
     //layout code
     VkShaderModule meshFragShader;
-    if (!vkutil::load_shader_module(spv_code1, engine->_device, &meshFragShader))
+    //if (!vkutil::load_shader_module(spv_code1, engine->_device, &meshFragShader))
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh_pbr.frag.spv", engine->_device, &meshFragShader)) 
     {
-        fmt::print("Error when building the compute shader \n");
+        fmt::print(fmt::fg(fmt::color::red), "Error when building the fragment shader \n");
     }
 
     VkShaderModule meshVertexShader;
-    if (!vkutil::load_shader_module(spv_code1, engine->_device, &meshVertexShader))
+    //if (!vkutil::load_shader_module(spv_code1, engine->_device, &meshVertexShader))
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh.vert.spv", engine->_device, &meshVertexShader))
     {
-        fmt::print("Error when building the compute shader \n");
+        fmt::print(fmt::fg(fmt::color::red), "Error when building the vertex shader \n");
     }
-
 
     VkPushConstantRange matrixRange{};
     matrixRange.offset = 0;
@@ -1419,7 +1449,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
 
-    pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+    pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_CLOCKWISE);
 
     pipelineBuilder.set_multisampling_none();
 

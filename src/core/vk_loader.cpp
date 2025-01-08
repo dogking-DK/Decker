@@ -344,14 +344,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     // often
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
-    fmt::print(fmt::fg(fmt::color::azure), "--------------------------------start load meshes--------------------------------\n");
+    fmt::print(fmt::fg(fmt::color::azure), 
+        "--------------------------------start load meshes--------------------------------\n");
+
     for (fastgltf::Mesh& mesh : gltf.meshes)
     {
         auto newmesh = std::make_shared<MeshAsset>();
         meshes.push_back(newmesh);
         file.meshes[mesh.name.c_str()] = newmesh;
         newmesh->name = mesh.name;
-        fmt::print("loading mesh: {}", mesh.name);
+        fmt::print("loading mesh: {}\n", mesh.name);
         // clear the mesh arrays each mesh, we dont want to merge them by error
         indices.clear();
         vertices.clear();
@@ -444,7 +446,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                 minpos = min(minpos, vertices[i].position);
                 maxpos = max(maxpos, vertices[i].position);
             }
-
+            newSurface.bounds.max_edge = maxpos;
+            newSurface.bounds.min_edge = minpos;
             newSurface.bounds.origin = (maxpos + minpos) / 2.f;
             newSurface.bounds.extents = (maxpos - minpos) / 2.f;
             newSurface.bounds.sphereRadius = length(newSurface.bounds.extents);

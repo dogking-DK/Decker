@@ -4,31 +4,8 @@
 #extension GL_EXT_nonuniform_qualifier : require
 
 #define USE_BINDLESS
-// #include "input_structures.glsl"
-layout(set = 0, binding = 0) uniform  SceneData{   
+#include "input_structures.glsl"
 
-	mat4 view;
-	mat4 proj;
-	mat4 viewproj;
-	vec4 ambientColor;
-	vec4 sunlightDirection; //w for sun power
-	vec4 sunlightColor;
-} sceneData;
-
-#ifdef USE_BINDLESS
-layout(set = 0, binding = 1) uniform sampler2D allTextures[];
-#else
-layout(set = 1, binding = 1) uniform sampler2D colorTex;
-layout(set = 1, binding = 2) uniform sampler2D metalRoughTex;
-#endif
-
-layout(set = 1, binding = 0) uniform GLTFMaterialData{   
-
-	vec4 colorFactors;
-	vec4 metal_rough_factors;
-	int colorTexID;
-	int metalRoughTexID;
-} materialData;
 
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inColor;
