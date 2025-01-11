@@ -64,3 +64,9 @@ void main()
 	outFragColor = vec4(color * lightValue + color * irradiance.x * vec3(0.2f) ,1.0f);
 }
 
+// 获得view矩阵
+// 获得相机位置
+// 通过鼠标移动更新镜头方向
+// 通过键盘输入更新镜头位置移动
+// 调整相机移速，平衡因帧数带来的不稳定
+// 获得背后的相机view矩阵

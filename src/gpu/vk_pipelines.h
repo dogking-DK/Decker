@@ -28,8 +28,8 @@ bool load_shader_module(std::vector<uint32_t>& spv, VkDevice device, VkShaderMod
 
 VKUTIL_END
 
-class PipelineBuilder {
-//> pipeline
+class PipelineBuilder
+{
 public:
     std::vector<VkPipelineShaderStageCreateInfo> _shaderStages;
    
@@ -47,7 +47,7 @@ public:
     void clear();
 
     VkPipeline build_pipeline(VkDevice device);
-//< pipeline
+
     void set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader);
     void set_input_topology(VkPrimitiveTopology topology);
     void set_polygon_mode(VkPolygonMode mode);

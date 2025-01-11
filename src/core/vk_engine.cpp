@@ -25,8 +25,9 @@ template <>
 struct fmt::formatter<glm::vec3>
 {
     constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+
     template <typename Context>
-    constexpr auto format(glm::vec3 const& foo, Context& ctx) const
+    constexpr auto format(const glm::vec3& foo, Context& ctx) const
     {
         return format_to(ctx.out(), "[{:10.3f}, {:10.3f}, {:10.3f}]", foo.x, foo.y, foo.z);
     }
@@ -85,10 +86,10 @@ void VulkanEngine::init()
     mainCamera.velocity = glm::vec3(0.f);
     mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
 
-    glm::vec3 geom_center{ 0,0,0 };
+    glm::vec3 geom_center{0, 0, 0};
     int count = 0;
-    glm::vec3 total_max{ -FLT_MAX,-FLT_MAX,-FLT_MAX };
-    glm::vec3 total_min{ FLT_MAX,FLT_MAX,FLT_MAX };
+    glm::vec3 total_max{-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    glm::vec3 total_min{FLT_MAX,FLT_MAX,FLT_MAX};
     for (const auto& mesh : loadedScenes["structure"]->meshes)
     {
         for (const auto& surface : mesh.second->surfaces)
@@ -271,7 +272,8 @@ void VulkanEngine::init_background_pipelines()
     gradient.data.data1 = glm::vec4(1, 0, 0, 1);
     gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
-    VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+    VK_CHECK(
+        vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
 
     //change the shader module only to create the sky shader
     computePipelineCreateInfo.stage.module = skyShader;
@@ -464,7 +466,8 @@ void VulkanEngine::draw()
 
 bool is_visible(const RenderObject& obj, const glm::mat4& viewproj)
 {
-    std::array<glm::vec3, 8> corners{
+    std::array<glm::vec3, 8> corners
+    {
         glm::vec3{1, 1, 1},
         glm::vec3{1, 1, -1},
         glm::vec3{1, -1, 1},
@@ -576,10 +579,12 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                                         &globalDescriptor, 0, nullptr);
 
                 VkViewport viewport = {};
-                viewport.x = 0;
-                viewport.y = 0;
                 viewport.width = static_cast<float>(_drawExtent.width);
-                viewport.height = static_cast<float>(_drawExtent.height);
+                // vulkan的屏幕坐标与dx、ogl的y轴相反，所以这里使用vulkan的特性，将高反向
+                viewport.height = -static_cast<float>(_drawExtent.height);
+                viewport.x = 0;
+                // 同时原点也需要修改，因为vulkan本身是倒置的，所以现在整个窗口需要向y方向平移
+                viewport.y = static_cast<float>(_drawExtent.height);
                 viewport.minDepth = 0.f;
                 viewport.maxDepth = 1.f;
 
@@ -703,6 +708,46 @@ void VulkanEngine::run()
             ImGui::InputFloat4("data2", (float*)&selected.data.data2);
             ImGui::InputFloat4("data3", (float*)&selected.data.data3);
             ImGui::InputFloat4("data4", (float*)&selected.data.data4);
+            ImGui::InputInt("view mode", (int*)&mainCamera.view_mode);
+
+            auto mat = mainCamera.getViewMatrix();
+            ImGui::Text("view:");
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[0][0], mat[0][1], mat[0][2], mat[0][3]);
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[1][0], mat[1][1], mat[1][2], mat[1][3]);
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[2][0], mat[2][1], mat[2][2], mat[2][3]);
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
+
+
+            mat = mainCamera.projection;
+            ImGui::Text("projection:");
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[0][0], mat[0][1], mat[0][2], mat[0][3]);
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[1][0], mat[1][1], mat[1][2], mat[1][3]);
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[2][0], mat[2][1], mat[2][2], mat[2][3]);
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
+
+            mat = mainCamera.ortho;
+            ImGui::Text("ortho:");
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[0][0], mat[0][1], mat[0][2], mat[0][3]);
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[1][0], mat[1][1], mat[1][2], mat[1][3]);
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[2][0], mat[2][1], mat[2][2], mat[2][3]);
+            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
+
+            auto vect = mainCamera.position;
+            ImGui::Text("camera position:");
+            ImGui::Text("%5.5f, %5.5f, %5.5f", vect[0], vect[1], vect[2]);
+
+            if (ImGui::Begin("camera"))
+            {
+                vect = mainCamera.camera_direction;
+                ImGui::Text("camera direction:");
+                ImGui::Text("%5.5f, %5.5f, %5.5f", vect[0], vect[1], vect[2]);
+
+                vect = mainCamera.camera_up;
+                ImGui::Text("camera up:");
+                ImGui::Text("%5.5f, %5.5f, %5.5f", vect[0], vect[1], vect[2]);
+
+                ImGui::End();
+            }
 
             ImGui::End();
         }
@@ -733,15 +778,23 @@ void VulkanEngine::update_scene()
     // camera projection
     glm::mat4 projection = glm::perspective(glm::radians(60.f),
                                             static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.
-                                                height), 1000.0f, 0.1f);
+                                                height), 0.1f, 1000.0f);
 
     // invert the Y direction on projection matrix so that we are more similar
     // to opengl and gltf axis
     projection[1][1] *= -1;
 
+    if (mainCamera.view_mode == VIEW_MODE::perspective)
+    {
+        sceneData.proj = mainCamera.projection;
+        sceneData.viewproj = mainCamera.projection * view;
+    }
+    else if (mainCamera.view_mode == VIEW_MODE::orthographic)
+    {
+        sceneData.proj = mainCamera.ortho;
+        sceneData.viewproj = mainCamera.ortho * view;
+    }
     sceneData.view = view;
-    sceneData.proj = projection;
-    sceneData.viewproj = projection * view;
 
 
     // for (int i = 0; i < 16; i++)         {
@@ -1224,9 +1277,11 @@ void VulkanEngine::init_sync_structures()
 
 void VulkanEngine::init_renderables()
 {
-    std::string structurePath = { "C:/code/code_file/example/vulkan guide/vulkan-guide-all-chapters-2/assets/structure.glb" };
-    //std::string structurePath = { "C:/code/data/gltf/just_a_girl/scene.gltf" };
-    
+    //std::string structurePath = { "C:/code/code_file/example/vulkan guide/vulkan-guide-all-chapters-2/assets/structure.glb" };
+    std::string structurePath = {"C:/code/data/gltf/just_a_girl/scene.gltf"};
+    //std::string structurePath = { "C:/code/data/glTF-Sample-Models-main/2.0/Sponza/glTF/Sponza.gltf" };
+    //std::string structurePath = { "C:/code/data/glTF-Sample-Models-main/2.0/Box/glTF/Box.gltf" };
+
     auto structureFile = loadGltf(this, structurePath);
 
     assert(structureFile.has_value());
@@ -1308,6 +1363,14 @@ void VulkanEngine::init_pipelines()
     init_background_pipelines();
 
     metalRoughMaterial.build_pipelines(this);
+
+    _mainDeletionQueue.push_function([&]()
+    {
+        vkDestroyPipelineLayout(_device, metalRoughMaterial.opaquePipeline.layout, nullptr);
+        vkDestroyPipeline(_device, metalRoughMaterial.opaquePipeline.pipeline, nullptr);
+        vkDestroyPipelineLayout(_device, metalRoughMaterial.transparentPipeline.layout, nullptr);
+        vkDestroyPipeline(_device, metalRoughMaterial.transparentPipeline.pipeline, nullptr);
+    });
 }
 
 void VulkanEngine::init_descriptors()
@@ -1393,23 +1456,25 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     vkutil::readShaderFile("C:/code/code_file/Decker/assets/shaders/mesh.vert", code2);
     std::vector<uint32_t> spv_code1;
     std::vector<uint32_t> spv_code2;
-    compiler.compileGLSLtoSPV(code1, spv_code1, EShLanguage::EShLangFragment, false);
-    compiler.compileGLSLtoSPV(code2, spv_code2, EShLanguage::EShLangVertex, false);
+    compiler.compileGLSLtoSPV(code1, spv_code1, EShLangFragment, false);
+    compiler.compileGLSLtoSPV(code2, spv_code2, EShLangVertex, false);
     compiler.finalizeGlslang();
-                                                                                                                 fmt::print(fmt::fg(fmt::color::alice_blue), "-----------------------temp use shader-----------------------\n");
+    print(fg(fmt::color::alice_blue), "-----------------------temp use shader-----------------------\n");
     //layout code
     VkShaderModule meshFragShader;
     //if (!vkutil::load_shader_module(spv_code1, engine->_device, &meshFragShader))
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh_pbr.frag.spv", engine->_device, &meshFragShader)) 
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh_pbr.frag.spv", engine->_device,
+                                    &meshFragShader))
     {
-        fmt::print(fmt::fg(fmt::color::red), "Error when building the fragment shader \n");
+        print(fg(fmt::color::red), "Error when building the fragment shader \n");
     }
 
     VkShaderModule meshVertexShader;
     //if (!vkutil::load_shader_module(spv_code1, engine->_device, &meshVertexShader))
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh.vert.spv", engine->_device, &meshVertexShader))
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh.vert.spv", engine->_device,
+                                    &meshVertexShader))
     {
-        fmt::print(fmt::fg(fmt::color::red), "Error when building the vertex shader \n");
+        print(fg(fmt::color::red), "Error when building the vertex shader \n");
     }
 
     VkPushConstantRange matrixRange{};
@@ -1422,7 +1487,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    VkDescriptorSetLayout layouts[] = {
+    VkDescriptorSetLayout layouts[] =
+    {
         engine->_gpuSceneDataDescriptorLayout,
         materialLayout
     };
@@ -1449,13 +1515,13 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
 
-    pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_CLOCKWISE);
+    pipelineBuilder.set_cull_mode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
     pipelineBuilder.set_multisampling_none();
 
     pipelineBuilder.disable_blending();
 
-    pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
 
     //render format
     pipelineBuilder.set_color_attachment_format(engine->_drawImage.imageFormat);
