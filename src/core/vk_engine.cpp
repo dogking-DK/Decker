@@ -18,6 +18,7 @@
 #include <glm/gtx/transform.hpp>
 
 #define VMA_IMPLEMENTATION
+#define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
 #include "vk_mem_alloc.h"
 
 
@@ -148,7 +149,7 @@ void VulkanEngine::init_default_data()
     rect_indices[4] = 1;
     rect_indices[5] = 3;
 
-    rectangle = uploadMesh(rect_indices, rect_vertices);
+    //rectangle = uploadMesh(rect_indices, rect_vertices);
 
     //3 default textures, white, grey, black. 1 pixel each
     uint32_t white = packUnorm4x8(glm::vec4(1, 1, 1, 1));
@@ -209,7 +210,7 @@ void VulkanEngine::cleanup()
 
         vkDestroySurfaceKHR(_instance, _surface, nullptr);
 
-        vmaDestroyAllocator(_allocator);
+        //vmaDestroyAllocator(_allocator);
 
         vkDestroyDevice(_device, nullptr);
         vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
@@ -236,6 +237,7 @@ void VulkanEngine::init_background_pipelines()
     computeLayout.pushConstantRangeCount = 1;
 
     VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
+    //VK_DEBUGNAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, &_gradientPipelineLayout, "background layout");
 
     VkShaderModule gradientShader;
     if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/gradient_color.comp.spv", _device,
@@ -272,8 +274,9 @@ void VulkanEngine::init_background_pipelines()
     gradient.data.data1 = glm::vec4(1, 0, 0, 1);
     gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
-    VK_CHECK(
-        vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+    VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+    //VK_DEBUGNAME(_device, VK_OBJECT_TYPE_PIPELINE, &gradient.pipeline, "gradient pipeline");
+
 
     //change the shader module only to create the sky shader
     computePipelineCreateInfo.stage.module = skyShader;
@@ -286,6 +289,7 @@ void VulkanEngine::init_background_pipelines()
     sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
 
     VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
+    //VK_DEBUGNAME(_device, VK_OBJECT_TYPE_PIPELINE, &sky.pipeline, "sky pipeline");
 
     //add the 2 background effects into the array
     backgroundEffects.push_back(gradient);
@@ -294,12 +298,12 @@ void VulkanEngine::init_background_pipelines()
     //destroy structures properly
     vkDestroyShaderModule(_device, gradientShader, nullptr);
     vkDestroyShaderModule(_device, skyShader, nullptr);
-    _mainDeletionQueue.push_function([&]()
-    {
-        vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
-        vkDestroyPipeline(_device, sky.pipeline, nullptr);
-        vkDestroyPipeline(_device, gradient.pipeline, nullptr);
-    });
+    //_mainDeletionQueue.push_function([&]()
+    //{
+    //    vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
+    //    vkDestroyPipeline(_device, sky.pipeline, nullptr);
+    //    vkDestroyPipeline(_device, gradient.pipeline, nullptr);
+    //});
 }
 
 
@@ -920,7 +924,6 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
                                             VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                             VMA_MEMORY_USAGE_GPU_ONLY);
 
-
     VkBufferDeviceAddressInfo deviceAdressInfo{
         .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = newSurface.vertexBuffer.buffer
     };
@@ -1018,6 +1021,7 @@ void VulkanEngine::init_vulkan()
     auto inst_ret = builder.set_app_name("Example Vulkan Application")
                            .request_validation_layers(bUseValidationLayers)
                            .use_default_debug_messenger()
+                           .enable_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
                            .require_api_version(1, 3, 0)
                            .build();
     if (!inst_ret)
@@ -1364,13 +1368,13 @@ void VulkanEngine::init_pipelines()
 
     metalRoughMaterial.build_pipelines(this);
 
-    _mainDeletionQueue.push_function([&]()
-    {
-        vkDestroyPipelineLayout(_device, metalRoughMaterial.opaquePipeline.layout, nullptr);
-        vkDestroyPipeline(_device, metalRoughMaterial.opaquePipeline.pipeline, nullptr);
-        vkDestroyPipelineLayout(_device, metalRoughMaterial.transparentPipeline.layout, nullptr);
-        vkDestroyPipeline(_device, metalRoughMaterial.transparentPipeline.pipeline, nullptr);
-    });
+    //_mainDeletionQueue.push_function([&]()
+    //{
+    //    vkDestroyPipelineLayout(_device, metalRoughMaterial.opaquePipeline.layout, nullptr);
+    //    vkDestroyPipeline(_device, metalRoughMaterial.opaquePipeline.pipeline, nullptr);
+    //    vkDestroyPipelineLayout(_device, metalRoughMaterial.transparentPipeline.layout, nullptr);
+    //    vkDestroyPipeline(_device, metalRoughMaterial.transparentPipeline.pipeline, nullptr);
+    //});
 }
 
 void VulkanEngine::init_descriptors()
@@ -1501,6 +1505,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     VkPipelineLayout newLayout;
     VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
+    //VK_DEBUGNAME(engine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, &newLayout, "mesh layout");
+
 
     opaquePipeline.layout = newLayout;
     transparentPipeline.layout = newLayout;
@@ -1532,6 +1538,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     // finally build the pipeline
     opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+    //VK_DEBUGNAME(engine->_device, VK_OBJECT_TYPE_PIPELINE, &opaquePipeline.pipeline, "opaque pipeline");
 
     // create the transparent variant
     pipelineBuilder.enable_blending_additive();
@@ -1539,6 +1546,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
     transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
+    //VK_DEBUGNAME(engine->_device, VK_OBJECT_TYPE_PIPELINE, &transparentPipeline.pipeline, "transparent pipeline");
 
     vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
     vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);

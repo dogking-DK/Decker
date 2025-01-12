@@ -140,14 +140,23 @@ struct Node : public IRenderable {
         }
     }
 };
-//< node_types
-//> intro
-#define VK_CHECK(x)                                                     \
-    do {                                                                \
-        VkResult err = x;                                               \
-        if (err) {                                                      \
+
+
+#define VK_CHECK(x)                                                         \
+    do {                                                                    \
+        VkResult err = x;                                                   \
+        if (err) {                                                          \
              fmt::print("Detected Vulkan error: {}", string_VkResult(err)); \
-            abort();                                                    \
-        }                                                               \
+            abort();                                                        \
+        }                                                                   \
     } while (0)
-//< intro
+
+#define VK_DEBUGNAME(device, objType, objHandle, name)                       \
+    do {                                                                     \
+        VkDebugUtilsObjectNameInfoEXT nameInfo{};                            \
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT; \
+        nameInfo.objectType = objType;                                       \
+        nameInfo.objectHandle = reinterpret_cast<uint64_t>(objHandle);       \
+        nameInfo.pObjectName = name;                                         \
+        pfnSetDebugUtilsObjectNameEXT(device, &imageNameInfo);               \
+    } while (0)
