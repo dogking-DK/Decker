@@ -30,7 +30,7 @@ static std::string get_variant_type(const Variant& var)
 
 std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image)
 {
-    fmt::print("image type: {}\n", get_variant_type(image.data));
+    fmt::print("image type({}) name({})\n", get_variant_type(image.data), image.name);
 
     AllocatedImage newImage{};
 
@@ -47,6 +47,12 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
                 auto path(parent_path);
                 path.append(filePath.uri.path());
                 if (filePath.uri.isLocalPath()) fmt::print("image path: {}\n", path.generic_string());
+
+                if (image.name.empty())
+                {
+                    image.name = filePath.uri.path();
+                    fmt::print("generate image name({})\n", image.name);
+                }
 
                 unsigned char* data = stbi_load(path.generic_string().c_str(), &width, &height, &nrChannels, 4);
                 if (data)
@@ -266,14 +272,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         }
         else
         {
-            // we failed to load, so lets give the slot a default white texture to not
-            // completely break loading
+            // we failed to load, so lets give the slot a default white texture to not completely break loading
             images.push_back(engine->_errorCheckerboardImage);
             fmt::print(stderr, "gltf failed to load texture: {}\n", image.name);
         }
     }
 
-    //> load_buffer
     // create buffer to hold the material data
     file.materialDataBuffer = engine->create_buffer(
         sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
@@ -281,9 +285,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     int data_index = 0;
     auto sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.
         pMappedData);
-    //< load_buffer
-    //
-    //> load_material
+
+
     for (fastgltf::Material& mat : gltf.materials)
     {
         auto newMat = std::make_shared<GLTFMaterial>();
@@ -340,8 +343,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         data_index++;
     }
 
-    // use the same vectors for all meshes so that the memory doesnt reallocate as
-    // often
+    // use the same vectors for all meshes so that the memory doesn't reallocate as often
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
     fmt::print(fmt::fg(fmt::color::azure), 
@@ -522,6 +524,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             node->refreshTransform(glm::mat4{1.f});
         }
     }
+
     return scene;
     //< load_graph
 }

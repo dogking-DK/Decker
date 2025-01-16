@@ -1,4 +1,4 @@
-#define GLM_ENABLE_EXPERIMENTAL
+ï»¿#define GLM_ENABLE_EXPERIMENTAL
 
 #include <camera.h>
 #include <imgui.h>
@@ -55,7 +55,7 @@ glm::mat4 Camera::getRotationMatrix()
 
 void Camera::processSDLEvent(SDL_Event& e)
 {
-	// Èç¹û ImGui ÕıÔÚ²¶»ñÊó±êÊÂ¼ş£¬Ö±½Ó·µ»Ø
+	// å¦‚æœ ImGui æ­£åœ¨æ•è·é¼ æ ‡äº‹ä»¶ï¼Œç›´æ¥è¿”å›
 	if (ImGui::GetIO().WantCaptureMouse)
 		return;
 

@@ -3,12 +3,12 @@
 #include "vk_images.h"
 #include "vk_loader.h"
 #include "vk_descriptors.h"
+#include <vk_types.h>
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
 #include <vk_initializers.h>
-#include <vk_types.h>
 
 #include "VkBootstrap.h"
 
@@ -19,6 +19,7 @@
 
 #define VMA_IMPLEMENTATION
 #define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
+#include "vk_debug_util.h"
 #include "vk_mem_alloc.h"
 
 
@@ -204,13 +205,18 @@ void VulkanEngine::cleanup()
             frame._deletionQueue.flush();
         }
 
+        destroy_image(_whiteImage);
+        destroy_image(_blackImage);
+        destroy_image(_greyImage);
+        destroy_image(_errorCheckerboardImage);
+
         _mainDeletionQueue.flush();
 
         destroy_swapchain();
 
         vkDestroySurfaceKHR(_instance, _surface, nullptr);
 
-        //vmaDestroyAllocator(_allocator);
+        vmaDestroyAllocator(_allocator);
 
         vkDestroyDevice(_device, nullptr);
         vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
@@ -1017,6 +1023,7 @@ void VulkanEngine::init_vulkan()
 {
     vkb::InstanceBuilder builder;
 
+
     // make the vulkan instance, with basic debug features
     auto inst_ret = builder.set_app_name("Example Vulkan Application")
                            .request_validation_layers(bUseValidationLayers)
@@ -1035,6 +1042,13 @@ void VulkanEngine::init_vulkan()
     // grab the instance
     _instance = vkb_inst.instance;
     _debug_messenger = vkb_inst.debug_messenger;
+
+    uint32_t instance_extension_count;
+    VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr));
+
+    std::vector<VkExtensionProperties> available_instance_extensions(instance_extension_count);
+    VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, available_instance_extensions.data()));
+
     auto sdl_err = SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
     if (!sdl_err)
     {
@@ -1086,7 +1100,7 @@ void VulkanEngine::init_vulkan()
     // Get the VkDevice handle used in the rest of a vulkan application
     _device = vkbDevice.device;
     _chosenGPU = physicalDevice.physical_device;
-
+    
     // use vkbootstrap to get a Graphics queue
     _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
 
@@ -1505,6 +1519,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     VkPipelineLayout newLayout;
     VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
+    //setDebugName(engine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<uint64_t>(&newLayout), "mesh layout");
     //VK_DEBUGNAME(engine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, &newLayout, "mesh layout");
 
 
