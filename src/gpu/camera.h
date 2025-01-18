@@ -1,5 +1,9 @@
+#include <Macros.h>
 #include <vk_types.h>
 #include <SDL_events.h>
+#include <Object.h>
+
+DECKER_START
 
 enum class VIEW_MODE
 {
@@ -37,3 +41,5 @@ public:
 
 	void update();
 };
+
+DECKER_END

@@ -22,11 +22,10 @@
 #include "vk_debug_util.h"
 #include "vk_mem_alloc.h"
 
-
 template <>
 struct fmt::formatter<glm::vec3>
 {
-    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    constexpr auto parse(fmt::format_parse_context& ctx) { return ctx.begin(); }
 
     template <typename Context>
     constexpr auto format(const glm::vec3& foo, Context& ctx) const
@@ -34,6 +33,8 @@ struct fmt::formatter<glm::vec3>
         return format_to(ctx.out(), "[{:10.3f}, {:10.3f}, {:10.3f}]", foo.x, foo.y, foo.z);
     }
 };
+
+DECKER_START
 
 constexpr bool bUseValidationLayers = true;
 
@@ -1296,9 +1297,10 @@ void VulkanEngine::init_sync_structures()
 void VulkanEngine::init_renderables()
 {
     //std::string structurePath = { "C:/code/code_file/example/vulkan guide/vulkan-guide-all-chapters-2/assets/structure.glb" };
-    std::string structurePath = {"C:/code/data/gltf/just_a_girl/scene.gltf"};
+    //std::string structurePath = {"C:/code/data/gltf/just_a_girl/scene.gltf"};
     //std::string structurePath = { "C:/code/data/glTF-Sample-Models-main/2.0/Sponza/glTF/Sponza.gltf" };
-    //std::string structurePath = { "C:/code/data/glTF-Sample-Models-main/2.0/Box/glTF/Box.gltf" };
+    //std::string structurePath = { "C:/code/data/gltf/cathedral/scene.gltf" };
+    std::string structurePath = { "C:/code/data/gltf/cathedral/scene.gltf" };
 
     auto structureFile = loadGltf(this, structurePath);
 
@@ -1598,34 +1600,34 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
     return matData;
 }
 
-void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
-{
-    glm::mat4 nodeMatrix = topMatrix * worldTransform;
-
-    for (auto& s : mesh->surfaces)
-    {
-        RenderObject def;
-        def.indexCount = s.count;
-        def.firstIndex = s.startIndex;
-        def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
-        def.material = &s.material->data;
-        def.bounds = s.bounds;
-        def.transform = nodeMatrix;
-        def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
-
-        if (s.material->data.passType == MaterialPass::Transparent)
-        {
-            ctx.TransparentSurfaces.push_back(def);
-        }
-        else
-        {
-            ctx.OpaqueSurfaces.push_back(def);
-        }
-    }
-
-    // recurse down
-    Node::Draw(topMatrix, ctx);
-}
+//void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
+//{
+//    glm::mat4 nodeMatrix = topMatrix * worldTransform;
+//
+//    for (auto& s : mesh->surfaces)
+//    {
+//        RenderObject def;
+//        def.indexCount = s.count;
+//        def.firstIndex = s.startIndex;
+//        def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
+//        def.material = &s.material->data;
+//        def.bounds = s.bounds;
+//        def.transform = nodeMatrix;
+//        def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
+//
+//        if (s.material->data.passType == MaterialPass::Transparent)
+//        {
+//            ctx.TransparentSurfaces.push_back(def);
+//        }
+//        else
+//        {
+//            ctx.OpaqueSurfaces.push_back(def);
+//        }
+//    }
+//
+//    // recurse down
+//    Node::draw(topMatrix, ctx);
+//}
 
 
 TextureID TextureCache::AddTexture(const VkImageView& image, VkSampler sampler)
@@ -1647,3 +1649,6 @@ TextureID TextureCache::AddTexture(const VkImageView& image, VkSampler sampler)
 
     return TextureID{idx};
 }
+
+
+DECKER_END

@@ -5,6 +5,9 @@
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ResourceLimits.h>
 
+
+#include "Macros.h"
+
 VKUTIL_BEGIN
 
 class ShaderCompiler

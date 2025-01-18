@@ -9,6 +9,10 @@
 #include <unordered_map>
 #include <filesystem>
 
+#include "Macros.h"
+
+DECKER_START
+
 class VulkanEngine;
 
 struct Bounds {
@@ -67,6 +71,8 @@ private:
 };
 
 std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath);
+
+DECKER_END
 
 VKUTIL_BEGIN
 

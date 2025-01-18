@@ -5,6 +5,8 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+DECKER_START
+
 Camera::Camera()
 {
 	projection = glm::perspective(glm::radians(60.f), 16.0f / 9.0f, 0.1f, 500.0f);
@@ -104,3 +106,5 @@ void Camera::processSDLEvent(SDL_Event& e)
 		break;
 	}
 }
+
+DECKER_END
