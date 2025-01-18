@@ -1,0 +1,27 @@
+[submodule "external/slang"]
+	path = external/slang
+	url = https://github.com/shader-slang/slang.git
+[submodule "external/vk-bootstrap"]
+	path = external/vk-bootstrap
+	url = https://github.com/charles-lunarg/vk-bootstrap.git
+[submodule "external/implot"]
+	path = external/implot
+	url = https://github.com/epezent/implot.git
+[submodule "external/volk"]
+	path = external/volk
+	url = https://github.com/zeux/volk.git
+[submodule "external/sdl"]
+	path = external/sdl
+	url = https://github.com/libsdl-org/SDL.git
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "external/vma"]
+	path = external/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "external/freetype"]
+	path = external/freetype
+	url = https://github.com/freetype/freetype.git
+[submodule "external/imgui-node-editor"]
+	path = external/imgui-node-editor
+	url = https://github.com/thedmd/imgui-node-editor.git
