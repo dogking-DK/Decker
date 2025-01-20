@@ -9,6 +9,7 @@ find_package(VulkanHeaders CONFIG)
 
 find_package(assimp REQUIRED)
 find_package(fastgltf CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(glslang REQUIRED)
 find_package(flecs REQUIRED)
@@ -25,12 +26,14 @@ find_package(implot CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(Freetype REQUIRED)
 
+
 # 查找所有源文件 (.cpp 和 .hpp)
 file(GLOB_RECURSE MAIN_SOURCES "main/*.cpp" "main/*.hpp" "main/*.h") # 主入口
 file(GLOB_RECURSE CORE_SOURCES "core/*.cpp" "core/*.hpp" "core/*.h") # 核心
 file(GLOB_RECURSE GPU_SOURCES "gpu/*.cpp" "gpu/*.hpp" "gpu/*.h")     # GPU相关
 file(GLOB_RECURSE IO_SOURCES "io/*.cpp" "io/*.hpp" "io/*.h")         # IO相关
 file(GLOB_RECURSE UI_SOURCES "ui/*.cpp" "ui/*.hpp" "ui/*.h")         # UI相关
+file(GLOB_RECURSE UTIL_SOURCES "util/*.cpp" "util/*.hpp" "util/*.h") # 工具类
 
 # 输出所有的源文件路径
 message(STATUS "Main sources: ${MAIN_SOURCES}")
@@ -38,6 +41,7 @@ message(STATUS "Core sources: ${CORE_SOURCES}")
 message(STATUS "GPU sources: ${GPU_SOURCES}")
 message(STATUS "IO sources: ${IO_SOURCES}")
 message(STATUS "UI sources: ${UI_SOURCES}")
+message(STATUS "Util sources: ${UTIL_SOURCES}")
 
 # 将所有的源文件加入到一个列表
 set(ALL_SOURCES
@@ -46,6 +50,7 @@ set(ALL_SOURCES
     ${GPU_SOURCES}
     ${IO_SOURCES}
     ${UI_SOURCES}
+    ${UTIL_SOURCES}
 )
 
 # 设置source_group保持文件夹结构
@@ -60,7 +65,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/core
     ${CMAKE_SOURCE_DIR}/src/gpu
     ${CMAKE_SOURCE_DIR}/src/io
-    ${CMAKE_SOURCE_DIR}/src/ui)
+    ${CMAKE_SOURCE_DIR}/src/ui
+    ${CMAKE_SOURCE_DIR}/src/util
+    )
 
 # 链接三方库
 target_link_libraries(${PROJECT_NAME} 
@@ -81,6 +88,7 @@ target_link_libraries(${PROJECT_NAME}
     freetype
     assimp::assimp
     fastgltf::fastgltf
+    nlohmann_json::nlohmann_json
     $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
     $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
     spdlog::spdlog

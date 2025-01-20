@@ -17,6 +17,8 @@
 #endif
 #include "stb_image.h"
 
+DECKER_START
+
 static std::filesystem::path parent_path;
 
 template <typename Variant>
@@ -327,12 +329,34 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
             materialResources.colorImage = images[img];
             materialResources.colorSampler = file.samplers[sampler];
+
+            constants.colorTexID = engine->texCache.AddTexture(materialResources.colorImage.imageView,
+                materialResources.colorSampler).Index;
         }
 
-        constants.colorTexID = engine->texCache.AddTexture(materialResources.colorImage.imageView,
-                                                           materialResources.colorSampler).Index;
-        constants.metalRoughTexID = engine->texCache.AddTexture(materialResources.metalRoughImage.imageView,
-                                                                materialResources.metalRoughSampler).Index;
+        if (mat.pbrData.metallicRoughnessTexture.has_value())
+        {
+            size_t img = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex].imageIndex.value();
+            size_t sampler = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex].samplerIndex.value();
+
+            materialResources.metalRoughImage = images[img];
+            materialResources.metalRoughSampler = file.samplers[sampler];
+
+            constants.metalRoughTexID = engine->texCache.AddTexture(materialResources.metalRoughImage.imageView,
+                materialResources.metalRoughSampler).Index;
+        }
+
+        if (mat.normalTexture.has_value())
+        {
+            size_t img = gltf.textures[mat.normalTexture.value().textureIndex].imageIndex.value();
+            size_t sampler = gltf.textures[mat.normalTexture.value().textureIndex].samplerIndex.value();
+
+            materialResources.normal_image = images[img];
+            materialResources.normal_sampler = file.samplers[sampler];
+
+            constants.normalTexID = engine->texCache.AddTexture(materialResources.normal_image.imageView,
+                materialResources.normal_sampler).Index;
+        }
 
         // write material parameters to buffer
         sceneMaterialConstants[data_index] = constants;
@@ -529,12 +553,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     //< load_graph
 }
 
-void LoadedGLTF::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
+void LoadedGLTF::draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
     // create renderables from the scenenodes
     for (auto& n : topNodes)
     {
-        n->Draw(topMatrix, ctx);
+        n->draw(topMatrix, ctx);
     }
 }
 
@@ -571,6 +595,7 @@ void LoadedGLTF::clearAll()
     creator->destroy_buffer(materialBuffer);
 }
 
+DECKER_END
 
 bool vkutil::readShaderFile(const std::string& file_path, std::string& code)
 {

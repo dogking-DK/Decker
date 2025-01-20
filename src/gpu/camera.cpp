@@ -41,8 +41,6 @@ glm::mat4 Camera::getViewMatrix()
 	direction.z = -sin(glm::radians(yaw)) * sin(glm::radians(pitch));
 	camera_up = direction;
 
-
-
 	return glm::lookAt(position, position + camera_direction, camera_up);
 }
 

@@ -15,7 +15,6 @@
 #include <vk_pipelines.h>
 
 #include "Scene/Node.h"
-struct MeshAsset;
 
 namespace fastgltf
 {
@@ -62,17 +61,7 @@ DECKER_START
         ComputePushConstants data;
     };
 
-    struct RenderObject
-    {
-        uint32_t indexCount;
-        uint32_t firstIndex;
-        VkBuffer indexBuffer;
 
-        MaterialInstance* material;
-        Bounds bounds;
-        glm::mat4 transform;
-        VkDeviceAddress vertexBufferAddress;
-    };
 
     struct FrameData
     {
@@ -88,11 +77,7 @@ DECKER_START
 
     constexpr unsigned int FRAME_OVERLAP = 2;
 
-    struct DrawContext
-    {
-        std::vector<RenderObject> OpaqueSurfaces;
-        std::vector<RenderObject> TransparentSurfaces;
-    };
+
 
     struct EngineStats
     {
@@ -116,8 +101,8 @@ DECKER_START
             // padding, we need it anyway for uniform buffers
             uint32_t colorTexID;
             uint32_t metalRoughTexID;
+            uint32_t normalTexID;
             uint32_t pad1;
-            uint32_t pad2;
             glm::vec4 extra[13];
         };
 
@@ -127,6 +112,8 @@ DECKER_START
             VkSampler colorSampler;
             AllocatedImage metalRoughImage;
             VkSampler metalRoughSampler;
+            AllocatedImage normal_image;
+            VkSampler normal_sampler;
             VkBuffer dataBuffer;
             uint32_t dataBufferOffset;
         };
@@ -139,13 +126,6 @@ DECKER_START
         MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources,
                                         DescriptorAllocatorGrowable& descriptorAllocator);
     };
-
-    //struct MeshNode : Node
-    //{
-    //    std::shared_ptr<MeshAsset> mesh;
-
-    //    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
-    //};
 
     struct TextureID
     {
@@ -277,7 +257,6 @@ DECKER_START
         void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
         std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
-        std::vector<std::shared_ptr<LoadedGLTF>> brickadiaScene;
 
         void destroy_image(const AllocatedImage& img);
         void destroy_buffer(const AllocatedBuffer& buffer);

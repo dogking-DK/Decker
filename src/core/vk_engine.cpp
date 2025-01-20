@@ -808,9 +808,7 @@ void VulkanEngine::update_scene()
     sceneData.view = view;
 
 
-    // for (int i = 0; i < 16; i++)         {
-    loadedScenes["structure"]->Draw(glm::mat4{1.f}, drawCommands);
-    //}
+    loadedScenes["structure"]->draw(glm::mat4{1.f}, drawCommands);
 }
 
 AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
@@ -1297,10 +1295,11 @@ void VulkanEngine::init_sync_structures()
 void VulkanEngine::init_renderables()
 {
     //std::string structurePath = { "C:/code/code_file/example/vulkan guide/vulkan-guide-all-chapters-2/assets/structure.glb" };
-    //std::string structurePath = {"C:/code/data/gltf/just_a_girl/scene.gltf"};
+    std::string structurePath = {"C:/code/data/gltf/just_a_girl/scene.gltf"};
     //std::string structurePath = { "C:/code/data/glTF-Sample-Models-main/2.0/Sponza/glTF/Sponza.gltf" };
     //std::string structurePath = { "C:/code/data/gltf/cathedral/scene.gltf" };
-    std::string structurePath = { "C:/code/data/gltf/cathedral/scene.gltf" };
+    //std::string structurePath = { "C:/code/data/gltf/damascus_steel_katana/scene.gltf" };
+    //std::string structurePath = { "C:/code/data/gltf/crystal_palace_cinema_from_realityvirtual.co/scene.gltf" };
 
     auto structureFile = loadGltf(this, structurePath);
 
@@ -1479,6 +1478,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     compiler.compileGLSLtoSPV(code1, spv_code1, EShLangFragment, false);
     compiler.compileGLSLtoSPV(code2, spv_code2, EShLangVertex, false);
     compiler.finalizeGlslang();
+
+
     print(fg(fmt::color::alice_blue), "-----------------------temp use shader-----------------------\n");
     //layout code
     VkShaderModule meshFragShader;
@@ -1599,36 +1600,6 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
 
     return matData;
 }
-
-//void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
-//{
-//    glm::mat4 nodeMatrix = topMatrix * worldTransform;
-//
-//    for (auto& s : mesh->surfaces)
-//    {
-//        RenderObject def;
-//        def.indexCount = s.count;
-//        def.firstIndex = s.startIndex;
-//        def.indexBuffer = mesh->meshBuffers.indexBuffer.buffer;
-//        def.material = &s.material->data;
-//        def.bounds = s.bounds;
-//        def.transform = nodeMatrix;
-//        def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
-//
-//        if (s.material->data.passType == MaterialPass::Transparent)
-//        {
-//            ctx.TransparentSurfaces.push_back(def);
-//        }
-//        else
-//        {
-//            ctx.OpaqueSurfaces.push_back(def);
-//        }
-//    }
-//
-//    // recurse down
-//    Node::draw(topMatrix, ctx);
-//}
-
 
 TextureID TextureCache::AddTexture(const VkImageView& image, VkSampler sampler)
 {

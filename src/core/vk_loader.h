@@ -10,40 +10,34 @@
 #include <filesystem>
 
 #include "Macros.h"
+#include "Scene/Node.h"
 
 DECKER_START
-
 class VulkanEngine;
 
-struct Bounds {
-    glm::vec3 origin;
-    float sphereRadius;
-    glm::vec3 extents;
-    glm::vec3 max_edge;
-    glm::vec3 min_edge;
-};
-
-struct GLTFMaterial {
+struct GLTFMaterial
+{
     MaterialInstance data;
 };
 
-struct GeoSurface {
+struct GeoSurface
+{
     uint32_t startIndex;
     uint32_t count;
     Bounds bounds;
-	std::shared_ptr<GLTFMaterial> material;
+    std::shared_ptr<GLTFMaterial> material;
 };
 
-struct MeshAsset {
+struct MeshAsset
+{
     std::string name;
 
-   
     std::vector<GeoSurface> surfaces;
     GPUMeshBuffers meshBuffers;
 };
 
-struct LoadedGLTF : public IRenderable {
-
+struct LoadedGLTF : IRenderable
+{
     // storage for all the data on a given gltf file
     std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
     std::unordered_map<std::string, std::shared_ptr<Node>> nodes;
@@ -61,12 +55,11 @@ struct LoadedGLTF : public IRenderable {
 
     VulkanEngine* creator;
 
-    ~LoadedGLTF() { clearAll(); };
+    ~LoadedGLTF() override { clearAll(); }
 
-    virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx);
+    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
 
 private:
-
     void clearAll();
 };
 
@@ -75,6 +68,5 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 DECKER_END
 
 VKUTIL_BEGIN
-
 bool readShaderFile(const std::string& file_path, std::string& code);
 VKUTIL_END

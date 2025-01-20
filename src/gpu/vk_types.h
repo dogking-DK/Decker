@@ -26,10 +26,9 @@
 //< intro 
 
 
-
-
 // we will add our main reusable types here
-struct AllocatedImage {
+struct AllocatedImage
+{
     VkImage image;
     VkImageView imageView;
     VmaAllocation allocation;
@@ -37,13 +36,15 @@ struct AllocatedImage {
     VkFormat imageFormat;
 };
 
-struct AllocatedBuffer {
+struct AllocatedBuffer
+{
     VkBuffer buffer;
     VmaAllocation allocation;
     VmaAllocationInfo info;
 };
 
-struct GPUGLTFMaterial {
+struct GPUGLTFMaterial
+{
     glm::vec4 colorFactors;
     glm::vec4 metal_rough_factors;
     glm::vec4 extra[14];
@@ -51,7 +52,8 @@ struct GPUGLTFMaterial {
 
 static_assert(sizeof(GPUGLTFMaterial) == 256);
 
-struct GPUSceneData {
+struct GPUSceneData
+{
     glm::mat4 view;
     glm::mat4 proj;
     glm::mat4 viewproj;
@@ -61,45 +63,52 @@ struct GPUSceneData {
 };
 
 //> mat_types
-enum class MaterialPass :uint8_t {
+enum class MaterialPass :uint8_t
+{
     MainColor,
     Transparent,
     Other
 };
-struct MaterialPipeline {
-	VkPipeline pipeline;
-	VkPipelineLayout layout;
+
+struct MaterialPipeline
+{
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
 };
 
-struct MaterialInstance {
+struct MaterialInstance
+{
     MaterialPipeline* pipeline;
     VkDescriptorSet materialSet;
     MaterialPass passType;
 };
+
 //< mat_types
 //> vbuf_types
-struct Vertex {
-
-	glm::vec3 position;
-	float uv_x;
-	glm::vec3 normal;
-	float uv_y;
-	glm::vec4 color;
+struct Vertex
+{
+    glm::vec3 position;
+    float uv_x;
+    glm::vec3 normal;
+    float uv_y;
+    glm::vec4 color;
 };
 
 // holds the resources needed for a mesh
-struct GPUMeshBuffers {
-
+struct GPUMeshBuffers
+{
     AllocatedBuffer indexBuffer;
     AllocatedBuffer vertexBuffer;
     VkDeviceAddress vertexBufferAddress;
 };
 
 // push constants for our mesh object draws
-struct GPUDrawPushConstants {
+struct GPUDrawPushConstants
+{
     glm::mat4 worldMatrix;
     VkDeviceAddress vertexBuffer;
 };
+
 //< vbuf_types
 
 #define VK_CHECK(x)                                                         \
