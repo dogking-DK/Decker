@@ -4,7 +4,6 @@
 #pragma once
 #define GLM_ENABLE_EXPERIMENTAL
 
-
 #include <memory>
 #include <optional>
 #include <string>
@@ -110,22 +109,12 @@ struct GPUDrawPushConstants
 };
 
 //< vbuf_types
-
-#define VK_CHECK(x)                                                         \
-    do {                                                                    \
-        VkResult err = x;                                                   \
-        if (err) {                                                          \
-             fmt::print("Detected Vulkan error: {}", string_VkResult(err)); \
-            abort();                                                        \
-        }                                                                   \
-    } while (0)
-
-#define VK_DEBUGNAME(device, objType, objHandle, name)                       \
-    do {                                                                     \
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};                            \
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT; \
-        nameInfo.objectType = objType;                                       \
-        nameInfo.objectHandle = reinterpret_cast<uint64_t>(objHandle);       \
-        nameInfo.pObjectName = name;                                         \
-        pfnSetDebugUtilsObjectNameEXT(device, &imageNameInfo);               \
-    } while (0)
+inline void VK_CHECK(VkResult err)
+{
+    if (err != VK_SUCCESS) 
+    {
+        fmt::print(fmt::fg(fmt::color::orange_red),
+            "Detected Vulkan error: {}\n", string_VkResult(err));
+        abort();
+    }
+}

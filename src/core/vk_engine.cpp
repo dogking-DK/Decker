@@ -25,7 +25,7 @@
 template <>
 struct fmt::formatter<glm::vec3>
 {
-    constexpr auto parse(fmt::format_parse_context& ctx) { return ctx.begin(); }
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
 
     template <typename Context>
     constexpr auto format(const glm::vec3& foo, Context& ctx) const
@@ -35,7 +35,6 @@ struct fmt::formatter<glm::vec3>
 };
 
 DECKER_START
-
 constexpr bool bUseValidationLayers = true;
 
 // we want to immediately abort when there is an error. In normal engines this
@@ -190,6 +189,12 @@ void VulkanEngine::init_default_data()
     sampl.magFilter = VK_FILTER_LINEAR;
     sampl.minFilter = VK_FILTER_LINEAR;
     vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
+
+    _mainDeletionQueue.push_function([&]()
+        {
+            vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
+            vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
+        });
 }
 
 void VulkanEngine::cleanup()
@@ -244,7 +249,8 @@ void VulkanEngine::init_background_pipelines()
     computeLayout.pushConstantRangeCount = 1;
 
     VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
-    //VK_DEBUGNAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, &_gradientPipelineLayout, "background layout");
+    DebugUtils::getInstance().setDebugName(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<
+                                               uint64_t>(_gradientPipelineLayout), "background layout");
 
     VkShaderModule gradientShader;
     if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/gradient_color.comp.spv", _device,
@@ -281,8 +287,10 @@ void VulkanEngine::init_background_pipelines()
     gradient.data.data1 = glm::vec4(1, 0, 0, 1);
     gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
-    VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
-    //VK_DEBUGNAME(_device, VK_OBJECT_TYPE_PIPELINE, &gradient.pipeline, "gradient pipeline");
+    VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr,
+                                      &gradient.pipeline));
+    DebugUtils::getInstance().setDebugName(_device, VK_OBJECT_TYPE_PIPELINE,
+                                           reinterpret_cast<uint64_t>(gradient.pipeline), "gradient pipeline");
 
 
     //change the shader module only to create the sky shader
@@ -296,7 +304,8 @@ void VulkanEngine::init_background_pipelines()
     sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
 
     VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
-    //VK_DEBUGNAME(_device, VK_OBJECT_TYPE_PIPELINE, &sky.pipeline, "sky pipeline");
+    DebugUtils::getInstance().setDebugName(_device, VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<uint64_t>(sky.pipeline),
+                                           "sky pipeline");
 
     //add the 2 background effects into the array
     backgroundEffects.push_back(gradient);
@@ -305,12 +314,36 @@ void VulkanEngine::init_background_pipelines()
     //destroy structures properly
     vkDestroyShaderModule(_device, gradientShader, nullptr);
     vkDestroyShaderModule(_device, skyShader, nullptr);
-    //_mainDeletionQueue.push_function([&]()
-    //{
-    //    vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
-    //    vkDestroyPipeline(_device, sky.pipeline, nullptr);
-    //    vkDestroyPipeline(_device, gradient.pipeline, nullptr);
-    //});
+
+    fmt::print(fg(fmt::color::aqua), "Created sky pipeline: {:#x}\n", reinterpret_cast<uint64_t>(sky.pipeline));
+    fmt::print(fg(fmt::color::aqua), "Created gradient pipeline: {:#x}\n", reinterpret_cast<uint64_t>(gradient.pipeline));
+    _mainDeletionQueue.push_function([&]()
+    {
+            fmt::print(fg(fmt::color::aqua), "back ground release begin\n");
+            if (sky.pipeline != VK_NULL_HANDLE) 
+            {
+                vkDestroyPipeline(_device, backgroundEffects[1].pipeline, nullptr);
+                backgroundEffects[1].pipeline = VK_NULL_HANDLE; // 将句柄置为空
+                fmt::print(fg(fmt::color::aqua), "destroy sky pipeline\n");
+            }
+
+            // 销毁 gradient.pipeline
+
+            if (gradient.pipeline != VK_NULL_HANDLE) {
+                vkDestroyPipeline(_device, backgroundEffects[0].pipeline, nullptr);
+                backgroundEffects[0].pipeline = VK_NULL_HANDLE; // 将句柄置为空
+                fmt::print(fg(fmt::color::aqua), "destroy gradient pipeline\n");
+            }
+
+            // 销毁 PipelineLayout
+            if (_gradientPipelineLayout != VK_NULL_HANDLE) 
+            {
+                vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
+                _gradientPipelineLayout = VK_NULL_HANDLE; // 将句柄置为空
+                fmt::print(fg(fmt::color::aqua), "destroy gradient pipeline layout\n");
+            }
+            fmt::print(fg(fmt::color::aqua), "back ground release end\n");
+    });
 }
 
 
@@ -828,7 +861,7 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
 
     // allocate the buffer
     VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo, &newBuffer.buffer, &newBuffer.allocation,
-        &newBuffer.info));
+                             &newBuffer.info));
 
     return newBuffer;
 }
@@ -1042,11 +1075,14 @@ void VulkanEngine::init_vulkan()
     _instance = vkb_inst.instance;
     _debug_messenger = vkb_inst.debug_messenger;
 
+    DebugUtils::getInstance().initialize(_instance);
+
     uint32_t instance_extension_count;
     VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr));
 
     std::vector<VkExtensionProperties> available_instance_extensions(instance_extension_count);
-    VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, available_instance_extensions.data()));
+    VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count,
+                                                    available_instance_extensions.data()));
 
     auto sdl_err = SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
     if (!sdl_err)
@@ -1099,7 +1135,7 @@ void VulkanEngine::init_vulkan()
     // Get the VkDevice handle used in the rest of a vulkan application
     _device = vkbDevice.device;
     _chosenGPU = physicalDevice.physical_device;
-    
+
     // use vkbootstrap to get a Graphics queue
     _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
 
@@ -1383,13 +1419,10 @@ void VulkanEngine::init_pipelines()
 
     metalRoughMaterial.build_pipelines(this);
 
-    //_mainDeletionQueue.push_function([&]()
-    //{
-    //    vkDestroyPipelineLayout(_device, metalRoughMaterial.opaquePipeline.layout, nullptr);
-    //    vkDestroyPipeline(_device, metalRoughMaterial.opaquePipeline.pipeline, nullptr);
-    //    vkDestroyPipelineLayout(_device, metalRoughMaterial.transparentPipeline.layout, nullptr);
-    //    vkDestroyPipeline(_device, metalRoughMaterial.transparentPipeline.pipeline, nullptr);
-    //});
+    _mainDeletionQueue.push_function([&]()
+    {
+        metalRoughMaterial.clear_resources(_device);
+    });
 }
 
 void VulkanEngine::init_descriptors()
@@ -1522,9 +1555,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     VkPipelineLayout newLayout;
     VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
-    //setDebugName(engine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<uint64_t>(&newLayout), "mesh layout");
-    //VK_DEBUGNAME(engine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, &newLayout, "mesh layout");
-
+    DebugUtils::getInstance().setDebugName(engine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT,
+                                           reinterpret_cast<uint64_t>(newLayout), "mesh layout");
 
     opaquePipeline.layout = newLayout;
     transparentPipeline.layout = newLayout;
@@ -1556,7 +1588,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     // finally build the pipeline
     opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
-    //VK_DEBUGNAME(engine->_device, VK_OBJECT_TYPE_PIPELINE, &opaquePipeline.pipeline, "opaque pipeline");
+    DebugUtils::getInstance().setDebugName(engine->_device, VK_OBJECT_TYPE_PIPELINE,
+                                           reinterpret_cast<uint64_t>(opaquePipeline.pipeline), "opaque pipeline");
 
     // create the transparent variant
     pipelineBuilder.enable_blending_additive();
@@ -1564,7 +1597,9 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
     transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
-    //VK_DEBUGNAME(engine->_device, VK_OBJECT_TYPE_PIPELINE, &transparentPipeline.pipeline, "transparent pipeline");
+    DebugUtils::getInstance().setDebugName(engine->_device, VK_OBJECT_TYPE_PIPELINE,
+                                           reinterpret_cast<uint64_t>(transparentPipeline.pipeline),
+                                           "transparent pipeline");
 
     vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
     vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
@@ -1572,6 +1607,10 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
 void GLTFMetallic_Roughness::clear_resources(VkDevice device)
 {
+    vkDestroyPipeline(device, opaquePipeline.pipeline, nullptr);
+    vkDestroyPipeline(device, transparentPipeline.pipeline, nullptr);
+    vkDestroyPipelineLayout(device, transparentPipeline.layout, nullptr);
+    vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
 }
 
 MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass,
