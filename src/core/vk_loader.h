@@ -12,7 +12,7 @@
 #include "Macros.h"
 #include "Scene/Node.h"
 
-DECKER_START
+namespace dk {
 class VulkanEngine;
 
 struct GLTFMaterial
@@ -65,8 +65,8 @@ private:
 
 std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath);
 
-DECKER_END
+} // dk
 
-VKUTIL_BEGIN
+namespace vkutil {
 bool readShaderFile(const std::string& file_path, std::string& code);
-VKUTIL_END
+} // vkutil

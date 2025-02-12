@@ -3,7 +3,7 @@
 #include "vk_initializers.h"
 #include <fstream>
 
-VKUTIL_BEGIN
+namespace vkutil {
 
 bool load_shader_module(const char* filePath, VkDevice device, VkShaderModule* outShaderModule)
 {
@@ -102,7 +102,7 @@ bool ShaderCompiler::compileGLSLtoSPV(const std::string& src_code, std::vector<u
     glslang::GlslangToSpv(*program.getIntermediate(shader_type), dist_code);
     return true;
 }
-VKUTIL_END
+} // vkutil
 
 //> pipe_clear
 void PipelineBuilder::clear()

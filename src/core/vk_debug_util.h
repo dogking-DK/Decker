@@ -8,7 +8,7 @@
 
 #include "Macros.h"
 
-DECKER_START
+namespace dk {
 class DebugUtils
 {
 public:
@@ -70,4 +70,4 @@ private:
     mutable std::mutex mutex_; // 用于线程安全
 };
 
-DECKER_END
+} // dk

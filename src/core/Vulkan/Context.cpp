@@ -1,13 +1,12 @@
-#include <stdexcept>
-#include <iostream>
-#include <VkBootstrap.h>
 #include "Context.h"
 
+#include <VkBootstrap.h>
+#include <SDL.h>
 #include <SDL_vulkan.h>
 
 #include "vk_debug_util.h"
 
-
+namespace dk::vkcore {
 VulkanContext::VulkanContext()
 {
     initVulkan();
@@ -37,7 +36,7 @@ void VulkanContext::initVulkan()
     _instance = vkb_inst.instance;
     _debug_messenger = vkb_inst.debug_messenger;
 
-    dk::DebugUtils::getInstance().initialize(_instance);
+    DebugUtils::getInstance().initialize(_instance);
 
     uint32_t instance_extension_count;
     VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr));
@@ -108,8 +107,9 @@ void VulkanContext::cleanup()
     vkDestroySurfaceKHR(_instance, _surface, nullptr);
 
     vkDestroyDevice(_device, nullptr);
-        vkb::destroy_debug_utils_messenger(_instance, _debug_messenger, nullptr);
-        vkDestroyInstance(_instance, nullptr);
+    vkb::destroy_debug_utils_messenger(_instance, _debug_messenger, nullptr);
+    vkDestroyInstance(_instance, nullptr);
 
     SDL_DestroyWindow(_window);
 }
+} // dk::vkcore

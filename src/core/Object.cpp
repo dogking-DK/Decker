@@ -29,7 +29,7 @@
 #include <set>
 #include <mutex>
 
-DECKER_START
+namespace dk {
 
 #if FALCOR_ENABLE_OBJECT_TRACKING
 static std::mutex sTrackedObjectsMutex;
@@ -136,4 +136,4 @@ void Object::setEnableRefTracking(bool enable)
 
 #endif // FALCOR_ENABLE_REF_TRACKING
 
-DECKER_END
+} // dk

@@ -3,7 +3,7 @@
 #include <SDL_events.h>
 #include <Object.h>
 
-DECKER_START
+namespace dk {
 
 enum class VIEW_MODE
 {
@@ -42,4 +42,4 @@ public:
 	void update();
 };
 
-DECKER_END
+} // dk

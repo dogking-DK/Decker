@@ -22,7 +22,7 @@ namespace fastgltf
     struct Mesh;
 }
 
-DECKER_START
+namespace dk {
     struct DeletionQueue
     {
         std::deque<std::function<void()>> deletors;
@@ -146,18 +146,9 @@ DECKER_START
         bool _isInitialized{false};
         int _frameNumber{0};
 
+        vkcore::VulkanContext _context;
+
         VkExtent2D _windowExtent{1280, 720};
-
-
-
-        VkInstance _instance;
-        VkDebugUtilsMessengerEXT _debug_messenger;
-        VkPhysicalDevice _chosenGPU;
-        VkDevice _device;
-
-        VkQueue _graphicsQueue;
-        uint32_t _graphicsQueueFamily;
-
         AllocatedBuffer _defaultGLTFMaterialData;
 
         FrameData _frames[FRAME_OVERLAP];
@@ -288,7 +279,6 @@ DECKER_START
 
         void init_default_data();
 
-        VulkanContext _context;
     };
 
-DECKER_END
+} // dk

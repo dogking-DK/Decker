@@ -5,12 +5,8 @@
 #include "vk_descriptors.h"
 #include <vk_types.h>
 
-#include <SDL.h>
-#include <SDL_vulkan.h>
-
 #include <vk_initializers.h>
 
-#include "VkBootstrap.h"
 
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_vulkan.h"
@@ -18,6 +14,8 @@
 
 #define VMA_IMPLEMENTATION
 #define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
+#include <VkBootstrap.h>
+
 #include "vk_debug_util.h"
 #include "vk_mem_alloc.h"
 
@@ -33,9 +31,7 @@ struct fmt::formatter<glm::vec3>
     }
 };
 
-DECKER_START
-constexpr bool bUseValidationLayers = true;
-
+namespace dk {
 // we want to immediately abort when there is an error. In normal engines this
 // would give an error message to the user, or perform a dump of state.
 using namespace std;
@@ -63,7 +59,6 @@ void VulkanEngine::init()
     _window = SDL_CreateWindow("Vulkan Engine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _windowExtent.width,
                                _windowExtent.height, window_flags);
 
-    
 
     init_swapchain();
 
@@ -88,7 +83,7 @@ void VulkanEngine::init()
     mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
 
     glm::vec3 geom_center{0, 0, 0};
-    int count = 0;
+    int       count = 0;
     glm::vec3 total_max{-FLT_MAX, -FLT_MAX, -FLT_MAX};
     glm::vec3 total_min{FLT_MAX,FLT_MAX,FLT_MAX};
     for (const auto& mesh : loadedScenes["structure"]->meshes)
@@ -113,7 +108,7 @@ void VulkanEngine::init()
     mainCamera.position /= 2;
 
     mainCamera.pitch = 0;
-    mainCamera.yaw = 0;
+    mainCamera.yaw   = 0;
 }
 
 void VulkanEngine::init_default_data()
@@ -153,19 +148,19 @@ void VulkanEngine::init_default_data()
 
     //3 default textures, white, grey, black. 1 pixel each
     uint32_t white = packUnorm4x8(glm::vec4(1, 1, 1, 1));
-    _whiteImage = create_image(&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                               VK_IMAGE_USAGE_SAMPLED_BIT);
+    _whiteImage    = create_image(&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
+                                  VK_IMAGE_USAGE_SAMPLED_BIT);
 
     uint32_t grey = packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-    _greyImage = create_image(&grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                              VK_IMAGE_USAGE_SAMPLED_BIT);
+    _greyImage    = create_image(&grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
+                                 VK_IMAGE_USAGE_SAMPLED_BIT);
 
     uint32_t black = packUnorm4x8(glm::vec4(0, 0, 0, 0));
-    _blackImage = create_image(&black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                               VK_IMAGE_USAGE_SAMPLED_BIT);
+    _blackImage    = create_image(&black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
+                                  VK_IMAGE_USAGE_SAMPLED_BIT);
 
     //checkerboard image
-    uint32_t magenta = packUnorm4x8(glm::vec4(1, 0, 1, 1));
+    uint32_t                      magenta = packUnorm4x8(glm::vec4(1, 0, 1, 1));
     std::array<uint32_t, 16 * 16> pixels; //for 16x16 checkerboard texture
     for (int x = 0; x < 16; x++)
     {
@@ -183,17 +178,17 @@ void VulkanEngine::init_default_data()
     sampl.magFilter = VK_FILTER_NEAREST;
     sampl.minFilter = VK_FILTER_NEAREST;
 
-    vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerNearest);
+    vkCreateSampler(_context.getDevice(), &sampl, nullptr, &_defaultSamplerNearest);
 
     sampl.magFilter = VK_FILTER_LINEAR;
     sampl.minFilter = VK_FILTER_LINEAR;
-    vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
+    vkCreateSampler(_context.getDevice(), &sampl, nullptr, &_defaultSamplerLinear);
 
     _mainDeletionQueue.push_function([&]()
-        {
-            vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
-            vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
-        });
+    {
+        vkDestroySampler(_context.getDevice(), _defaultSamplerNearest, nullptr);
+        vkDestroySampler(_context.getDevice(), _defaultSamplerLinear, nullptr);
+    });
 }
 
 void VulkanEngine::cleanup()
@@ -201,7 +196,7 @@ void VulkanEngine::cleanup()
     if (_isInitialized)
     {
         // make sure the gpu has stopped doing its things
-        vkDeviceWaitIdle(_device);
+        vkDeviceWaitIdle(_context.getDevice());
 
         loadedScenes.clear();
 
@@ -226,61 +221,63 @@ void VulkanEngine::cleanup()
 void VulkanEngine::init_background_pipelines()
 {
     VkPipelineLayoutCreateInfo computeLayout{};
-    computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    computeLayout.pNext = nullptr;
-    computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
+    computeLayout.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    computeLayout.pNext          = nullptr;
+    computeLayout.pSetLayouts    = &_drawImageDescriptorLayout;
     computeLayout.setLayoutCount = 1;
 
     VkPushConstantRange pushConstant{};
-    pushConstant.offset = 0;
-    pushConstant.size = sizeof(ComputePushConstants);
+    pushConstant.offset     = 0;
+    pushConstant.size       = sizeof(ComputePushConstants);
     pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    computeLayout.pPushConstantRanges = &pushConstant;
+    computeLayout.pPushConstantRanges    = &pushConstant;
     computeLayout.pushConstantRangeCount = 1;
 
-    VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
-    DebugUtils::getInstance().setDebugName(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<
+    VK_CHECK(vkCreatePipelineLayout(_context.getDevice(), &computeLayout, nullptr, &_gradientPipelineLayout));
+    DebugUtils::getInstance().setDebugName(_context.getDevice(), VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<
                                                uint64_t>(_gradientPipelineLayout), "background layout");
 
     VkShaderModule gradientShader;
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/gradient_color.comp.spv", _device,
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/gradient_color.comp.spv",
+                                    _context.getDevice(),
                                     &gradientShader))
     {
         fmt::print("Error when building the compute shader \n");
     }
 
     VkShaderModule skyShader;
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/sky.comp.spv", _device, &skyShader))
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/sky.comp.spv", _context.getDevice(),
+                                    &skyShader))
     {
         fmt::print("Error when building the compute shader\n");
     }
 
     VkPipelineShaderStageCreateInfo stageinfo{};
-    stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stageinfo.pNext = nullptr;
-    stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stageinfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stageinfo.pNext  = nullptr;
+    stageinfo.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
     stageinfo.module = gradientShader;
-    stageinfo.pName = "main";
+    stageinfo.pName  = "main";
 
     VkComputePipelineCreateInfo computePipelineCreateInfo{};
-    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    computePipelineCreateInfo.pNext = nullptr;
+    computePipelineCreateInfo.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.pNext  = nullptr;
     computePipelineCreateInfo.layout = _gradientPipelineLayout;
-    computePipelineCreateInfo.stage = stageinfo;
+    computePipelineCreateInfo.stage  = stageinfo;
 
     ComputeEffect gradient;
     gradient.layout = _gradientPipelineLayout;
-    gradient.name = "gradient";
-    gradient.data = {};
+    gradient.name   = "gradient";
+    gradient.data   = {};
 
     //default colors
     gradient.data.data1 = glm::vec4(1, 0, 0, 1);
     gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
-    VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr,
+    VK_CHECK(vkCreateComputePipelines(_context.getDevice(), VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr,
                                       &gradient.pipeline));
-    DebugUtils::getInstance().setDebugName(_device, VK_OBJECT_TYPE_PIPELINE,
+    DebugUtils::getInstance().setDebugName(_context.getDevice(), VK_OBJECT_TYPE_PIPELINE,
                                            reinterpret_cast<uint64_t>(gradient.pipeline), "gradient pipeline");
 
 
@@ -289,13 +286,15 @@ void VulkanEngine::init_background_pipelines()
 
     ComputeEffect sky;
     sky.layout = _gradientPipelineLayout;
-    sky.name = "sky";
-    sky.data = {};
+    sky.name   = "sky";
+    sky.data   = {};
     //default sky parameters
     sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
 
-    VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
-    DebugUtils::getInstance().setDebugName(_device, VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<uint64_t>(sky.pipeline),
+    VK_CHECK(vkCreateComputePipelines(_context.getDevice(), VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr,
+                                      &sky.pipeline));
+    DebugUtils::getInstance().setDebugName(_context.getDevice(), VK_OBJECT_TYPE_PIPELINE,
+                                           reinterpret_cast<uint64_t>(sky.pipeline),
                                            "sky pipeline");
 
     //add the 2 background effects into the array
@@ -303,37 +302,39 @@ void VulkanEngine::init_background_pipelines()
     backgroundEffects.push_back(sky);
 
     //destroy structures properly
-    vkDestroyShaderModule(_device, gradientShader, nullptr);
-    vkDestroyShaderModule(_device, skyShader, nullptr);
+    vkDestroyShaderModule(_context.getDevice(), gradientShader, nullptr);
+    vkDestroyShaderModule(_context.getDevice(), skyShader, nullptr);
 
     fmt::print(fg(fmt::color::aqua), "Created sky pipeline: {:#x}\n", reinterpret_cast<uint64_t>(sky.pipeline));
-    fmt::print(fg(fmt::color::aqua), "Created gradient pipeline: {:#x}\n", reinterpret_cast<uint64_t>(gradient.pipeline));
+    fmt::print(fg(fmt::color::aqua), "Created gradient pipeline: {:#x}\n",
+               reinterpret_cast<uint64_t>(gradient.pipeline));
     _mainDeletionQueue.push_function([&]()
     {
-            fmt::print(fg(fmt::color::aqua), "back ground release begin\n");
-            if (sky.pipeline != VK_NULL_HANDLE) 
-            {
-                vkDestroyPipeline(_device, backgroundEffects[1].pipeline, nullptr);
-                backgroundEffects[1].pipeline = VK_NULL_HANDLE; // 将句柄置为空
-                fmt::print(fg(fmt::color::aqua), "destroy sky pipeline\n");
-            }
+        fmt::print(fg(fmt::color::aqua), "back ground release begin\n");
+        if (sky.pipeline != VK_NULL_HANDLE)
+        {
+            vkDestroyPipeline(_context.getDevice(), backgroundEffects[1].pipeline, nullptr);
+            backgroundEffects[1].pipeline = VK_NULL_HANDLE; // 将句柄置为空
+            fmt::print(fg(fmt::color::aqua), "destroy sky pipeline\n");
+        }
 
-            // 销毁 gradient.pipeline
+        // 销毁 gradient.pipeline
 
-            if (gradient.pipeline != VK_NULL_HANDLE) {
-                vkDestroyPipeline(_device, backgroundEffects[0].pipeline, nullptr);
-                backgroundEffects[0].pipeline = VK_NULL_HANDLE; // 将句柄置为空
-                fmt::print(fg(fmt::color::aqua), "destroy gradient pipeline\n");
-            }
+        if (gradient.pipeline != VK_NULL_HANDLE)
+        {
+            vkDestroyPipeline(_context.getDevice(), backgroundEffects[0].pipeline, nullptr);
+            backgroundEffects[0].pipeline = VK_NULL_HANDLE; // 将句柄置为空
+            fmt::print(fg(fmt::color::aqua), "destroy gradient pipeline\n");
+        }
 
-            // 销毁 PipelineLayout
-            if (_gradientPipelineLayout != VK_NULL_HANDLE) 
-            {
-                vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
-                _gradientPipelineLayout = VK_NULL_HANDLE; // 将句柄置为空
-                fmt::print(fg(fmt::color::aqua), "destroy gradient pipeline layout\n");
-            }
-            fmt::print(fg(fmt::color::aqua), "back ground release end\n");
+        // 销毁 PipelineLayout
+        if (_gradientPipelineLayout != VK_NULL_HANDLE)
+        {
+            vkDestroyPipelineLayout(_context.getDevice(), _gradientPipelineLayout, nullptr);
+            _gradientPipelineLayout = VK_NULL_HANDLE; // 将句柄置为空
+            fmt::print(fg(fmt::color::aqua), "destroy gradient pipeline layout\n");
+        }
+        fmt::print(fg(fmt::color::aqua), "back ground release end\n");
     });
 }
 
@@ -367,7 +368,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     auto start = std::chrono::system_clock::now();
     draw_geometry(cmd);
 
-    auto end = std::chrono::system_clock::now();
+    auto end     = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
     stats.mesh_draw_time = elapsed.count() / 1000.f;
@@ -391,14 +392,15 @@ void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
 void VulkanEngine::draw()
 {
     //wait until the gpu has finished rendering the last frame. Timeout of 1 second
-    VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, 1000000000));
+    VK_CHECK(vkWaitForFences(_context.getDevice(), 1, &get_current_frame()._renderFence, true, 1000000000));
 
     get_current_frame()._deletionQueue.flush();
-    get_current_frame()._frameDescriptors.clear_pools(_device);
+    get_current_frame()._frameDescriptors.clear_pools(_context.getDevice());
     //request image from the swapchain
     uint32_t swapchainImageIndex;
 
-    VkResult e = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, get_current_frame()._swapchainSemaphore,
+    VkResult e = vkAcquireNextImageKHR(_context.getDevice(), _swapchain, 1000000000,
+                                       get_current_frame()._swapchainSemaphore,
                                        nullptr, &swapchainImageIndex);
     if (e == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -406,9 +408,9 @@ void VulkanEngine::draw()
         return;
     }
     _drawExtent.height = std::min(_swapchainExtent.height, _drawImage.imageExtent.height) * 1.f;
-    _drawExtent.width = std::min(_swapchainExtent.width, _drawImage.imageExtent.width) * 1.f;
+    _drawExtent.width  = std::min(_swapchainExtent.width, _drawImage.imageExtent.width) * 1.f;
 
-    VK_CHECK(vkResetFences(_device, 1, &get_current_frame()._renderFence));
+    VK_CHECK(vkResetFences(_context.getDevice(), 1, &get_current_frame()._renderFence));
 
     //now that we are sure that the commands finished executing, we can safely reset the command buffer to begin recording again.
     VK_CHECK(vkResetCommandBuffer(get_current_frame()._mainCommandBuffer, 0));
@@ -437,7 +439,7 @@ void VulkanEngine::draw()
 
     VkExtent2D extent;
     extent.height = _windowExtent.height;
-    extent.width = _windowExtent.width;
+    extent.width  = _windowExtent.width;
     //extent.depth = 1;
 
     // execute a copy from the draw image into the swapchain
@@ -473,7 +475,7 @@ void VulkanEngine::draw()
 
     //submit command buffer to the queue and execute it.
     // _renderFence will now block until the graphic commands finish execution
-    VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, get_current_frame()._renderFence));
+    VK_CHECK(vkQueueSubmit2(_context.getGraphicsQueue(), 1, &submit, get_current_frame()._renderFence));
 
     //prepare present
     // this will put the image we just rendered to into the visible window.
@@ -481,15 +483,15 @@ void VulkanEngine::draw()
     // as its necessary that drawing commands have finished before the image is displayed to the user
     VkPresentInfoKHR presentInfo = vkinit::present_info();
 
-    presentInfo.pSwapchains = &_swapchain;
+    presentInfo.pSwapchains    = &_swapchain;
     presentInfo.swapchainCount = 1;
 
-    presentInfo.pWaitSemaphores = &get_current_frame()._renderSemaphore;
+    presentInfo.pWaitSemaphores    = &get_current_frame()._renderSemaphore;
     presentInfo.waitSemaphoreCount = 1;
 
     presentInfo.pImageIndices = &swapchainImageIndex;
 
-    VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo);
+    VkResult presentResult = vkQueuePresentKHR(_context.getGraphicsQueue(), &presentInfo);
     if (e == VK_ERROR_OUT_OF_DATE_KHR)
     {
         resize_requested = true;
@@ -565,20 +567,20 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     //write the buffer
     auto sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
-    *sceneUniformData = sceneData;
+    *sceneUniformData     = sceneData;
 
     VkDescriptorSetVariableDescriptorCountAllocateInfo allocArrayInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO, .pNext = nullptr
     };
 
-    uint32_t descriptorCounts = texCache.Cache.size();
-    allocArrayInfo.pDescriptorCounts = &descriptorCounts;
+    uint32_t descriptorCounts         = texCache.Cache.size();
+    allocArrayInfo.pDescriptorCounts  = &descriptorCounts;
     allocArrayInfo.descriptorSetCount = 1;
 
 
     //create a descriptor set that binds that buffer and update it
     VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(
-        _device, _gpuSceneDataDescriptorLayout, &allocArrayInfo);
+        _context.getDevice(), _gpuSceneDataDescriptorLayout, &allocArrayInfo);
 
     DescriptorWriter writer;
     writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -589,17 +591,17 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
         VkWriteDescriptorSet arraySet{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         arraySet.descriptorCount = texCache.Cache.size();
         arraySet.dstArrayElement = 0;
-        arraySet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        arraySet.dstBinding = 1;
-        arraySet.pImageInfo = texCache.Cache.data();
+        arraySet.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        arraySet.dstBinding      = 1;
+        arraySet.pImageInfo      = texCache.Cache.data();
         writer.writes.push_back(arraySet);
     }
 
-    writer.update_set(_device, globalDescriptor);
+    writer.update_set(_context.getDevice(), globalDescriptor);
 
-    MaterialPipeline* lastPipeline = nullptr;
-    MaterialInstance* lastMaterial = nullptr;
-    VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+    MaterialPipeline* lastPipeline    = nullptr;
+    MaterialInstance* lastMaterial    = nullptr;
+    VkBuffer          lastIndexBuffer = VK_NULL_HANDLE;
 
     auto draw = [&](const RenderObject& r)
     {
@@ -614,21 +616,21 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                                         &globalDescriptor, 0, nullptr);
 
                 VkViewport viewport = {};
-                viewport.width = static_cast<float>(_drawExtent.width);
+                viewport.width      = static_cast<float>(_drawExtent.width);
                 // vulkan的屏幕坐标与dx、ogl的y轴相反，所以这里使用vulkan的特性，将高反向
                 viewport.height = -static_cast<float>(_drawExtent.height);
-                viewport.x = 0;
+                viewport.x      = 0;
                 // 同时原点也需要修改，因为vulkan本身是倒置的，所以现在整个窗口需要向y方向平移
-                viewport.y = static_cast<float>(_drawExtent.height);
+                viewport.y        = static_cast<float>(_drawExtent.height);
                 viewport.minDepth = 0.f;
                 viewport.maxDepth = 1.f;
 
                 vkCmdSetViewport(cmd, 0, 1, &viewport);
 
-                VkRect2D scissor = {};
-                scissor.offset.x = 0;
-                scissor.offset.y = 0;
-                scissor.extent.width = _drawExtent.width;
+                VkRect2D scissor      = {};
+                scissor.offset.x      = 0;
+                scissor.offset.y      = 0;
+                scissor.extent.width  = _drawExtent.width;
                 scissor.extent.height = _drawExtent.height;
 
                 vkCmdSetScissor(cmd, 0, 1, &scissor);
@@ -644,7 +646,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
         }
         // calculate final mesh matrix
         GPUDrawPushConstants push_constants;
-        push_constants.worldMatrix = r.transform;
+        push_constants.worldMatrix  = r.transform;
         push_constants.vertexBuffer = r.vertexBufferAddress;
 
         vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
@@ -676,7 +678,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 void VulkanEngine::run()
 {
     SDL_Event e;
-    bool bQuit = false;
+    bool      bQuit = false;
 
     // main loop
     while (!bQuit)
@@ -797,7 +799,7 @@ void VulkanEngine::run()
 
         draw();
 
-        auto end = std::chrono::system_clock::now();
+        auto end     = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
         stats.frametime = elapsed.count() / 1000.f;
@@ -821,12 +823,12 @@ void VulkanEngine::update_scene()
 
     if (mainCamera.view_mode == VIEW_MODE::perspective)
     {
-        sceneData.proj = mainCamera.projection;
+        sceneData.proj     = mainCamera.projection;
         sceneData.viewproj = mainCamera.projection * view;
     }
     else if (mainCamera.view_mode == VIEW_MODE::orthographic)
     {
-        sceneData.proj = mainCamera.ortho;
+        sceneData.proj     = mainCamera.ortho;
         sceneData.viewproj = mainCamera.ortho * view;
     }
     sceneData.view = view;
@@ -839,15 +841,15 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
 {
     // allocate buffer
     VkBufferCreateInfo bufferInfo = {};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.pNext = nullptr;
-    bufferInfo.size = allocSize;
+    bufferInfo.sType              = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.pNext              = nullptr;
+    bufferInfo.size               = allocSize;
 
     bufferInfo.usage = usage;
 
     VmaAllocationCreateInfo vmaallocInfo = {};
-    vmaallocInfo.usage = memoryUsage;
-    vmaallocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    vmaallocInfo.usage                   = memoryUsage;
+    vmaallocInfo.flags                   = VMA_ALLOCATION_CREATE_MAPPED_BIT;
     AllocatedBuffer newBuffer;
 
     // allocate the buffer
@@ -871,8 +873,8 @@ AllocatedImage VulkanEngine::create_image(VkExtent3D size, VkFormat format, VkIm
 
     // always allocate images on dedicated GPU memory
     VmaAllocationCreateInfo allocinfo = {};
-    allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    allocinfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    allocinfo.usage                   = VMA_MEMORY_USAGE_GPU_ONLY;
+    allocinfo.requiredFlags           = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
 
     // allocate and create the image
     VK_CHECK(vmaCreateImage(_allocator, &img_info, &allocinfo, &newImage.image, &newImage.allocation, nullptr));
@@ -886,18 +888,18 @@ AllocatedImage VulkanEngine::create_image(VkExtent3D size, VkFormat format, VkIm
     }
 
     // build a image-view for the image
-    VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag);
+    VkImageViewCreateInfo view_info       = vkinit::imageview_create_info(format, newImage.image, aspectFlag);
     view_info.subresourceRange.levelCount = img_info.mipLevels;
 
-    VK_CHECK(vkCreateImageView(_device, &view_info, nullptr, &newImage.imageView));
+    VK_CHECK(vkCreateImageView(_context.getDevice(), &view_info, nullptr, &newImage.imageView));
 
     return newImage;
 }
 
 AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
-                                          bool mipmapped)
+                                          bool  mipmapped)
 {
-    size_t data_size = size.depth * size.width * size.height * 4;
+    size_t          data_size    = size.depth * size.width * size.height * 4;
     AllocatedBuffer uploadbuffer = create_buffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
 
@@ -912,15 +914,15 @@ AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat 
         vkutil::transition_image(cmd, new_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         VkBufferImageCopy copyRegion = {};
-        copyRegion.bufferOffset = 0;
-        copyRegion.bufferRowLength = 0;
+        copyRegion.bufferOffset      = 0;
+        copyRegion.bufferRowLength   = 0;
         copyRegion.bufferImageHeight = 0;
 
-        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copyRegion.imageSubresource.mipLevel = 0;
+        copyRegion.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.imageSubresource.mipLevel       = 0;
         copyRegion.imageSubresource.baseArrayLayer = 0;
-        copyRegion.imageSubresource.layerCount = 1;
-        copyRegion.imageExtent = size;
+        copyRegion.imageSubresource.layerCount     = 1;
+        copyRegion.imageExtent                     = size;
 
         // copy the buffer into the image
         vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, new_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
@@ -944,7 +946,7 @@ AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat 
 GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices)
 {
     const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
-    const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+    const size_t indexBufferSize  = indices.size() * sizeof(uint32_t);
 
     GPUMeshBuffers newSurface;
 
@@ -956,7 +958,7 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
     VkBufferDeviceAddressInfo deviceAdressInfo{
         .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = newSurface.vertexBuffer.buffer
     };
-    newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo);
+    newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(_context.getDevice(), &deviceAdressInfo);
 
     newSurface.indexBuffer = create_buffer(indexBufferSize,
                                            VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -977,14 +979,14 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
         VkBufferCopy vertexCopy{0};
         vertexCopy.dstOffset = 0;
         vertexCopy.srcOffset = 0;
-        vertexCopy.size = vertexBufferSize;
+        vertexCopy.size      = vertexBufferSize;
 
         vkCmdCopyBuffer(cmd, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
 
         VkBufferCopy indexCopy{0};
         indexCopy.dstOffset = 0;
         indexCopy.srcOffset = vertexBufferSize;
-        indexCopy.size = indexBufferSize;
+        indexCopy.size      = indexBufferSize;
 
         vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
     });
@@ -1006,7 +1008,7 @@ FrameData& VulkanEngine::get_last_frame()
 
 void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
 {
-    VK_CHECK(vkResetFences(_device, 1, &_immFence));
+    VK_CHECK(vkResetFences(_context.getDevice(), 1, &_immFence));
     VK_CHECK(vkResetCommandBuffer(_immCommandBuffer, 0));
 
     VkCommandBuffer cmd = _immCommandBuffer;
@@ -1022,18 +1024,18 @@ void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& f
     VK_CHECK(vkEndCommandBuffer(cmd));
 
     VkCommandBufferSubmitInfo cmdinfo = vkinit::command_buffer_submit_info(cmd);
-    VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, nullptr, nullptr);
+    VkSubmitInfo2             submit  = vkinit::submit_info(&cmdinfo, nullptr, nullptr);
 
     // submit command buffer to the queue and execute it.
     //  _renderFence will now block until the graphic commands finish execution
     VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
 
-    VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
+    VK_CHECK(vkWaitForFences(_context.getDevice(), 1, &_immFence, true, 9999999999));
 }
 
 void VulkanEngine::destroy_image(const AllocatedImage& img)
 {
-    vkDestroyImageView(_device, img.imageView, nullptr);
+    vkDestroyImageView(_context.getDevice(), img.imageView, nullptr);
     vmaDestroyImage(_allocator, img.image, img.allocation);
 }
 
@@ -1066,8 +1068,8 @@ void VulkanEngine::init_swapchain()
 
     //for the draw image, we want to allocate it from gpu local memory
     VmaAllocationCreateInfo rimg_allocinfo = {};
-    rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    rimg_allocinfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    rimg_allocinfo.usage                   = VMA_MEMORY_USAGE_GPU_ONLY;
+    rimg_allocinfo.requiredFlags           = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
 
     //allocate and create the image
     vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
@@ -1076,7 +1078,7 @@ void VulkanEngine::init_swapchain()
     VkImageViewCreateInfo rview_info = vkinit::imageview_create_info(_drawImage.imageFormat, _drawImage.image,
                                                                      VK_IMAGE_ASPECT_COLOR_BIT);
 
-    VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
+    VK_CHECK(vkCreateImageView(_context.getDevice(), &rview_info, nullptr, &_drawImage.imageView));
 
     //create a depth image too
     //hardcoding the draw format to 32 bit float
@@ -1094,16 +1096,16 @@ void VulkanEngine::init_swapchain()
     VkImageViewCreateInfo dview_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthImage.image,
                                                                      VK_IMAGE_ASPECT_DEPTH_BIT);
 
-    VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
+    VK_CHECK(vkCreateImageView(_context.getDevice(), &dview_info, nullptr, &_depthImage.imageView));
 
 
     //add to deletion queues
     _mainDeletionQueue.push_function([=]()
     {
-        vkDestroyImageView(_device, _drawImage.imageView, nullptr);
+        vkDestroyImageView(_context.getDevice(), _drawImage.imageView, nullptr);
         vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
 
-        vkDestroyImageView(_device, _depthImage.imageView, nullptr);
+        vkDestroyImageView(_context.getDevice(), _depthImage.imageView, nullptr);
         vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
     });
 }
@@ -1111,49 +1113,49 @@ void VulkanEngine::init_swapchain()
 
 void VulkanEngine::create_swapchain(uint32_t width, uint32_t height)
 {
-    vkb::SwapchainBuilder swapchainBuilder{_chosenGPU, _device, _surface};
+    vkb::SwapchainBuilder swapchainBuilder{_chosenGPU, _context.getDevice(), _surface};
 
     _swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
     vkb::Swapchain vkbSwapchain = swapchainBuilder
                                   //.use_default_format_selection()
-                                  .set_desired_format(VkSurfaceFormatKHR{
+                                 .set_desired_format(VkSurfaceFormatKHR{
                                       .format = _swapchainImageFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
                                   })
                                   //use vsync present mode
-                                  .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-                                  .set_desired_extent(width, height)
-                                  .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-                                  .build()
-                                  .value();
+                                 .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+                                 .set_desired_extent(width, height)
+                                 .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+                                 .build()
+                                 .value();
 
     _swapchainExtent = vkbSwapchain.extent;
     //store swapchain and its related images
-    _swapchain = vkbSwapchain.swapchain;
-    _swapchainImages = vkbSwapchain.get_images().value();
+    _swapchain           = vkbSwapchain.swapchain;
+    _swapchainImages     = vkbSwapchain.get_images().value();
     _swapchainImageViews = vkbSwapchain.get_image_views().value();
 }
 
 void VulkanEngine::destroy_swapchain()
 {
-    vkDestroySwapchainKHR(_device, _swapchain, nullptr);
+    vkDestroySwapchainKHR(_context.getDevice(), _swapchain, nullptr);
 
     // destroy swapchain resources
     for (int i = 0; i < _swapchainImageViews.size(); i++)
     {
-        vkDestroyImageView(_device, _swapchainImageViews[i], nullptr);
+        vkDestroyImageView(_context.getDevice(), _swapchainImageViews[i], nullptr);
     }
 }
 
 void VulkanEngine::resize_swapchain()
 {
-    vkDeviceWaitIdle(_device);
+    vkDeviceWaitIdle(_context.getDevice());
 
     destroy_swapchain();
 
     int w, h;
     SDL_GetWindowSize(_window, &w, &h);
-    _windowExtent.width = w;
+    _windowExtent.width  = w;
     _windowExtent.height = h;
 
     create_swapchain(_windowExtent.width, _windowExtent.height);
@@ -1166,28 +1168,31 @@ void VulkanEngine::init_commands()
     // create a command pool for commands submitted to the graphics queue.
     // we also want the pool to allow for resetting of individual command buffers
     VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(
-        _graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+        _context.getGraphicsQueueIndex(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     for (int i = 0; i < FRAME_OVERLAP; i++)
     {
-        VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_frames[i]._commandPool));
+        VK_CHECK(vkCreateCommandPool(_context.getDevice(), &commandPoolInfo, nullptr, &_frames[i]._commandPool));
 
         // allocate the default command buffer that we will use for rendering
         VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i]._commandPool, 1);
 
-        VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i]._mainCommandBuffer));
+        VK_CHECK(vkAllocateCommandBuffers(_context.getDevice(), &cmdAllocInfo, &_frames[i]._mainCommandBuffer));
 
-        _mainDeletionQueue.push_function([=]() { vkDestroyCommandPool(_device, _frames[i]._commandPool, nullptr); });
+        _mainDeletionQueue.push_function([=]()
+        {
+            vkDestroyCommandPool(_context.getDevice(), _frames[i]._commandPool, nullptr);
+        });
     }
 
-    VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_immCommandPool));
+    VK_CHECK(vkCreateCommandPool(_context.getDevice(), &commandPoolInfo, nullptr, &_immCommandPool));
 
     // allocate the default command buffer that we will use for rendering
     VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_immCommandPool, 1);
 
-    VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
+    VK_CHECK(vkAllocateCommandBuffers(_context.getDevice(), &cmdAllocInfo, &_immCommandBuffer));
 
-    _mainDeletionQueue.push_function([=]() { vkDestroyCommandPool(_device, _immCommandPool, nullptr); });
+    _mainDeletionQueue.push_function([=]() { vkDestroyCommandPool(_context.getDevice(), _immCommandPool, nullptr); });
 }
 
 void VulkanEngine::init_sync_structures()
@@ -1198,24 +1203,25 @@ void VulkanEngine::init_sync_structures()
     // we want the fence to start signalled so we can wait on it on the first
     // frame
     VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
-    VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
+    VK_CHECK(vkCreateFence(_context.getDevice(), &fenceCreateInfo, nullptr, &_immFence));
 
-    _mainDeletionQueue.push_function([=]() { vkDestroyFence(_device, _immFence, nullptr); });
+    _mainDeletionQueue.push_function([=]() { vkDestroyFence(_context.getDevice(), _immFence, nullptr); });
 
     for (int i = 0; i < FRAME_OVERLAP; i++)
     {
-        VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_frames[i]._renderFence));
+        VK_CHECK(vkCreateFence(_context.getDevice(), &fenceCreateInfo, nullptr, &_frames[i]._renderFence));
 
         VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
 
-        VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._swapchainSemaphore));
-        VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._renderSemaphore));
+        VK_CHECK(
+            vkCreateSemaphore(_context.getDevice(), &semaphoreCreateInfo, nullptr, &_frames[i]._swapchainSemaphore));
+        VK_CHECK(vkCreateSemaphore(_context.getDevice(), &semaphoreCreateInfo, nullptr, &_frames[i]._renderSemaphore));
 
         _mainDeletionQueue.push_function([=]()
         {
-            vkDestroyFence(_device, _frames[i]._renderFence, nullptr);
-            vkDestroySemaphore(_device, _frames[i]._swapchainSemaphore, nullptr);
-            vkDestroySemaphore(_device, _frames[i]._renderSemaphore, nullptr);
+            vkDestroyFence(_context.getDevice(), _frames[i]._renderFence, nullptr);
+            vkDestroySemaphore(_context.getDevice(), _frames[i]._swapchainSemaphore, nullptr);
+            vkDestroySemaphore(_context.getDevice(), _frames[i]._renderSemaphore, nullptr);
         });
     }
 }
@@ -1256,14 +1262,14 @@ void VulkanEngine::init_imgui()
     };
 
     VkDescriptorPoolCreateInfo pool_info = {};
-    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    pool_info.maxSets = 1000;
-    pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
-    pool_info.pPoolSizes = pool_sizes;
+    pool_info.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags                      = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets                    = 1000;
+    pool_info.poolSizeCount              = static_cast<uint32_t>(std::size(pool_sizes));
+    pool_info.pPoolSizes                 = pool_sizes;
 
     VkDescriptorPool imguiPool;
-    VK_CHECK(vkCreateDescriptorPool(_device, &pool_info, nullptr, &imguiPool));
+    VK_CHECK(vkCreateDescriptorPool(_context.getDevice(), &pool_info, nullptr, &imguiPool));
 
     // 2: initialize imgui library
 
@@ -1275,14 +1281,14 @@ void VulkanEngine::init_imgui()
 
     // this initializes imgui for Vulkan
     ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = _instance;
-    init_info.PhysicalDevice = _chosenGPU;
-    init_info.Device = _device;
-    init_info.Queue = _graphicsQueue;
-    init_info.DescriptorPool = imguiPool;
-    init_info.MinImageCount = 3;
-    init_info.ImageCount = 3;
-    init_info.UseDynamicRendering = true;
+    init_info.Instance                  = _context.getInstance();
+    init_info.PhysicalDevice            = _context.getPhysicalDevice();
+    init_info.Device                    = _context.getDevice();
+    init_info.Queue                     = _context.getGraphicsQueue();
+    init_info.DescriptorPool            = imguiPool;
+    init_info.MinImageCount             = 3;
+    init_info.ImageCount                = 3;
+    init_info.UseDynamicRendering       = true;
 
     //dynamic rendering parameters for imgui to use
     init_info.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
@@ -1300,7 +1306,7 @@ void VulkanEngine::init_imgui()
     _mainDeletionQueue.push_function([=]()
     {
         ImGui_ImplVulkan_Shutdown();
-        vkDestroyDescriptorPool(_device, imguiPool, nullptr);
+        vkDestroyDescriptorPool(_context.getDevice(), imguiPool, nullptr);
     });
 }
 
@@ -1313,7 +1319,7 @@ void VulkanEngine::init_pipelines()
 
     _mainDeletionQueue.push_function([&]()
     {
-        metalRoughMaterial.clear_resources(_device);
+        metalRoughMaterial.clear_resources(_context.getDevice());
     });
 }
 
@@ -1326,14 +1332,14 @@ void VulkanEngine::init_descriptors()
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3},
     };
 
-    globalDescriptorAllocator.init_pool(_device, 10, sizes);
+    globalDescriptorAllocator.init_pool(_context.getDevice(), 10, sizes);
     _mainDeletionQueue.push_function(
-        [&]() { vkDestroyDescriptorPool(_device, globalDescriptorAllocator.pool, nullptr); });
+        [&]() { vkDestroyDescriptorPool(_context.getDevice(), globalDescriptorAllocator.pool, nullptr); });
 
     {
         DescriptorLayoutBuilder builder;
         builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-        _drawImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+        _drawImageDescriptorLayout = builder.build(_context.getDevice(), VK_SHADER_STAGE_COMPUTE_BIT);
     }
     {
         DescriptorLayoutBuilder builder;
@@ -1351,25 +1357,25 @@ void VulkanEngine::init_descriptors()
 
         builder.bindings[1].descriptorCount = 4048;
 
-        bindFlags.bindingCount = 2;
+        bindFlags.bindingCount  = 2;
         bindFlags.pBindingFlags = flagArray.data();
 
         _gpuSceneDataDescriptorLayout = builder.build(
-            _device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &bindFlags);
+            _context.getDevice(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, &bindFlags);
     }
 
     _mainDeletionQueue.push_function([&]()
     {
-        vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
-        vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
+        vkDestroyDescriptorSetLayout(_context.getDevice(), _drawImageDescriptorLayout, nullptr);
+        vkDestroyDescriptorSetLayout(_context.getDevice(), _gpuSceneDataDescriptorLayout, nullptr);
     });
 
-    _drawImageDescriptors = globalDescriptorAllocator.allocate(_device, _drawImageDescriptorLayout);
+    _drawImageDescriptors = globalDescriptorAllocator.allocate(_context.getDevice(), _drawImageDescriptorLayout);
     {
         DescriptorWriter writer;
         writer.write_image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL,
                            VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-        writer.update_set(_device, _drawImageDescriptors);
+        writer.update_set(_context.getDevice(), _drawImageDescriptors);
     }
     for (int i = 0; i < FRAME_OVERLAP; i++)
     {
@@ -1382,10 +1388,10 @@ void VulkanEngine::init_descriptors()
         };
 
         _frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
-        _frames[i]._frameDescriptors.init(_device, 1000, frame_sizes);
+        _frames[i]._frameDescriptors.init(_context.getDevice(), 1000, frame_sizes);
         _mainDeletionQueue.push_function([&, i]()
         {
-            _frames[i]._frameDescriptors.destroy_pools(_device);
+            _frames[i]._frameDescriptors.destroy_pools(_context.getDevice());
         });
     }
 }
@@ -1408,30 +1414,33 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     print(fg(fmt::color::alice_blue), "-----------------------temp use shader-----------------------\n");
     //layout code
     VkShaderModule meshFragShader;
-    //if (!vkutil::load_shader_module(spv_code1, engine->_device, &meshFragShader))
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh_pbr.frag.spv", engine->_device,
+    //if (!vkutil::load_shader_module(spv_code1, engine->_context.getDevice(), &meshFragShader))
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh_pbr.frag.spv",
+                                    engine->_context.getDevice(),
                                     &meshFragShader))
     {
         print(fg(fmt::color::red), "Error when building the fragment shader \n");
     }
 
     VkShaderModule meshVertexShader;
-    //if (!vkutil::load_shader_module(spv_code1, engine->_device, &meshVertexShader))
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh.vert.spv", engine->_device,
+    //if (!vkutil::load_shader_module(spv_code1, engine->_context.getDevice(), &meshVertexShader))
+    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh.vert.spv",
+                                    engine->_context.getDevice(),
                                     &meshVertexShader))
     {
         print(fg(fmt::color::red), "Error when building the vertex shader \n");
     }
 
     VkPushConstantRange matrixRange{};
-    matrixRange.offset = 0;
-    matrixRange.size = sizeof(GPUDrawPushConstants);
+    matrixRange.offset     = 0;
+    matrixRange.size       = sizeof(GPUDrawPushConstants);
     matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
     DescriptorLayoutBuilder layoutBuilder;
     layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
-    materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    materialLayout = layoutBuilder.build(engine->_context.getDevice(),
+                                         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
     VkDescriptorSetLayout layouts[] =
     {
@@ -1440,17 +1449,17 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     };
 
     VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
-    mesh_layout_info.setLayoutCount = 2;
-    mesh_layout_info.pSetLayouts = layouts;
-    mesh_layout_info.pPushConstantRanges = &matrixRange;
-    mesh_layout_info.pushConstantRangeCount = 1;
+    mesh_layout_info.setLayoutCount             = 2;
+    mesh_layout_info.pSetLayouts                = layouts;
+    mesh_layout_info.pPushConstantRanges        = &matrixRange;
+    mesh_layout_info.pushConstantRangeCount     = 1;
 
     VkPipelineLayout newLayout;
-    VK_CHECK(vkCreatePipelineLayout(engine->_device, &mesh_layout_info, nullptr, &newLayout));
-    DebugUtils::getInstance().setDebugName(engine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT,
+    VK_CHECK(vkCreatePipelineLayout(engine->_context.getDevice(), &mesh_layout_info, nullptr, &newLayout));
+    DebugUtils::getInstance().setDebugName(engine->_context.getDevice(), VK_OBJECT_TYPE_PIPELINE_LAYOUT,
                                            reinterpret_cast<uint64_t>(newLayout), "mesh layout");
 
-    opaquePipeline.layout = newLayout;
+    opaquePipeline.layout      = newLayout;
     transparentPipeline.layout = newLayout;
 
     // build the stage-create-info for both vertex and fragment stages. This lets
@@ -1479,8 +1488,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     pipelineBuilder._pipelineLayout = newLayout;
 
     // finally build the pipeline
-    opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
-    DebugUtils::getInstance().setDebugName(engine->_device, VK_OBJECT_TYPE_PIPELINE,
+    opaquePipeline.pipeline = pipelineBuilder.build_pipeline(engine->_context.getDevice());
+    DebugUtils::getInstance().setDebugName(engine->_context.getDevice(), VK_OBJECT_TYPE_PIPELINE,
                                            reinterpret_cast<uint64_t>(opaquePipeline.pipeline), "opaque pipeline");
 
     // create the transparent variant
@@ -1488,13 +1497,13 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
-    transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_device);
-    DebugUtils::getInstance().setDebugName(engine->_device, VK_OBJECT_TYPE_PIPELINE,
+    transparentPipeline.pipeline = pipelineBuilder.build_pipeline(engine->_context.getDevice());
+    DebugUtils::getInstance().setDebugName(engine->_context.getDevice(), VK_OBJECT_TYPE_PIPELINE,
                                            reinterpret_cast<uint64_t>(transparentPipeline.pipeline),
                                            "transparent pipeline");
 
-    vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
-    vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
+    vkDestroyShaderModule(engine->_context.getDevice(), meshFragShader, nullptr);
+    vkDestroyShaderModule(engine->_context.getDevice(), meshVertexShader, nullptr);
 }
 
 void GLTFMetallic_Roughness::clear_resources(VkDevice device)
@@ -1505,8 +1514,8 @@ void GLTFMetallic_Roughness::clear_resources(VkDevice device)
     vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
 }
 
-MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass,
-                                                        const MaterialResources& resources,
+MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice                     device, MaterialPass pass,
+                                                        const MaterialResources&     resources,
                                                         DescriptorAllocatorGrowable& descriptorAllocator)
 {
     MaterialInstance matData;
@@ -1551,6 +1560,4 @@ TextureID TextureCache::AddTexture(const VkImageView& image, VkSampler sampler)
 
     return TextureID{idx};
 }
-
-
-DECKER_END
+} // dk

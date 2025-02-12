@@ -6,7 +6,7 @@
 #include "vk_descriptors.h"
 #include "vk_loader.h"
 
-DECKER_START
+namespace dk {
 
 void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
@@ -37,4 +37,4 @@ void MeshNode::draw(const glm::mat4& topMatrix, DrawContext& ctx)
     Node::draw(topMatrix, ctx);
 }
 
-DECKER_END
+} // dk

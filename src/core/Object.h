@@ -32,7 +32,7 @@
 #include <mutex>
 #endif
 
-DECKER_START
+namespace dk {
 
 /**
  * @brief Base class for reference counted objects.
@@ -479,7 +479,7 @@ private:
     T* mWeakRef = nullptr;
 };
 
-DECKER_END
+} // dk
 
 template<typename T>
 struct fmt::formatter<dk::ref<T>> : formatter<const void*>

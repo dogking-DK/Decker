@@ -17,7 +17,7 @@
 #endif
 #include "stb_image.h"
 
-DECKER_START
+namespace dk {
 
 static std::filesystem::path parent_path;
 
@@ -595,7 +595,7 @@ void LoadedGLTF::clearAll()
     creator->destroy_buffer(materialBuffer);
 }
 
-DECKER_END
+} // dk
 
 bool vkutil::readShaderFile(const std::string& file_path, std::string& code)
 {

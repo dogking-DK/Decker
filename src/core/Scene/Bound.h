@@ -4,7 +4,7 @@
 #include "Macros.h"
 #include "Object.h"
 
-DECKER_START
+namespace dk {
 
 struct Bounds
 {
@@ -15,4 +15,4 @@ struct Bounds
     glm::vec3 min_edge;
 };
 
-DECKER_END
+} // dk

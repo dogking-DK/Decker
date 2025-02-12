@@ -6,7 +6,7 @@
 #include "Macros.h"
 #include "Object.h"
 
-DECKER_START
+namespace dk {
 struct MeshAsset;
 
 struct RenderObject
@@ -72,6 +72,4 @@ struct MeshNode : Node
     void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
 };
 
-
-
-DECKER_END
+} // dk

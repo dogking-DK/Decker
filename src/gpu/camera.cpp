@@ -5,7 +5,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-DECKER_START
+namespace dk {
 
 Camera::Camera()
 {
@@ -105,4 +105,4 @@ void Camera::processSDLEvent(SDL_Event& e)
 	}
 }
 
-DECKER_END
+} // dk

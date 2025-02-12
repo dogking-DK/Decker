@@ -8,7 +8,7 @@
 
 #include "Macros.h"
 
-VKUTIL_BEGIN
+namespace vkutil {
 
 class ShaderCompiler
 {
@@ -29,7 +29,7 @@ private:
 bool load_shader_module(const char* filePath, VkDevice device, VkShaderModule* outShaderModule);
 bool load_shader_module(std::vector<uint32_t>& spv, VkDevice device, VkShaderModule* outShaderModule);
 
-VKUTIL_END
+} // vkutil
 
 class PipelineBuilder
 {
