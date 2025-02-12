@@ -1,11 +1,14 @@
 cmake_minimum_required(VERSION 3.11)
 
+add_compile_definitions(VULKAN_NO_PROTOTYPE)
+
 # 查找三方库
 find_package(Vulkan REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(vk-bootstrap CONFIG REQUIRED)
 find_package(VulkanUtilityLibraries CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG)
+find_package(volk CONFIG REQUIRED)
 
 find_package(assimp REQUIRED)
 find_package(fastgltf CONFIG REQUIRED)
@@ -78,7 +81,8 @@ target_link_libraries(${PROJECT_NAME}
     Vulkan::UtilityHeaders 
     Vulkan::CompilerConfiguration
     GPUOpen::VulkanMemoryAllocator
-
+    volk::volk 
+    volk::volk_headers
     vk-bootstrap::vk-bootstrap 
     vk-bootstrap::vk-bootstrap-compiler-warnings
     fmt::fmt
@@ -100,7 +104,12 @@ target_link_libraries(${PROJECT_NAME}
     # slang::slang
     implot::implot
     imgui::imgui
+
+    third_lib
     )
+
+# 链接 third_lib（间接链接 Slang）
+# target_link_libraries(${PROJECT_NAME}  PRIVATE third_lib)
 
 # target_link_libraries(${PROJECT_NAME} 
 #     vma

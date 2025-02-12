@@ -15,6 +15,7 @@
 #include <vk_pipelines.h>
 
 #include "Scene/Node.h"
+#include "Vulkan/Context.h"
 
 namespace fastgltf
 {
@@ -147,7 +148,7 @@ DECKER_START
 
         VkExtent2D _windowExtent{1280, 720};
 
-        struct SDL_Window* _window{nullptr};
+
 
         VkInstance _instance;
         VkDebugUtilsMessengerEXT _debug_messenger;
@@ -161,7 +162,6 @@ DECKER_START
 
         FrameData _frames[FRAME_OVERLAP];
 
-        VkSurfaceKHR _surface;
         VkSwapchainKHR _swapchain;
         VkFormat _swapchainImageFormat;
         VkExtent2D _swapchainExtent;
@@ -265,8 +265,6 @@ DECKER_START
         bool freeze_rendering{false};
 
     private:
-        void init_vulkan();
-
         void init_swapchain();
 
         void create_swapchain(uint32_t width, uint32_t height);
@@ -289,6 +287,8 @@ DECKER_START
         void init_imgui();
 
         void init_default_data();
+
+        VulkanContext _context;
     };
 
 DECKER_END

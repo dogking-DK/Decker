@@ -3,6 +3,7 @@ cmake_uninstall.cmake
 
 lib/
 bin/
+third_lib/slang/
 
 *.pc
 *.conf

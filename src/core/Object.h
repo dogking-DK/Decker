@@ -482,20 +482,20 @@ private:
 DECKER_END
 
 template<typename T>
-struct fmt::formatter<decker::ref<T>> : formatter<const void*>
+struct fmt::formatter<dk::ref<T>> : formatter<const void*>
 {
     template<typename FormatContext>
-    auto format(const decker::ref<T>& ref, FormatContext& ctx) const
+    auto format(const dk::ref<T>& ref, FormatContext& ctx) const
     {
         return formatter<const void*>::format(ref.get(), ctx);
     }
 };
 
 template<typename T>
-struct fmt::formatter<decker::BreakableReference<T>> : formatter<const void*>
+struct fmt::formatter<dk::BreakableReference<T>> : formatter<const void*>
 {
     template<typename FormatContext>
-    auto format(const decker::BreakableReference<T>& ref, FormatContext& ctx) const
+    auto format(const dk::BreakableReference<T>& ref, FormatContext& ctx) const
     {
         return formatter<const void*>::format(ref.get(), ctx);
     }
@@ -504,15 +504,15 @@ struct fmt::formatter<decker::BreakableReference<T>> : formatter<const void*>
 namespace std
 {
     template<typename T>
-    void swap(::decker::ref<T>& x, ::decker::ref<T>& y) noexcept
+    void swap(::dk::ref<T>& x, ::dk::ref<T>& y) noexcept
     {
         return x.swap(y);
     }
 
     template<typename T>
-    struct hash<::decker::ref<T>>
+    struct hash<::dk::ref<T>>
     {
-        constexpr size_t operator()(const ::decker::ref<T>& r) const { return std::hash<T*>()(r.get()); }
+        constexpr size_t operator()(const ::dk::ref<T>& r) const { return std::hash<T*>()(r.get()); }
     };
 
 }

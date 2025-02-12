@@ -6,8 +6,9 @@
 #include <mutex>
 #include <fmt/format.h> // 用于格式化输出
 
-DECKER_START
+#include "Macros.h"
 
+DECKER_START
 class DebugUtils
 {
 public:
@@ -22,7 +23,7 @@ public:
     void initialize(VkInstance instance)
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        
+
         if (initialized_)
         {
             fmt::print("Warning: DebugUtils is already initialized\n");
@@ -30,8 +31,7 @@ public:
         }
 
         vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
-            vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT")
-        );
+            vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT"));
 
         if (!vkSetDebugUtilsObjectNameEXT)
         {
