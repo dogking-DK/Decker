@@ -1,7 +1,6 @@
 #pragma once
 #define bUseValidationLayers true
 
-#include <SDL_video.h>
 #include <vk_types.h>
 
 #include "Macros.h"
@@ -24,11 +23,9 @@ public:
     uint32_t getTransferQueueIndex() const { return _transfer_queue_family; }
 
 private:
-    SDL_Window* _window{nullptr};
 
     vk::Device _device;
     vk::PhysicalDevice _physical_device;
-    VkSurfaceKHR _surface;
 
     vk::Instance _instance;
     VkDebugUtilsMessengerEXT _debug_messenger;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <SDL_video.h>
 #include <set>
 #include <vulkan/vulkan.hpp>
 
@@ -21,37 +22,37 @@ struct HPPSwapchainProperties
     vk::PresentModeKHR              present_mode;
 };
 
-class HPPSwapchain
+class Swapchain
 {
 public:
     /**
      * @brief Constructor to create a swapchain by changing the extent
      *        only and preserving the configuration from the old swapchain.
      */
-    HPPSwapchain(HPPSwapchain& old_swapchain, const vk::Extent2D& extent);
+    Swapchain(Swapchain& old_swapchain, const vk::Extent2D& extent);
 
     /**
      * @brief Constructor to create a swapchain by changing the image count
      *        only and preserving the configuration from the old swapchain.
      */
-    HPPSwapchain(HPPSwapchain& old_swapchain, uint32_t image_count);
+    Swapchain(Swapchain& old_swapchain, uint32_t image_count);
 
     /**
      * @brief Constructor to create a swapchain by changing the image usage
      *        only and preserving the configuration from the old swapchain.
      */
-    HPPSwapchain(HPPSwapchain& old_swapchain, const std::set<vk::ImageUsageFlagBits>& image_usage_flags);
+    Swapchain(Swapchain& old_swapchain, const std::set<vk::ImageUsageFlagBits>& image_usage_flags);
 
     /**
      * @brief Constructor to create a swapchain by changing the extent
      *        and transform only and preserving the configuration from the old swapchain.
      */
-    HPPSwapchain(HPPSwapchain& swapchain, const vk::Extent2D& extent, vk::SurfaceTransformFlagBitsKHR transform);
+    Swapchain(Swapchain& swapchain, const vk::Extent2D& extent, vk::SurfaceTransformFlagBitsKHR transform);
 
     /**
      * @brief Constructor to create a swapchain.
      */
-    HPPSwapchain(VulkanContext&                         device,
+    Swapchain(VulkanContext&                         context,
                  vk::SurfaceKHR                         surface,
                  vk::PresentModeKHR                     present_mode,
                  const std::vector<vk::PresentModeKHR>& present_mode_priority_list = {
@@ -69,15 +70,15 @@ public:
                  },
                  vk::SwapchainKHR old_swapchain = nullptr);
 
-    HPPSwapchain(const HPPSwapchain&) = delete;
+    Swapchain(const Swapchain&) = delete;
 
-    HPPSwapchain(HPPSwapchain&& other);
+    Swapchain(Swapchain&& other) noexcept;
 
-    ~HPPSwapchain();
+    ~Swapchain();
 
-    HPPSwapchain& operator=(const HPPSwapchain&) = delete;
+    Swapchain& operator=(const Swapchain&) = delete;
 
-    HPPSwapchain& operator=(HPPSwapchain&&) = delete;
+    Swapchain& operator=(Swapchain&&) = delete;
 
     bool is_valid() const;
 
@@ -104,6 +105,8 @@ public:
 
 private:
     VulkanContext& context;
+
+    SDL_Window* _window{ nullptr };
 
     vk::SurfaceKHR surface;
 

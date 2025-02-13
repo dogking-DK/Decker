@@ -48,17 +48,6 @@ void VulkanEngine::init()
     // only one engine initialization is allowed with the application.
     assert(loadedEngine == nullptr);
     loadedEngine = this;
-    SDL_LogSetAllPriority(SDL_LOG_PRIORITY_DEBUG);
-
-    // We initialize SDL and create a window with it.
-    SDL_Init(SDL_INIT_VIDEO);
-
-
-    auto window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
-
-    _window = SDL_CreateWindow("Vulkan Engine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _windowExtent.width,
-                               _windowExtent.height, window_flags);
-
 
     init_swapchain();
 
@@ -214,7 +203,14 @@ void VulkanEngine::cleanup()
 
         destroy_swapchain();
 
+        vkDestroySurfaceKHR(_instance, _surface, nullptr);
+
         vmaDestroyAllocator(_allocator);
+
+        vkDestroyDevice(_device, nullptr);
+        vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
+        vkDestroyInstance(_instance, nullptr);
+
     }
 }
 
@@ -1113,7 +1109,7 @@ void VulkanEngine::init_swapchain()
 
 void VulkanEngine::create_swapchain(uint32_t width, uint32_t height)
 {
-    vkb::SwapchainBuilder swapchainBuilder{_chosenGPU, _context.getDevice(), _surface};
+    vkb::SwapchainBuilder swapchainBuilder{_context.getPhysicalDevice(), _context.getDevice(), _surface};
 
     _swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
 

@@ -33,7 +33,7 @@ void VulkanContext::initVulkan()
     vkb::Instance vkb_inst = inst_ret.value();
 
     // grab the instance
-    _instance = vkb_inst.instance;
+    _instance        = vkb_inst.instance;
     _debug_messenger = vkb_inst.debug_messenger;
 
     DebugUtils::getInstance().initialize(_instance);
@@ -52,19 +52,19 @@ void VulkanContext::initVulkan()
     }
 
     VkPhysicalDeviceVulkan13Features features13;
-    features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-    features13.pNext = nullptr;
+    features13.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    features13.pNext            = nullptr;
     features13.dynamicRendering = true;
     features13.synchronization2 = true;
 
     VkPhysicalDeviceVulkan12Features features12;
-    features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    features12.pNext = nullptr;
-    features12.bufferDeviceAddress = true;
-    features12.descriptorIndexing = true;
-    features12.descriptorBindingPartiallyBound = true;
+    features12.sType                                    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    features12.pNext                                    = nullptr;
+    features12.bufferDeviceAddress                      = true;
+    features12.descriptorIndexing                       = true;
+    features12.descriptorBindingPartiallyBound          = true;
     features12.descriptorBindingVariableDescriptorCount = true;
-    features12.runtimeDescriptorArray = true;
+    features12.runtimeDescriptorArray                   = true;
 
     // 按照设置选择对应GPU
     vkb::PhysicalDeviceSelector selector{vkb_inst};
@@ -82,16 +82,16 @@ void VulkanContext::initVulkan()
 
     // 创建逻辑设备
     vkb::DeviceBuilder deviceBuilder{physical_device};
-    vkb::Device vkbDevice = deviceBuilder.build().value();
+    vkb::Device        vkbDevice = deviceBuilder.build().value();
 
     // 储存各种设备
-    _device = vk::Device(vkbDevice.device);
+    _device          = vk::Device(vkbDevice.device);
     _physical_device = vk::PhysicalDevice(physical_device.physical_device);
 
     // 准备各种需要的queue
-    _graphics_queue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
-    _compute_queue = vkbDevice.get_queue(vkb::QueueType::compute).value();
-    _transfer_queue = vkbDevice.get_queue(vkb::QueueType::transfer).value();
+    _graphics_queue        = vkbDevice.get_queue(vkb::QueueType::graphics).value();
+    _compute_queue         = vkbDevice.get_queue(vkb::QueueType::compute).value();
+    _transfer_queue        = vkbDevice.get_queue(vkb::QueueType::transfer).value();
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
@@ -110,6 +110,5 @@ void VulkanContext::cleanup()
     vkb::destroy_debug_utils_messenger(_instance, _debug_messenger, nullptr);
     vkDestroyInstance(_instance, nullptr);
 
-    SDL_DestroyWindow(_window);
 }
 } // dk::vkcore
