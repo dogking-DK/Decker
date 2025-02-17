@@ -175,8 +175,8 @@ void VulkanEngine::init_default_data()
 
     _mainDeletionQueue.push_function([&]()
     {
-        vkDestroySampler(_context.getDevice(), _defaultSamplerNearest, nullptr);
-        vkDestroySampler(_context.getDevice(), _defaultSamplerLinear, nullptr);
+        vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
+        vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
     });
 }
 
@@ -309,7 +309,7 @@ void VulkanEngine::init_background_pipelines()
         fmt::print(fg(fmt::color::aqua), "back ground release begin\n");
         if (sky.pipeline != VK_NULL_HANDLE)
         {
-            vkDestroyPipeline(_context.getDevice(), backgroundEffects[1].pipeline, nullptr);
+            vkDestroyPipeline(_device, backgroundEffects[1].pipeline, nullptr);
             backgroundEffects[1].pipeline = VK_NULL_HANDLE; // 将句柄置为空
             fmt::print(fg(fmt::color::aqua), "destroy sky pipeline\n");
         }
@@ -318,7 +318,7 @@ void VulkanEngine::init_background_pipelines()
 
         if (gradient.pipeline != VK_NULL_HANDLE)
         {
-            vkDestroyPipeline(_context.getDevice(), backgroundEffects[0].pipeline, nullptr);
+            vkDestroyPipeline(_device, backgroundEffects[0].pipeline, nullptr);
             backgroundEffects[0].pipeline = VK_NULL_HANDLE; // 将句柄置为空
             fmt::print(fg(fmt::color::aqua), "destroy gradient pipeline\n");
         }
@@ -326,7 +326,7 @@ void VulkanEngine::init_background_pipelines()
         // 销毁 PipelineLayout
         if (_gradientPipelineLayout != VK_NULL_HANDLE)
         {
-            vkDestroyPipelineLayout(_context.getDevice(), _gradientPipelineLayout, nullptr);
+            vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
             _gradientPipelineLayout = VK_NULL_HANDLE; // 将句柄置为空
             fmt::print(fg(fmt::color::aqua), "destroy gradient pipeline layout\n");
         }
@@ -870,7 +870,7 @@ AllocatedImage VulkanEngine::create_image(VkExtent3D size, VkFormat format, VkIm
     // always allocate images on dedicated GPU memory
     VmaAllocationCreateInfo allocinfo = {};
     allocinfo.usage                   = VMA_MEMORY_USAGE_GPU_ONLY;
-    allocinfo.requiredFlags           = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    allocinfo.requiredFlags           = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // allocate and create the image
     VK_CHECK(vmaCreateImage(_allocator, &img_info, &allocinfo, &newImage.image, &newImage.allocation, nullptr));
@@ -1040,6 +1040,105 @@ void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)
     vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
 }
 
+void VulkanEngine::init_vulkan()
+{
+    vkb::InstanceBuilder builder;
+
+
+    // make the vulkan instance, with basic debug features
+    auto inst_ret = builder.set_app_name("Example Vulkan Application")
+                           .request_validation_layers(bUseValidationLayers)
+                           .use_default_debug_messenger()
+                           .enable_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
+                           .require_api_version(1, 3, 0)
+                           .build();
+    if (!inst_ret)
+    {
+        fmt::print(stderr, "Failed to create vulkan instance: {}\n", inst_ret.error().message());
+    }
+
+
+    vkb::Instance vkb_inst = inst_ret.value();
+
+    // grab the instance
+    _instance        = vkb_inst.instance;
+    _debug_messenger = vkb_inst.debug_messenger;
+
+    DebugUtils::getInstance().initialize(_instance);
+
+    uint32_t instance_extension_count;
+    VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr));
+
+    std::vector<VkExtensionProperties> available_instance_extensions(instance_extension_count);
+    VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count,
+                                                    available_instance_extensions.data()));
+
+    auto sdl_err = SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
+    if (!sdl_err)
+    {
+        fmt::print(stderr, "Failed to create SDL\n");
+    }
+
+
+    VkPhysicalDeviceVulkan13Features features13{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES, .pNext = nullptr
+    };
+    features13.dynamicRendering = true;
+    features13.synchronization2 = true;
+
+    VkPhysicalDeviceVulkan12Features features12{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, .pNext = nullptr
+    };
+    features12.bufferDeviceAddress                      = true;
+    features12.descriptorIndexing                       = true;
+    features12.descriptorBindingPartiallyBound          = true;
+    features12.descriptorBindingVariableDescriptorCount = true;
+    features12.runtimeDescriptorArray                   = true;
+
+
+    // use vkbootstrap to select a gpu.
+    // We want a gpu that can write to the SDL surface and supports vulkan 1.2
+    vkb::PhysicalDeviceSelector selector{vkb_inst};
+
+    //selector.allow_any_gpu_device_type();
+
+    selector.set_minimum_version(1, 3);
+    selector.set_required_features_13(features13);
+    selector.set_required_features_12(features12);
+    selector.set_surface(_surface);
+    auto select_return = selector.select();
+    if (!select_return)
+    {
+        fmt::print(stderr, "Failed to select physical device: {}\n", select_return.error().message());
+    }
+    vkb::PhysicalDevice physicalDevice = select_return.value();
+
+
+    // physicalDevice.features.
+    // create the final vulkan device
+
+    vkb::DeviceBuilder deviceBuilder{physicalDevice};
+
+    vkb::Device vkbDevice = deviceBuilder.build().value();
+
+    // Get the VkDevice handle used in the rest of a vulkan application
+    _device    = vkbDevice.device;
+    _chosenGPU = physicalDevice.physical_device;
+
+    // use vkbootstrap to get a Graphics queue
+    _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
+
+    _graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+
+    // initialize the memory allocator
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    allocatorInfo.physicalDevice         = _chosenGPU;
+    allocatorInfo.device                 = _device;
+    allocatorInfo.instance               = _instance;
+    allocatorInfo.flags                  = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    vmaCreateAllocator(&allocatorInfo, &_allocator);
+}
+
 void VulkanEngine::init_swapchain()
 {
     create_swapchain(_windowExtent.width, _windowExtent.height);
@@ -1065,7 +1164,7 @@ void VulkanEngine::init_swapchain()
     //for the draw image, we want to allocate it from gpu local memory
     VmaAllocationCreateInfo rimg_allocinfo = {};
     rimg_allocinfo.usage                   = VMA_MEMORY_USAGE_GPU_ONLY;
-    rimg_allocinfo.requiredFlags           = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    rimg_allocinfo.requiredFlags           = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     //allocate and create the image
     vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
@@ -1277,10 +1376,10 @@ void VulkanEngine::init_imgui()
 
     // this initializes imgui for Vulkan
     ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance                  = _context.getInstance();
-    init_info.PhysicalDevice            = _context.getPhysicalDevice();
-    init_info.Device                    = _context.getDevice();
-    init_info.Queue                     = _context.getGraphicsQueue();
+    init_info.Instance                  = _instance;
+    init_info.PhysicalDevice            = _chosenGPU;
+    init_info.Device                    = _device;
+    init_info.Queue                     = _graphicsQueue;
     init_info.DescriptorPool            = imguiPool;
     init_info.MinImageCount             = 3;
     init_info.ImageCount                = 3;

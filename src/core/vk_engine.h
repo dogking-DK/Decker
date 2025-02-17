@@ -17,268 +17,276 @@
 #include "Scene/Node.h"
 #include "Vulkan/Context.h"
 
-namespace fastgltf
-{
-    struct Mesh;
+namespace fastgltf {
+struct Mesh;
 }
 
-namespace dk {
-    struct DeletionQueue
-    {
-        std::deque<std::function<void()>> deletors;
+DECKER_START
+struct DeletionQueue
+{
+    std::deque<std::function<void()>> deletors;
 
-        void push_function(std::function<void()>&& function)
+    void push_function(std::function<void()>&& function)
+    {
+        deletors.push_back(function);
+    }
+
+    void flush()
+    {
+        // reverse iterate the deletion queue to execute all the functions
+        for (auto it = deletors.rbegin(); it != deletors.rend(); ++it)
         {
-            deletors.push_back(function);
+            (*it)(); // call functors
         }
 
-        void flush()
-        {
-            // reverse iterate the deletion queue to execute all the functions
-            for (auto it = deletors.rbegin(); it != deletors.rend(); ++it)
-            {
-                (*it)(); // call functors
-            }
+        deletors.clear();
+    }
+};
 
-            deletors.clear();
-        }
-    };
+struct ComputePushConstants
+{
+    glm::vec4 data1;
+    glm::vec4 data2;
+    glm::vec4 data3;
+    glm::vec4 data4;
+};
 
-    struct ComputePushConstants
+struct ComputeEffect
+{
+    const char* name;
+
+    VkPipeline       pipeline;
+    VkPipelineLayout layout;
+
+    ComputePushConstants data;
+};
+
+
+struct FrameData
+{
+    VkSemaphore _swapchainSemaphore, _renderSemaphore;
+    VkFence     _renderFence;
+
+    DescriptorAllocatorGrowable _frameDescriptors;
+    DeletionQueue               _deletionQueue;
+
+    VkCommandPool   _commandPool;
+    VkCommandBuffer _mainCommandBuffer;
+};
+
+constexpr unsigned int FRAME_OVERLAP = 2;
+
+
+struct EngineStats
+{
+    float frametime;
+    int   triangle_count;
+    int   drawcall_count;
+    float mesh_draw_time;
+};
+
+struct GLTFMetallic_Roughness
+{
+    MaterialPipeline opaquePipeline;
+    MaterialPipeline transparentPipeline;
+
+    VkDescriptorSetLayout materialLayout;
+
+    struct MaterialConstants
     {
-        glm::vec4 data1;
-        glm::vec4 data2;
-        glm::vec4 data3;
-        glm::vec4 data4;
+        glm::vec4 colorFactors;
+        glm::vec4 metal_rough_factors;
+        // padding, we need it anyway for uniform buffers
+        uint32_t  colorTexID;
+        uint32_t  metalRoughTexID;
+        uint32_t  normalTexID;
+        uint32_t  pad1;
+        glm::vec4 extra[13];
     };
 
-    struct ComputeEffect
+    struct MaterialResources
     {
-        const char* name;
-
-        VkPipeline pipeline;
-        VkPipelineLayout layout;
-
-        ComputePushConstants data;
+        AllocatedImage colorImage;
+        VkSampler      colorSampler;
+        AllocatedImage metalRoughImage;
+        VkSampler      metalRoughSampler;
+        AllocatedImage normal_image;
+        VkSampler      normal_sampler;
+        VkBuffer       dataBuffer;
+        uint32_t       dataBufferOffset;
     };
 
+    DescriptorWriter writer;
 
+    void build_pipelines(VulkanEngine* engine);
+    void clear_resources(VkDevice device);
 
-    struct FrameData
-    {
-        VkSemaphore _swapchainSemaphore, _renderSemaphore;
-        VkFence _renderFence;
-
-        DescriptorAllocatorGrowable _frameDescriptors;
-        DeletionQueue _deletionQueue;
-
-        VkCommandPool _commandPool;
-        VkCommandBuffer _mainCommandBuffer;
-    };
+    MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources,
+                                    DescriptorAllocatorGrowable& descriptorAllocator);
+};
 
-    constexpr unsigned int FRAME_OVERLAP = 2;
+struct TextureID
+{
+    uint32_t Index;
+};
 
+struct TextureCache
+{
+    std::vector<VkDescriptorImageInfo>         Cache;
+    std::unordered_map<std::string, TextureID> NameMap;
+    TextureID                                  AddTexture(const VkImageView& image, VkSampler sampler);
+};
 
+class VulkanEngine
+{
+public:
+    bool _isInitialized{false};
+    int  _frameNumber{0};
 
-    struct EngineStats
-    {
-        float frametime;
-        int triangle_count;
-        int drawcall_count;
-        float mesh_draw_time;
-    };
+    VkExtent2D _windowExtent{1280, 720};
 
-    struct GLTFMetallic_Roughness
-    {
-        MaterialPipeline opaquePipeline;
-        MaterialPipeline transparentPipeline;
+    struct SDL_Window* _window{nullptr};
 
-        VkDescriptorSetLayout materialLayout;
+    VkInstance               _instance;
+    VkDebugUtilsMessengerEXT _debug_messenger;
+    VkPhysicalDevice         _chosenGPU;
+    VkDevice                 _device;
 
-        struct MaterialConstants
-        {
-            glm::vec4 colorFactors;
-            glm::vec4 metal_rough_factors;
-            // padding, we need it anyway for uniform buffers
-            uint32_t colorTexID;
-            uint32_t metalRoughTexID;
-            uint32_t normalTexID;
-            uint32_t pad1;
-            glm::vec4 extra[13];
-        };
+    VkQueue  _graphicsQueue;
+    uint32_t _graphicsQueueFamily;
 
-        struct MaterialResources
-        {
-            AllocatedImage colorImage;
-            VkSampler colorSampler;
-            AllocatedImage metalRoughImage;
-            VkSampler metalRoughSampler;
-            AllocatedImage normal_image;
-            VkSampler normal_sampler;
-            VkBuffer dataBuffer;
-            uint32_t dataBufferOffset;
-        };
+    AllocatedBuffer _defaultGLTFMaterialData;
 
-        DescriptorWriter writer;
+    FrameData _frames[FRAME_OVERLAP];
 
-        void build_pipelines(VulkanEngine* engine);
-        void clear_resources(VkDevice device);
+    VkSurfaceKHR     _surface;
+    VkSwapchainKHR   _swapchain;
+    VkFormat         _swapchainImageFormat;
+    VkExtent2D       _swapchainExtent;
+    VkExtent2D       _drawExtent;
+    VkDescriptorPool _descriptorPool;
 
-        MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources,
-                                        DescriptorAllocatorGrowable& descriptorAllocator);
-    };
+    DescriptorAllocator globalDescriptorAllocator;
 
-    struct TextureID
-    {
-        uint32_t Index;
-    };
+    VkPipeline       _gradientPipeline;
+    VkPipelineLayout _gradientPipelineLayout;
 
-    struct TextureCache
-    {
-        std::vector<VkDescriptorImageInfo> Cache;
-        std::unordered_map<std::string, TextureID> NameMap;
-        TextureID AddTexture(const VkImageView& image, VkSampler sampler);
-    };
+    std::vector<VkImage>     _swapchainImages;
+    std::vector<VkImageView> _swapchainImageViews;
 
-    class VulkanEngine
-    {
-    public:
-        bool _isInitialized{false};
-        int _frameNumber{0};
+    VkDescriptorSet       _drawImageDescriptors;
+    VkDescriptorSetLayout _drawImageDescriptorLayout;
 
-        vkcore::VulkanContext _context;
+    DeletionQueue _mainDeletionQueue;
 
-        VkExtent2D _windowExtent{1280, 720};
-        AllocatedBuffer _defaultGLTFMaterialData;
+    VmaAllocator _allocator; // vma lib allocator
 
-        FrameData _frames[FRAME_OVERLAP];
+    VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 
-        VkSwapchainKHR _swapchain;
-        VkFormat _swapchainImageFormat;
-        VkExtent2D _swapchainExtent;
-        VkExtent2D _drawExtent;
-        VkDescriptorPool _descriptorPool;
+    GLTFMetallic_Roughness metalRoughMaterial;
 
-        DescriptorAllocator globalDescriptorAllocator;
+    // draw resources
+    AllocatedImage _drawImage;
+    AllocatedImage _depthImage;
 
-        VkPipeline _gradientPipeline;
-        VkPipelineLayout _gradientPipelineLayout;
+    // immediate submit structures
+    VkFence         _immFence;
+    VkCommandBuffer _immCommandBuffer;
+    VkCommandPool   _immCommandPool;
 
-        std::vector<VkImage> _swapchainImages;
-        std::vector<VkImageView> _swapchainImageViews;
+    AllocatedImage _whiteImage;
+    AllocatedImage _blackImage;
+    AllocatedImage _greyImage;
+    AllocatedImage _errorCheckerboardImage;
 
-        VkDescriptorSet _drawImageDescriptors;
-        VkDescriptorSetLayout _drawImageDescriptorLayout;
+    VkSampler _defaultSamplerLinear;
+    VkSampler _defaultSamplerNearest;
 
-        DeletionQueue _mainDeletionQueue;
+    TextureCache texCache;
 
-        VmaAllocator _allocator; // vma lib allocator
+    GPUMeshBuffers rectangle;
+    DrawContext    drawCommands;
 
-        VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+    GPUSceneData sceneData;
 
-        GLTFMetallic_Roughness metalRoughMaterial;
+    Camera mainCamera;
 
-        // draw resources
-        AllocatedImage _drawImage;
-        AllocatedImage _depthImage;
+    EngineStats stats;
 
-        // immediate submit structures
-        VkFence _immFence;
-        VkCommandBuffer _immCommandBuffer;
-        VkCommandPool _immCommandPool;
+    std::vector<ComputeEffect> backgroundEffects;
+    int                        currentBackgroundEffect{0};
 
-        AllocatedImage _whiteImage;
-        AllocatedImage _blackImage;
-        AllocatedImage _greyImage;
-        AllocatedImage _errorCheckerboardImage;
+    // singleton style getter.multiple engines is not supported
+    static VulkanEngine& Get();
 
-        VkSampler _defaultSamplerLinear;
-        VkSampler _defaultSamplerNearest;
+    // initializes everything in the engine
+    void init();
 
-        TextureCache texCache;
+    // shuts down the engine
+    void cleanup();
 
-        GPUMeshBuffers rectangle;
-        DrawContext drawCommands;
+    // draw loop
+    void draw();
+    void draw_main(VkCommandBuffer cmd);
+    void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
-        GPUSceneData sceneData;
+    void render_nodes();
 
-        Camera mainCamera;
+    void draw_geometry(VkCommandBuffer cmd);
 
-        EngineStats stats;
+    // run main loop
+    void run();
 
-        std::vector<ComputeEffect> backgroundEffects;
-        int currentBackgroundEffect{0};
+    void update_scene();
 
-        // singleton style getter.multiple engines is not supported
-        static VulkanEngine& Get();
+    // upload a mesh into a pair of gpu buffers. If descriptor allocator is not
+    // null, it will also create a descriptor that points to the vertex buffer
+    GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
-        // initializes everything in the engine
-        void init();
+    FrameData& get_current_frame();
+    FrameData& get_last_frame();
 
-        // shuts down the engine
-        void cleanup();
+    AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
-        // draw loop
-        void draw();
-        void draw_main(VkCommandBuffer cmd);
-        void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
+    AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+    AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
+                                bool  mipmapped = false);
 
-        void render_nodes();
+    void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
-        void draw_geometry(VkCommandBuffer cmd);
+    std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
-        // run main loop
-        void run();
+    void destroy_image(const AllocatedImage& img);
+    void destroy_buffer(const AllocatedBuffer& buffer);
 
-        void update_scene();
+    bool resize_requested{false};
+    bool freeze_rendering{false};
 
-        // upload a mesh into a pair of gpu buffers. If descriptor allocator is not
-        // null, it will also create a descriptor that points to the vertex buffer
-        GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+private:
+    void init_vulkan();
 
-        FrameData& get_current_frame();
-        FrameData& get_last_frame();
+    void init_swapchain();
 
-        AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+    void create_swapchain(uint32_t width, uint32_t height);
 
-        AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-        AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
-                                    bool mipmapped = false);
+    void resize_swapchain();
 
-        void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+    void destroy_swapchain();
 
-        std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
+    void init_commands();
 
-        void destroy_image(const AllocatedImage& img);
-        void destroy_buffer(const AllocatedBuffer& buffer);
+    void init_pipelines();
+    void init_background_pipelines();
 
-        bool resize_requested{false};
-        bool freeze_rendering{false};
+    void init_descriptors();
 
-    private:
-        void init_swapchain();
+    void init_sync_structures();
 
-        void create_swapchain(uint32_t width, uint32_t height);
+    void init_renderables();
 
-        void resize_swapchain();
+    void init_imgui();
 
-        void destroy_swapchain();
-
-        void init_commands();
-
-        void init_pipelines();
-        void init_background_pipelines();
-
-        void init_descriptors();
-
-        void init_sync_structures();
-
-        void init_renderables();
-
-        void init_imgui();
-
-        void init_default_data();
-
-    };
+    void init_default_data();
+};
 
 } // dk
