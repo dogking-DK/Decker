@@ -234,7 +234,7 @@ namespace {
 
 Swapchain::Swapchain(Swapchain& old_swapchain, const vk::Extent2D& extent) :
     Swapchain{
-        old_swapchain.context,
+        *old_swapchain.context,
         old_swapchain.surface,
         old_swapchain.properties.present_mode,
         old_swapchain.present_mode_priority_list,
@@ -250,7 +250,7 @@ Swapchain::Swapchain(Swapchain& old_swapchain, const vk::Extent2D& extent) :
 
 Swapchain::Swapchain(Swapchain& old_swapchain, const uint32_t image_count) :
     Swapchain{
-        old_swapchain.context,
+        *old_swapchain.context,
         old_swapchain.surface,
         old_swapchain.properties.present_mode,
         old_swapchain.present_mode_priority_list,
@@ -266,7 +266,7 @@ Swapchain::Swapchain(Swapchain& old_swapchain, const uint32_t image_count) :
 
 Swapchain::Swapchain(Swapchain& old_swapchain, const std::set<vk::ImageUsageFlagBits>& image_usage_flags) :
     Swapchain{
-        old_swapchain.context,
+        *old_swapchain.context,
         old_swapchain.surface,
         old_swapchain.properties.present_mode,
         old_swapchain.present_mode_priority_list,
@@ -283,7 +283,7 @@ Swapchain::Swapchain(Swapchain& old_swapchain, const std::set<vk::ImageUsageFlag
 Swapchain::Swapchain(Swapchain&                            old_swapchain, const vk::Extent2D& extent,
                      const vk::SurfaceTransformFlagBitsKHR transform) :
     Swapchain{
-        old_swapchain.context,
+        *old_swapchain.context,
         old_swapchain.surface,
         old_swapchain.properties.present_mode,
         old_swapchain.present_mode_priority_list,
@@ -307,7 +307,7 @@ Swapchain::Swapchain(VulkanContext&                           context,
                      const vk::SurfaceTransformFlagBitsKHR    transform,
                      const std::set<vk::ImageUsageFlagBits>&  image_usage_flags,
                      vk::SwapchainKHR                         old_swapchain) :
-    context{context},
+    context{(&context)},
     surface{surface}
 {
     this->present_mode_priority_list   = present_mode_priority_list;
@@ -380,7 +380,7 @@ Swapchain::~Swapchain()
 {
     if (handle)
     {
-        context.getDevice().destroySwapchainKHR(handle);
+        context->getDevice().destroySwapchainKHR(handle);
     }
 }
 
@@ -403,7 +403,7 @@ bool Swapchain::is_valid() const
 
 const VulkanContext& Swapchain::get_device() const
 {
-    return context;
+    return *context;
 }
 
 vk::SwapchainKHR Swapchain::get_handle() const
@@ -414,7 +414,7 @@ vk::SwapchainKHR Swapchain::get_handle() const
 std::pair<vk::Result, uint32_t> Swapchain::acquire_next_image(vk::Semaphore image_acquired_semaphore,
                                                               vk::Fence     fence) const
 {
-    vk::ResultValue<uint32_t> rv = context.getDevice().acquireNextImageKHR(
+    vk::ResultValue<uint32_t> rv = context->getDevice().acquireNextImageKHR(
         handle, std::numeric_limits<uint64_t>::max(), image_acquired_semaphore, fence);
     return std::make_pair(rv.result, rv.value);
 }

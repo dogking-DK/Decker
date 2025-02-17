@@ -1,4 +1,4 @@
-#include "Context.h"
+ï»¿#include "Context.h"
 
 #include <VkBootstrap.h>
 #include <SDL.h>
@@ -12,10 +12,9 @@ VulkanContext::VulkanContext()
     initVulkan();
 }
 
-void VulkanContext::initVulkan()
+void VulkanContext::initInstance()
 {
     vkb::InstanceBuilder builder;
-
 
     // make the vulkan instance, with basic debug features
     auto inst_ret = builder.set_app_name("Example Vulkan Application")
@@ -29,7 +28,6 @@ void VulkanContext::initVulkan()
         fmt::print(stderr, "Failed to create vulkan instance: {}\n", inst_ret.error().message());
     }
 
-
     vkb::Instance vkb_inst = inst_ret.value();
 
     // grab the instance
@@ -37,19 +35,16 @@ void VulkanContext::initVulkan()
     _debug_messenger = vkb_inst.debug_messenger;
 
     DebugUtils::getInstance().initialize(_instance);
+}
 
+void VulkanContext::initDevice()
+{
     uint32_t instance_extension_count;
     VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr));
 
     std::vector<VkExtensionProperties> available_instance_extensions(instance_extension_count);
     VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count,
                                                     available_instance_extensions.data()));
-
-    auto sdl_err = SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
-    if (!sdl_err)
-    {
-        fmt::print(stderr, "Failed to create SDL\n");
-    }
 
     VkPhysicalDeviceVulkan13Features features13;
     features13.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
@@ -66,12 +61,12 @@ void VulkanContext::initVulkan()
     features12.descriptorBindingVariableDescriptorCount = true;
     features12.runtimeDescriptorArray                   = true;
 
-    // °´ÕÕÉèÖÃÑ¡Ôñ¶ÔÓ¦GPU
-    vkb::PhysicalDeviceSelector selector{vkb_inst};
-    selector.set_minimum_version(1, 3); // ÖÁÉÙÊ¹ÓÃvulkan1.3
+    // æŒ‰ç…§è®¾ç½®é€‰æ‹©å¯¹åº”GPU
+    vkb::PhysicalDeviceSelector selector{_vkb_inst};
+    selector.set_minimum_version(1, 3); // è‡³å°‘ä½¿ç”¨vulkan1.3
     selector.set_required_features_13(features13);
     selector.set_required_features_12(features12);
-    selector.set_surface(_surface);
+    selector.set_surface(_swapchain->get_surface());
     auto select_return = selector.select();
     if (!select_return)
     {
@@ -80,21 +75,29 @@ void VulkanContext::initVulkan()
     }
     const vkb::PhysicalDevice& physical_device = select_return.value();
 
-    // ´´½¨Âß¼­Éè±¸
+    // åˆ›å»ºé€»è¾‘è®¾å¤‡
     vkb::DeviceBuilder deviceBuilder{physical_device};
     vkb::Device        vkbDevice = deviceBuilder.build().value();
 
-    // ´¢´æ¸÷ÖÖÉè±¸
+    // å‚¨å­˜å„ç§è®¾å¤‡
     _device          = vk::Device(vkbDevice.device);
     _physical_device = vk::PhysicalDevice(physical_device.physical_device);
 
-    // ×¼±¸¸÷ÖÖÐèÒªµÄqueue
+    // å‡†å¤‡å„ç§éœ€è¦çš„queue
     _graphics_queue        = vkbDevice.get_queue(vkb::QueueType::graphics).value();
     _compute_queue         = vkbDevice.get_queue(vkb::QueueType::compute).value();
     _transfer_queue        = vkbDevice.get_queue(vkb::QueueType::transfer).value();
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+}
+
+void VulkanContext::initVulkan()
+{
+    initInstance();
+    _swapchain = new Swapchain(*this, _window->create_surface(reinterpret_cast<vk::Instance&>(_instance)),
+                               vk::PresentModeKHR::eMailbox);
+    initDevice();
 }
 
 VulkanContext::~VulkanContext()
@@ -104,11 +107,8 @@ VulkanContext::~VulkanContext()
 
 void VulkanContext::cleanup()
 {
-    vkDestroySurfaceKHR(_instance, _surface, nullptr);
-
     vkDestroyDevice(_device, nullptr);
     vkb::destroy_debug_utils_messenger(_instance, _debug_messenger, nullptr);
     vkDestroyInstance(_instance, nullptr);
-
 }
 } // dk::vkcore

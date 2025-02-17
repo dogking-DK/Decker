@@ -15,13 +15,13 @@
 #include <vk_pipelines.h>
 
 #include "Scene/Node.h"
-#include "Vulkan/Context.h"
 
-namespace fastgltf {
-struct Mesh;
+namespace fastgltf
+{
+    struct Mesh;
 }
 
-DECKER_START
+namespace dk {
 struct DeletionQueue
 {
     std::deque<std::function<void()>> deletors;
@@ -55,33 +55,35 @@ struct ComputeEffect
 {
     const char* name;
 
-    VkPipeline       pipeline;
+    VkPipeline pipeline;
     VkPipelineLayout layout;
 
     ComputePushConstants data;
 };
 
 
+
 struct FrameData
 {
     VkSemaphore _swapchainSemaphore, _renderSemaphore;
-    VkFence     _renderFence;
+    VkFence _renderFence;
 
     DescriptorAllocatorGrowable _frameDescriptors;
-    DeletionQueue               _deletionQueue;
+    DeletionQueue _deletionQueue;
 
-    VkCommandPool   _commandPool;
+    VkCommandPool _commandPool;
     VkCommandBuffer _mainCommandBuffer;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
 
 
+
 struct EngineStats
 {
     float frametime;
-    int   triangle_count;
-    int   drawcall_count;
+    int triangle_count;
+    int drawcall_count;
     float mesh_draw_time;
 };
 
@@ -97,23 +99,23 @@ struct GLTFMetallic_Roughness
         glm::vec4 colorFactors;
         glm::vec4 metal_rough_factors;
         // padding, we need it anyway for uniform buffers
-        uint32_t  colorTexID;
-        uint32_t  metalRoughTexID;
-        uint32_t  normalTexID;
-        uint32_t  pad1;
+        uint32_t colorTexID;
+        uint32_t metalRoughTexID;
+        uint32_t normalTexID;
+        uint32_t pad1;
         glm::vec4 extra[13];
     };
 
     struct MaterialResources
     {
         AllocatedImage colorImage;
-        VkSampler      colorSampler;
+        VkSampler colorSampler;
         AllocatedImage metalRoughImage;
-        VkSampler      metalRoughSampler;
+        VkSampler metalRoughSampler;
         AllocatedImage normal_image;
-        VkSampler      normal_sampler;
-        VkBuffer       dataBuffer;
-        uint32_t       dataBufferOffset;
+        VkSampler normal_sampler;
+        VkBuffer dataBuffer;
+        uint32_t dataBufferOffset;
     };
 
     DescriptorWriter writer;
@@ -122,7 +124,7 @@ struct GLTFMetallic_Roughness
     void clear_resources(VkDevice device);
 
     MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources,
-                                    DescriptorAllocatorGrowable& descriptorAllocator);
+        DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 struct TextureID
@@ -132,49 +134,49 @@ struct TextureID
 
 struct TextureCache
 {
-    std::vector<VkDescriptorImageInfo>         Cache;
+    std::vector<VkDescriptorImageInfo> Cache;
     std::unordered_map<std::string, TextureID> NameMap;
-    TextureID                                  AddTexture(const VkImageView& image, VkSampler sampler);
+    TextureID AddTexture(const VkImageView& image, VkSampler sampler);
 };
 
 class VulkanEngine
 {
 public:
-    bool _isInitialized{false};
-    int  _frameNumber{0};
+    bool _isInitialized{ false };
+    int _frameNumber{ 0 };
 
-    VkExtent2D _windowExtent{1280, 720};
+    VkExtent2D _windowExtent{ 1280, 720 };
 
-    struct SDL_Window* _window{nullptr};
+    struct SDL_Window* _window{ nullptr };
 
-    VkInstance               _instance;
+    VkInstance _instance;
     VkDebugUtilsMessengerEXT _debug_messenger;
-    VkPhysicalDevice         _chosenGPU;
-    VkDevice                 _device;
+    VkPhysicalDevice _chosenGPU;
+    VkDevice _device;
 
-    VkQueue  _graphicsQueue;
+    VkQueue _graphicsQueue;
     uint32_t _graphicsQueueFamily;
 
     AllocatedBuffer _defaultGLTFMaterialData;
 
     FrameData _frames[FRAME_OVERLAP];
 
-    VkSurfaceKHR     _surface;
-    VkSwapchainKHR   _swapchain;
-    VkFormat         _swapchainImageFormat;
-    VkExtent2D       _swapchainExtent;
-    VkExtent2D       _drawExtent;
+    VkSurfaceKHR _surface;
+    VkSwapchainKHR _swapchain;
+    VkFormat _swapchainImageFormat;
+    VkExtent2D _swapchainExtent;
+    VkExtent2D _drawExtent;
     VkDescriptorPool _descriptorPool;
 
     DescriptorAllocator globalDescriptorAllocator;
 
-    VkPipeline       _gradientPipeline;
+    VkPipeline _gradientPipeline;
     VkPipelineLayout _gradientPipelineLayout;
 
-    std::vector<VkImage>     _swapchainImages;
+    std::vector<VkImage> _swapchainImages;
     std::vector<VkImageView> _swapchainImageViews;
 
-    VkDescriptorSet       _drawImageDescriptors;
+    VkDescriptorSet _drawImageDescriptors;
     VkDescriptorSetLayout _drawImageDescriptorLayout;
 
     DeletionQueue _mainDeletionQueue;
@@ -190,9 +192,9 @@ public:
     AllocatedImage _depthImage;
 
     // immediate submit structures
-    VkFence         _immFence;
+    VkFence _immFence;
     VkCommandBuffer _immCommandBuffer;
-    VkCommandPool   _immCommandPool;
+    VkCommandPool _immCommandPool;
 
     AllocatedImage _whiteImage;
     AllocatedImage _blackImage;
@@ -205,7 +207,7 @@ public:
     TextureCache texCache;
 
     GPUMeshBuffers rectangle;
-    DrawContext    drawCommands;
+    DrawContext drawCommands;
 
     GPUSceneData sceneData;
 
@@ -214,7 +216,7 @@ public:
     EngineStats stats;
 
     std::vector<ComputeEffect> backgroundEffects;
-    int                        currentBackgroundEffect{0};
+    int currentBackgroundEffect{ 0 };
 
     // singleton style getter.multiple engines is not supported
     static VulkanEngine& Get();
@@ -250,7 +252,7 @@ public:
 
     AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
     AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
-                                bool  mipmapped = false);
+        bool mipmapped = false);
 
     void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
@@ -259,8 +261,8 @@ public:
     void destroy_image(const AllocatedImage& img);
     void destroy_buffer(const AllocatedBuffer& buffer);
 
-    bool resize_requested{false};
-    bool freeze_rendering{false};
+    bool resize_requested{ false };
+    bool freeze_rendering{ false };
 
 private:
     void init_vulkan();
@@ -289,4 +291,4 @@ private:
     void init_default_data();
 };
 
-} // dk
+}

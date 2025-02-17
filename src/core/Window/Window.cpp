@@ -25,10 +25,6 @@ namespace dk::core
 	{
 	}
 
-    void Window::process_events()
-	{
-	}
-
 	Window::Extent Window::resize(const Extent& new_extent)
 	{
 		if (_properties.resizable)

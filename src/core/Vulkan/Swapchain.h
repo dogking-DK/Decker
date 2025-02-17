@@ -72,7 +72,7 @@ public:
 
     Swapchain(const Swapchain&) = delete;
 
-    Swapchain(Swapchain&& other) noexcept;
+    Swapchain(Swapchain&& other);
 
     ~Swapchain();
 
@@ -104,9 +104,7 @@ public:
     vk::PresentModeKHR get_present_mode() const;
 
 private:
-    VulkanContext& context;
-
-    SDL_Window* _window{ nullptr };
+    VulkanContext* context;
 
     vk::SurfaceKHR surface;
 

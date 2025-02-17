@@ -1,10 +1,11 @@
-#pragma once
+ï»¿#pragma once
 
 #include <vulkan/vulkan.h>
+#include <vulkan/vk_enum_string_helper.h>
 #include <string>
 #include <memory>
 #include <mutex>
-#include <fmt/format.h> // ÓÃÓÚ¸ñÊ½»¯Êä³ö
+#include <fmt/format.h> // ç”¨äºæ ¼å¼åŒ–è¾“å‡º
 
 #include "Macros.h"
 
@@ -12,14 +13,14 @@ namespace dk {
 class DebugUtils
 {
 public:
-    // »ñÈ¡µ¥ÀıÊµÀı
+    // è·å–å•ä¾‹å®ä¾‹
     static DebugUtils& getInstance()
     {
         static DebugUtils instance;
         return instance;
     }
 
-    // ³õÊ¼»¯µ÷ÊÔ¹¤¾ß£¨±ØĞëÔÚ Vulkan ÊµÀı´´½¨ºóµ÷ÓÃ£©
+    // åˆå§‹åŒ–è°ƒè¯•å·¥å…·ï¼ˆå¿…é¡»åœ¨ Vulkan å®ä¾‹åˆ›å»ºåè°ƒç”¨ï¼‰
     void initialize(VkInstance instance)
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -41,14 +42,14 @@ public:
         initialized_ = true;
     }
 
-    // ÉèÖÃ¶ÔÏóÃû³Æ
+    // è®¾ç½®å¯¹è±¡åç§°
     void setDebugName(VkDevice device, VkObjectType type, uint64_t handle, const std::string& name) const
     {
         VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = type;
+        nameInfo.sType        = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType   = type;
         nameInfo.objectHandle = handle;
-        nameInfo.pObjectName = name.c_str();
+        nameInfo.pObjectName  = name.c_str();
 
         VkResult result = vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
         if (result != VK_SUCCESS)
@@ -58,16 +59,15 @@ public:
     }
 
 private:
-    // Ë½ÓĞ¹¹Ôìº¯Êı£¬½ûÖ¹Íâ²¿´´½¨ÊµÀı
+    // ç§æœ‰æ„é€ å‡½æ•°ï¼Œç¦æ­¢å¤–éƒ¨åˆ›å»ºå®ä¾‹
     DebugUtils() = default;
 
-    // ½ûÖ¹¿½±´ºÍ¸³Öµ
-    DebugUtils(const DebugUtils&) = delete;
+    // ç¦æ­¢æ‹·è´å’Œèµ‹å€¼
+    DebugUtils(const DebugUtils&)            = delete;
     DebugUtils& operator=(const DebugUtils&) = delete;
 
     PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT = nullptr;
-    bool initialized_ = false;
-    mutable std::mutex mutex_; // ÓÃÓÚÏß³Ì°²È«
+    bool                             initialized_                 = false;
+    mutable std::mutex               mutex_; // ç”¨äºçº¿ç¨‹å®‰å…¨
 };
-
 } // dk

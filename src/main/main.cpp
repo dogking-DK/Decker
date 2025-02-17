@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[])
 {
-    decker::VulkanEngine engine;
+    dk::VulkanEngine engine;
 
     engine.init();
 

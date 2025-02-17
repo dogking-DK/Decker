@@ -3,7 +3,10 @@
 
 #include <vk_types.h>
 
+#include "Instance.h"
 #include "Macros.h"
+#include "Swapchain.h"
+#include "Window/SDLWindow.h"
 
 namespace dk::vkcore {
 class VulkanContext
@@ -23,12 +26,15 @@ public:
     uint32_t getTransferQueueIndex() const { return _transfer_queue_family; }
 
 private:
-
+    VkInstance _instance;
+    VkDebugUtilsMessengerEXT _debug_messenger;
     vk::Device _device;
     vk::PhysicalDevice _physical_device;
+    vkb::Instance _vkb_inst;
 
-    vk::Instance _instance;
-    VkDebugUtilsMessengerEXT _debug_messenger;
+    Swapchain* _swapchain;
+
+    core::SDLWindow* _window;
 
     vk::Queue _graphics_queue;
     vk::Queue _compute_queue;
@@ -36,6 +42,10 @@ private:
     uint32_t _graphics_queue_family;
     uint32_t _compute_queue_family;
     uint32_t _transfer_queue_family;
+
+
+    void initInstance();
+    void initDevice();
 
     void initVulkan();
     void cleanup();

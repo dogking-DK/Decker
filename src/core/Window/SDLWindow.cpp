@@ -1,23 +1,7 @@
-/* Copyright (c) 2018-2023, Arm Limited and Contributors
- *
- * SPDX-License-Identifier: Apache-2.0
- *
- * Licensed under the Apache License, Version 2.0 the "License";
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #include "SDLWindow.h"
 
 #include <SDL.h>
+#include <SDL_vulkan.h>
 
 namespace dk::core {
 SDLWindow::SDLWindow(const Properties& properties) : Window(properties)
@@ -45,12 +29,37 @@ SDLWindow::~SDLWindow()
 
 VkSurfaceKHR SDLWindow::create_surface(vk::Instance& instance)
 {
-
+    VkSurfaceKHR surface;
+    auto         sdl_err = SDL_Vulkan_CreateSurface(_window, instance, &surface);
+    if (!sdl_err)
+    {
+        fmt::print(stderr, "Failed to create SDL\n");
+    }
+    return surface;
 }
 
-VkSurfaceKHR SDLWindow::create_surface(VkInstance instance, VkPhysicalDevice physical_device)
+float SDLWindow::get_dpi_factor() const
 {
+    int   displayIndex = 0; // 默认显示器
+    float ddpi, hdpi, vdpi;
 
+    // 获取显示器的 DPI 信息
+    if (SDL_GetDisplayDPI(displayIndex, &ddpi, &hdpi, &vdpi) == 0)
+    {
+        return ddpi;
+    }
+    return 1.0f;
 }
 
+float SDLWindow::get_content_scale_factor() const
+{
+    int scale_x, scale_y;
+    int size_x,  size_y;
+
+    // 获取窗口的缩放因子
+    SDL_GetWindowSizeInPixels(_window, &scale_x, &scale_y);
+    SDL_GetWindowSize(_window, &size_x, &size_y);
+
+    return static_cast<float>(scale_x) / static_cast<float>(size_x);
+}
 }
