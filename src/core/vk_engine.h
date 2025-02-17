@@ -15,6 +15,7 @@
 #include <vk_pipelines.h>
 
 #include "Scene/Node.h"
+#include "Vulkan/Context.h"
 
 namespace fastgltf
 {
@@ -145,26 +146,14 @@ public:
     bool _isInitialized{ false };
     int _frameNumber{ 0 };
 
+    vkcore::VulkanContext* _context;
+
     VkExtent2D _windowExtent{ 1280, 720 };
-
-    struct SDL_Window* _window{ nullptr };
-
-    VkInstance _instance;
-    VkDebugUtilsMessengerEXT _debug_messenger;
-    VkPhysicalDevice _chosenGPU;
-    VkDevice _device;
-
-    VkQueue _graphicsQueue;
-    uint32_t _graphicsQueueFamily;
 
     AllocatedBuffer _defaultGLTFMaterialData;
 
     FrameData _frames[FRAME_OVERLAP];
 
-    VkSurfaceKHR _surface;
-    VkSwapchainKHR _swapchain;
-    VkFormat _swapchainImageFormat;
-    VkExtent2D _swapchainExtent;
     VkExtent2D _drawExtent;
     VkDescriptorPool _descriptorPool;
 
@@ -173,8 +162,7 @@ public:
     VkPipeline _gradientPipeline;
     VkPipelineLayout _gradientPipelineLayout;
 
-    std::vector<VkImage> _swapchainImages;
-    std::vector<VkImageView> _swapchainImageViews;
+
 
     VkDescriptorSet _drawImageDescriptors;
     VkDescriptorSetLayout _drawImageDescriptorLayout;
@@ -269,7 +257,6 @@ private:
 
     void init_swapchain();
 
-    void create_swapchain(uint32_t width, uint32_t height);
 
     void resize_swapchain();
 

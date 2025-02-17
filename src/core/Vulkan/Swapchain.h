@@ -72,7 +72,7 @@ public:
 
     Swapchain(const Swapchain&) = delete;
 
-    Swapchain(Swapchain&& other);
+    Swapchain(Swapchain&& other) noexcept;
 
     ~Swapchain();
 
@@ -103,6 +103,8 @@ public:
 
     vk::PresentModeKHR get_present_mode() const;
 
+    void clear();
+
 private:
     VulkanContext* context;
 
@@ -111,6 +113,7 @@ private:
     vk::SwapchainKHR handle;
 
     std::vector<vk::Image> images;
+    std::vector<vk::ImageView> image_views;
 
     HPPSwapchainProperties properties;
 

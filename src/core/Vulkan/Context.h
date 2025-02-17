@@ -25,6 +25,9 @@ public:
     uint32_t getComputeQueueIndex() const { return _compute_queue_family; }
     uint32_t getTransferQueueIndex() const { return _transfer_queue_family; }
 
+    Swapchain* getSwapchain() const { return _swapchain; }
+    core::SDLWindow* getWindow() const { return _window; }
+    void resizeSwapchainAuto();
 private:
     VkInstance _instance;
     VkDebugUtilsMessengerEXT _debug_messenger;

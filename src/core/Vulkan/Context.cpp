@@ -105,6 +105,15 @@ VulkanContext::~VulkanContext()
     cleanup();
 }
 
+void VulkanContext::resizeSwapchainAuto()
+{
+    _swapchain->clear();
+    int w, h;
+    SDL_GetWindowSize(_window->get_window(), &w, &h);
+    const vk::Extent2D extent{ static_cast<uint32_t>(w), static_cast<uint32_t>(h) };
+    _swapchain = new Swapchain(*_swapchain, extent);
+}
+
 void VulkanContext::cleanup()
 {
     vkDestroyDevice(_device, nullptr);

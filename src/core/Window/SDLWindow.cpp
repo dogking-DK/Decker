@@ -62,4 +62,9 @@ float SDLWindow::get_content_scale_factor() const
 
     return static_cast<float>(scale_x) / static_cast<float>(size_x);
 }
+
+void SDLWindow::close()
+{
+    SDL_DestroyWindow(_window);
+}
 }

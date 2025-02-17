@@ -6,7 +6,6 @@
 #include "Macros.h"
 
 namespace dk::vkcore {
-
 namespace {
     template <class T>
     constexpr const T& clamp(const T& v, const T& lo, const T& hi)
@@ -310,70 +309,34 @@ Swapchain::Swapchain(VulkanContext&                           context,
     context{(&context)},
     surface{surface}
 {
-    this->present_mode_priority_list   = present_mode_priority_list;
-    this->surface_format_priority_list = surface_format_priority_list;
+    vkb::SwapchainBuilder swapchainBuilder{context.getPhysicalDevice(), context.getDevice(), surface};
 
-    std::vector<vk::SurfaceFormatKHR> surface_formats = context.getPhysicalDevice().getSurfaceFormatsKHR(surface);
-    fmt::print("Surface supports the following surface formats:");
-    for (auto& surface_format : surface_formats)
+    uint32_t image_use_flag{0};
+    for (auto flag : image_usage_flags)
     {
-        fmt::print("  \t{}", to_string(surface_format.format) + ", " + to_string(surface_format.colorSpace));
+        image_use_flag |= static_cast<VkImageUsageFlagBits>(flag);
     }
 
-    std::vector<vk::PresentModeKHR> present_modes = context.getPhysicalDevice().getSurfacePresentModesKHR(surface);
-    fmt::print("Surface supports the following present modes:");
-    for (auto& mode : present_modes)
-    {
-        fmt::print("  \t{}", to_string(mode));
-    }
+    vkb::Swapchain vkbSwapchain = swapchainBuilder
+                                  //.use_default_format_selection()
+                                 .set_desired_format(VkSurfaceFormatKHR{
+                                      .format = VK_FORMAT_B8G8R8A8_UNORM,
+                                      .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+                                  })
+                                  //use vsync present mode
+                                 .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+                                 .set_desired_extent(extent.width, extent.height)
+                                 .add_image_usage_flags(static_cast<VkImageUsageFlags>(image_use_flag))
+                                 .build()
+                                 .value();
 
-    // Choose best properties based on surface capabilities
-    const vk::SurfaceCapabilitiesKHR surface_capabilities = context.getPhysicalDevice().
-                                                                    getSurfaceCapabilitiesKHR(surface);
-
-    properties.old_swapchain = old_swapchain;
-    properties.image_count   = clamp(image_count,
-                                   surface_capabilities.minImageCount,
-                                   surface_capabilities.maxImageCount
-                                       ? surface_capabilities.maxImageCount
-                                       : std::numeric_limits<uint32_t>::max());
-    properties.extent = choose_extent(extent, surface_capabilities.minImageExtent,
-                                      surface_capabilities.maxImageExtent, surface_capabilities.currentExtent);
-    properties.surface_format = choose_surface_format(properties.surface_format, surface_formats,
-                                                      surface_format_priority_list);
-    properties.array_layers = 1;
-
-    const vk::FormatProperties format_properties = context.getPhysicalDevice().getFormatProperties(
-        properties.surface_format.format);
-    this->image_usage_flags = choose_image_usage(image_usage_flags, surface_capabilities.supportedUsageFlags,
-                                                 format_properties.optimalTilingFeatures);
-
-    properties.image_usage   = composite_image_flags(this->image_usage_flags);
-    properties.pre_transform = choose_transform(transform, surface_capabilities.supportedTransforms,
-                                                surface_capabilities.currentTransform);
-    properties.composite_alpha = choose_composite_alpha(vk::CompositeAlphaFlagBitsKHR::eInherit,
-                                                        surface_capabilities.supportedCompositeAlpha);
-    properties.present_mode = choose_present_mode(present_mode, present_modes, present_mode_priority_list);
-
-    const vk::SwapchainCreateInfoKHR create_info({},
-                                                 surface,
-                                                 properties.image_count,
-                                                 properties.surface_format.format,
-                                                 properties.surface_format.colorSpace,
-                                                 properties.extent,
-                                                 properties.array_layers,
-                                                 properties.image_usage,
-                                                 {},
-                                                 {},
-                                                 properties.pre_transform,
-                                                 properties.composite_alpha,
-                                                 properties.present_mode,
-                                                 {},
-                                                 properties.old_swapchain);
-
-    handle = context.getDevice().createSwapchainKHR(create_info);
-
-    images = context.getDevice().getSwapchainImagesKHR(handle);
+    properties.extent = vkbSwapchain.extent;
+    //store swapchain and its related images
+    handle = vkbSwapchain.swapchain;
+    for (auto swapchain_images = vkbSwapchain.get_images().value(); auto image : swapchain_images) images.
+        emplace_back(image);
+    for (auto swapchain_image_views = vkbSwapchain.get_image_views().value(); auto image_view : swapchain_image_views)
+        image_views.emplace_back(image_view);
 }
 
 Swapchain::~Swapchain()
@@ -452,5 +415,26 @@ vk::ImageUsageFlags Swapchain::get_usage() const
 vk::PresentModeKHR Swapchain::get_present_mode() const
 {
     return properties.present_mode;
+}
+
+void Swapchain::clear()
+{
+    if (handle)
+    {
+        context->getDevice().destroySwapchainKHR(handle);
+        handle = nullptr;
+    }
+
+    // destroy swapchain resources
+    for (int i = 0; i < image_views.size(); i++)
+    {
+        context->getDevice().destroyImageView(image_views[i]);
+        //vkDestroyImageView(_context->getDevice(), _swapchainImageViews[i], nullptr);
+    }
+    if (surface)
+    {
+        context->getInstance().destroySurfaceKHR(surface);
+        surface = nullptr;
+    }
 }
 } // vkcore
