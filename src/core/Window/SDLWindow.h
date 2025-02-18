@@ -23,9 +23,12 @@ public:
     SDL_Window* get_window() const { return _window; }
 
 
-    void close() override;
+    void                     close() override;
+    bool                     should_close() override;
+    std::vector<const char*> get_required_surface_extensions() const override;
 
 private:
     SDL_Window* _window{nullptr};
+
 };
 }        // namespace vkb

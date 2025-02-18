@@ -35,7 +35,6 @@ struct fmt::formatter<glm::vec3>
 };
 
 namespace dk {
-constexpr bool bUseValidationLayers = true;
 
 // we want to immediately abort when there is an error. In normal engines this
 // would give an error message to the user, or perform a dump of state.
@@ -58,11 +57,8 @@ void VulkanEngine::init()
     // We initialize SDL and create a window with it.
     SDL_Init(SDL_INIT_VIDEO);
 
-
-    auto window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
-
-    _window = SDL_CreateWindow("Vulkan Engine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _windowExtent.width,
-                               _windowExtent.height, window_flags);
+    //_window = SDL_CreateWindow("Vulkan Engine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _windowExtent.width,
+    //                           _windowExtent.height, window_flags);
 
     init_vulkan();
 
@@ -218,14 +214,13 @@ void VulkanEngine::cleanup()
 
         _mainDeletionQueue.flush();
 
-        destroy_swapchain();
         _context->getSwapchain()->clear();
         
 
         vmaDestroyAllocator(_allocator);
 
         vkDestroyDevice(_context->getDevice(), nullptr);
-        vkb::destroy_debug_utils_messenger(_context->getInstance(), _debug_messenger);
+        vkb::destroy_debug_utils_messenger(_context->getInstance(), _context->getDebugMessenger());
         vkDestroyInstance(_context->getInstance(), nullptr);
 
         _context->getWindow()->close();
@@ -444,7 +439,7 @@ void VulkanEngine::draw()
 
     //transtion the draw image and the swapchain image into their correct transfer layouts
     vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED,
+    vkutil::transition_image(cmd, _context->getSwapchain()->get_images()[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED,
                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     VkExtent2D extent;
@@ -453,18 +448,18 @@ void VulkanEngine::draw()
     //extent.depth = 1;
 
     // execute a copy from the draw image into the swapchain
-    vkutil::copy_image_to_image(cmd, _drawImage.image, _swapchainImages[swapchainImageIndex], _drawExtent,
-                                _context->getSwapchain()->get_extent());
+    vkutil::copy_image_to_image(cmd, _drawImage.image, _context->getSwapchain()->get_images()[swapchainImageIndex], _drawExtent,
+        _context->getSwapchain()->get_extent());
 
     // set swapchain image layout to Attachment Optimal so we can draw it
-    vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    vkutil::transition_image(cmd, _context->getSwapchain()->get_images()[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
     //draw imgui into the swapchain image
-    draw_imgui(cmd, _swapchainImageViews[swapchainImageIndex]);
+    draw_imgui(cmd, _context->getSwapchain()->get_image_views()[swapchainImageIndex]);
 
     // set swapchain image layout to Present so we can draw it
-    vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    vkutil::transition_image(cmd, _context->getSwapchain()->get_images()[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                              VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     //finalize the command buffer (we can no longer add commands, but it can now be executed)
@@ -1038,7 +1033,7 @@ void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& f
 
     // submit command buffer to the queue and execute it.
     //  _renderFence will now block until the graphic commands finish execution
-    VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
+    VK_CHECK(vkQueueSubmit2(_context->getGraphicsQueue(), 1, &submit, _immFence));
 
     VK_CHECK(vkWaitForFences(_context->getDevice(), 1, &_immFence, true, 9999999999));
 }
@@ -1069,7 +1064,7 @@ void VulkanEngine::init_vulkan()
 
 void VulkanEngine::init_swapchain()
 {
-    create_swapchain(_windowExtent.width, _windowExtent.height);
+    //create_swapchain(_windowExtent.width, _windowExtent.height);
 
     //depth image size will match the window
     VkExtent3D drawImageExtent = {
@@ -1283,9 +1278,9 @@ void VulkanEngine::init_imgui()
     // this initializes imgui for Vulkan
     ImGui_ImplVulkan_InitInfo init_info = {};
     init_info.Instance                  = _context->getInstance();
-    init_info.PhysicalDevice            = _chosenGPU;
+    init_info.PhysicalDevice            = _context->getPhysicalDevice();
     init_info.Device                    = _context->getDevice();
-    init_info.Queue                     = _graphicsQueue;
+    init_info.Queue                     = _context->getGraphicsQueue();
     init_info.DescriptorPool            = imguiPool;
     init_info.MinImageCount             = 3;
     init_info.ImageCount                = 3;
@@ -1294,8 +1289,8 @@ void VulkanEngine::init_imgui()
     //dynamic rendering parameters for imgui to use
     init_info.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-    init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchainImageFormat;
-
+    VkFormat imguiFormat = static_cast<VkFormat>(_context->getSwapchain()->get_format());
+    init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &imguiFormat;
 
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 

@@ -72,7 +72,7 @@ public:
 
     Swapchain(const Swapchain&) = delete;
 
-    Swapchain(Swapchain&& other) noexcept;
+    Swapchain(Swapchain&& other);
 
     ~Swapchain();
 
@@ -91,9 +91,12 @@ public:
 
     const vk::Extent2D& get_extent() const;
 
-    vk::Format get_format() const;
+    vk::Format get_format() const { return properties.surface_format.format; }
 
-    const std::vector<vk::Image>& get_images() const;
+    const std::vector<vk::Image>& get_images() const { return images; }
+
+    const std::vector<vk::ImageView>& get_image_views() const { return image_views; }
+
 
     vk::SurfaceTransformFlagBitsKHR get_transform() const;
 

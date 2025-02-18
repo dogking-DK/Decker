@@ -18,6 +18,7 @@ public:
     vk::Device getDevice() const { return _device; }
     vk::PhysicalDevice getPhysicalDevice() const { return _physical_device; }
     vk::Instance getInstance() const { return _instance; }
+    VkDebugUtilsMessengerEXT getDebugMessenger() const { return _debug_messenger; }
     vk::Queue getGraphicsQueue() const { return _graphics_queue; }
     vk::Queue getComputeQueue() const { return _compute_queue; }
     vk::Queue getTransferQueue() const { return _transfer_queue; }
@@ -48,7 +49,7 @@ private:
 
 
     void initInstance();
-    void initDevice();
+    void initDevice(vk::SurfaceKHR& surface);
 
     void initVulkan();
     void cleanup();

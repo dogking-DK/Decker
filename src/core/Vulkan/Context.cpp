@@ -28,16 +28,16 @@ void VulkanContext::initInstance()
         fmt::print(stderr, "Failed to create vulkan instance: {}\n", inst_ret.error().message());
     }
 
-    vkb::Instance vkb_inst = inst_ret.value();
+    _vkb_inst = inst_ret.value();
 
     // grab the instance
-    _instance        = vkb_inst.instance;
-    _debug_messenger = vkb_inst.debug_messenger;
+    _instance        = _vkb_inst.instance;
+    _debug_messenger = _vkb_inst.debug_messenger;
 
     DebugUtils::getInstance().initialize(_instance);
 }
 
-void VulkanContext::initDevice()
+void VulkanContext::initDevice(vk::SurfaceKHR& surface)
 {
     uint32_t instance_extension_count;
     VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr));
@@ -49,24 +49,31 @@ void VulkanContext::initDevice()
     VkPhysicalDeviceVulkan13Features features13;
     features13.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     features13.pNext            = nullptr;
-    features13.dynamicRendering = true;
-    features13.synchronization2 = true;
+    //features13.dynamicRendering = true;
+    //features13.synchronization2 = true;
 
     VkPhysicalDeviceVulkan12Features features12;
     features12.sType                                    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     features12.pNext                                    = nullptr;
-    features12.bufferDeviceAddress                      = true;
-    features12.descriptorIndexing                       = true;
-    features12.descriptorBindingPartiallyBound          = true;
-    features12.descriptorBindingVariableDescriptorCount = true;
-    features12.runtimeDescriptorArray                   = true;
+    //features12.bufferDeviceAddress                      = true;
+    //features12.descriptorIndexing                       = true;
+    //features12.descriptorBindingPartiallyBound          = true;
+    //features12.descriptorBindingVariableDescriptorCount = true;
+    //features12.runtimeDescriptorArray                   = true;
+
+    VkSurfaceKHR surface1;
+    auto         sdl_err = SDL_Vulkan_CreateSurface(_window->get_window(), _vkb_inst.instance, &surface1);
+    if (!sdl_err)
+    {
+        fmt::print(stderr, "Failed to create SDL\n");
+    }
 
     // 按照设置选择对应GPU
     vkb::PhysicalDeviceSelector selector{_vkb_inst};
     selector.set_minimum_version(1, 3); // 至少使用vulkan1.3
     selector.set_required_features_13(features13);
     selector.set_required_features_12(features12);
-    selector.set_surface(_swapchain->get_surface());
+    selector.set_surface(surface1);
     auto select_return = selector.select();
     if (!select_return)
     {
@@ -94,10 +101,12 @@ void VulkanContext::initDevice()
 
 void VulkanContext::initVulkan()
 {
+    _window = new core::SDLWindow({"Vulkan", 1280, 720});
     initInstance();
-    _swapchain = new Swapchain(*this, _window->create_surface(reinterpret_cast<vk::Instance&>(_instance)),
-                               vk::PresentModeKHR::eMailbox);
-    initDevice();
+    vk::SurfaceKHR surface = _window->create_surface(reinterpret_cast<vk::Instance&>(_instance));
+
+    initDevice(surface);
+    _swapchain = new Swapchain(*this, surface, vk::PresentModeKHR::eMailbox);
 }
 
 VulkanContext::~VulkanContext()
@@ -110,7 +119,7 @@ void VulkanContext::resizeSwapchainAuto()
     _swapchain->clear();
     int w, h;
     SDL_GetWindowSize(_window->get_window(), &w, &h);
-    const vk::Extent2D extent{ static_cast<uint32_t>(w), static_cast<uint32_t>(h) };
+    const vk::Extent2D extent{static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
     _swapchain = new Swapchain(*_swapchain, extent);
 }
 

@@ -260,8 +260,6 @@ private:
 
     void resize_swapchain();
 
-    void destroy_swapchain();
-
     void init_commands();
 
     void init_pipelines();

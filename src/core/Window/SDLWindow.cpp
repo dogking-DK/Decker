@@ -9,13 +9,18 @@ SDLWindow::SDLWindow(const Properties& properties) : Window(properties)
     SDL_LogSetAllPriority(SDL_LOG_PRIORITY_DEBUG);
 
     // We initialize SDL and create a window with it.
+    auto window_flags = SDL_WINDOW_VULKAN;
+    if (properties.resizable)
+    {
+        window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+    }
     SDL_Init(SDL_INIT_VIDEO);
     _window = SDL_CreateWindow(properties.title.c_str(),
                                SDL_WINDOWPOS_CENTERED,
                                SDL_WINDOWPOS_CENTERED,
                                static_cast<int>(properties.extent.width),
                                static_cast<int>(properties.extent.height),
-                               SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+                               window_flags);
     if (!_window)
     {
         fmt::print("Failed to create SDL window");
@@ -66,5 +71,27 @@ float SDLWindow::get_content_scale_factor() const
 void SDLWindow::close()
 {
     SDL_DestroyWindow(_window);
+}
+
+bool SDLWindow::should_close()
+{
+    SDL_Event e;
+    while (SDL_PollEvent(&e))
+    {
+        if (e.type == SDL_QUIT)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<const char*> SDLWindow::get_required_surface_extensions() const
+{
+    unsigned int extensionCount;
+    SDL_Vulkan_GetInstanceExtensions(_window, &extensionCount, nullptr);
+    std::vector<const char*> extensions(extensionCount);
+    SDL_Vulkan_GetInstanceExtensions(_window, &extensionCount, extensions.data());
+    return extensions;
 }
 }

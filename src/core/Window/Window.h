@@ -35,10 +35,10 @@ public:
     struct Properties
     {
         std::string title;
+        Extent      extent{ .width = 1280, .height = 720 };
         mode        mode      = mode::Default;
         bool        resizable = true;
         vsync       vsync     = vsync::Default;
-        Extent      extent{.width = 1280, .height = 720};
     };
 
     Window(const Properties& properties);
@@ -46,14 +46,6 @@ public:
     virtual ~Window() = default;
 
     virtual VkSurfaceKHR create_surface(vk::Instance& instance) = 0;
-
-    /**
-     * @brief Gets a handle from the platform's Vulkan surface
-     * @param instance A Vulkan instance
-     * @param physical_device A Vulkan PhysicalDevice
-     * @returns A VkSurfaceKHR handle, for use by the application
-     */
-    virtual VkSurfaceKHR create_surface(VkInstance instance, VkPhysicalDevice physical_device) = 0;
 
     /**
      * @brief Checks if the window should be closed
