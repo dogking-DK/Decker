@@ -214,16 +214,11 @@ void VulkanEngine::cleanup()
 
         _mainDeletionQueue.flush();
 
-        _context->getSwapchain()->clear();
-        
 
         vmaDestroyAllocator(_allocator);
 
-        vkDestroyDevice(_context->getDevice(), nullptr);
-        vkb::destroy_debug_utils_messenger(_context->getInstance(), _context->getDebugMessenger());
-        vkDestroyInstance(_context->getInstance(), nullptr);
 
-        _context->getWindow()->close();
+        delete _context;
     }
 }
 

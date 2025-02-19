@@ -46,34 +46,34 @@ void VulkanContext::initDevice(vk::SurfaceKHR& surface)
     VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count,
                                                     available_instance_extensions.data()));
 
-    VkPhysicalDeviceVulkan13Features features13;
+    VkPhysicalDeviceVulkan13Features features13{};
     features13.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     features13.pNext            = nullptr;
-    //features13.dynamicRendering = true;
-    //features13.synchronization2 = true;
+    features13.dynamicRendering = true;
+    features13.synchronization2 = true;
 
-    VkPhysicalDeviceVulkan12Features features12;
+    VkPhysicalDeviceVulkan12Features features12{};
     features12.sType                                    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     features12.pNext                                    = nullptr;
-    //features12.bufferDeviceAddress                      = true;
-    //features12.descriptorIndexing                       = true;
-    //features12.descriptorBindingPartiallyBound          = true;
-    //features12.descriptorBindingVariableDescriptorCount = true;
-    //features12.runtimeDescriptorArray                   = true;
+    features12.bufferDeviceAddress                      = true;
+    features12.descriptorIndexing                       = true;
+    features12.descriptorBindingPartiallyBound          = true;
+    features12.descriptorBindingVariableDescriptorCount = true;
+    features12.runtimeDescriptorArray                   = true;
 
-    VkSurfaceKHR surface1;
-    auto         sdl_err = SDL_Vulkan_CreateSurface(_window->get_window(), _vkb_inst.instance, &surface1);
-    if (!sdl_err)
-    {
-        fmt::print(stderr, "Failed to create SDL\n");
-    }
+    //VkSurfaceKHR surface1;
+    //auto         sdl_err = SDL_Vulkan_CreateSurface(_window->get_window(), _vkb_inst.instance, &surface1);
+    //if (!sdl_err)
+    //{
+    //    fmt::print(stderr, "Failed to create SDL\n");
+    //}
 
     // 按照设置选择对应GPU
     vkb::PhysicalDeviceSelector selector{_vkb_inst};
     selector.set_minimum_version(1, 3); // 至少使用vulkan1.3
     selector.set_required_features_13(features13);
     selector.set_required_features_12(features12);
-    selector.set_surface(surface1);
+    selector.set_surface(surface);
     auto select_return = selector.select();
     if (!select_return)
     {
@@ -89,6 +89,9 @@ void VulkanContext::initDevice(vk::SurfaceKHR& surface)
     // 储存各种设备
     _device          = vk::Device(vkbDevice.device);
     _physical_device = vk::PhysicalDevice(physical_device.physical_device);
+    VkSurfaceKHR vk_surface_khr = surface;
+    DebugUtils::getInstance().setDebugName(_device, VK_OBJECT_TYPE_SURFACE_KHR, reinterpret_cast<
+        uint64_t>(vk_surface_khr), "surface");
 
     // 准备各种需要的queue
     _graphics_queue        = vkbDevice.get_queue(vkb::QueueType::graphics).value();
@@ -116,7 +119,7 @@ VulkanContext::~VulkanContext()
 
 void VulkanContext::resizeSwapchainAuto()
 {
-    _swapchain->clear();
+    _swapchain->clearSwapchain();
     int w, h;
     SDL_GetWindowSize(_window->get_window(), &w, &h);
     const vk::Extent2D extent{static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
@@ -125,6 +128,8 @@ void VulkanContext::resizeSwapchainAuto()
 
 void VulkanContext::cleanup()
 {
+    delete _swapchain;
+    delete _window;
     vkDestroyDevice(_device, nullptr);
     vkb::destroy_debug_utils_messenger(_instance, _debug_messenger, nullptr);
     vkDestroyInstance(_instance, nullptr);

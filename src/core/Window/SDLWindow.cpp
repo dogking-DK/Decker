@@ -3,6 +3,8 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
+#include "vk_debug_util.h"
+
 namespace dk::core {
 SDLWindow::SDLWindow(const Properties& properties) : Window(properties)
 {
@@ -29,7 +31,7 @@ SDLWindow::SDLWindow(const Properties& properties) : Window(properties)
 
 SDLWindow::~SDLWindow()
 {
-    SDL_DestroyWindow(_window);
+    SDLWindow::close();
 }
 
 VkSurfaceKHR SDLWindow::create_surface(vk::Instance& instance)

@@ -116,10 +116,8 @@ Swapchain::Swapchain(VulkanContext&                           context,
 
 Swapchain::~Swapchain()
 {
-    if (handle)
-    {
-        context->getDevice().destroySwapchainKHR(handle);
-    }
+    clearSwapchain();
+    clearSurface();
 }
 
 Swapchain::Swapchain(Swapchain&& other) :
@@ -182,7 +180,7 @@ vk::PresentModeKHR Swapchain::get_present_mode() const
     return properties.present_mode;
 }
 
-void Swapchain::clear()
+void Swapchain::clearSwapchain()
 {
     if (handle)
     {
@@ -193,12 +191,21 @@ void Swapchain::clear()
     // destroy swapchain resources
     for (auto& image_view : image_views)
     {
-        context->getDevice().destroyImageView(image_view);
+        if (image_view)
+        {
+            context->getDevice().destroyImageView(image_view);
+            image_view = nullptr;
+        }
         //vkDestroyImageView(_context->getDevice(), _swapchainImageViews[i], nullptr);
     }
+}
+
+void Swapchain::clearSurface()
+{
     if (surface)
     {
         context->getInstance().destroySurfaceKHR(surface);
+        //vkDestroySurfaceKHR(context->getInstance(), surface, nullptr);
         surface = nullptr;
     }
 }

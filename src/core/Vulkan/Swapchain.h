@@ -14,7 +14,7 @@ struct HPPSwapchainProperties
     vk::SwapchainKHR                old_swapchain;
     uint32_t                        image_count{3};
     vk::Extent2D                    extent;
-    vk::SurfaceFormatKHR            surface_format;
+    vk::SurfaceFormatKHR            surface_format{ static_cast<vk::Format>(VK_FORMAT_B8G8R8A8_UNORM) };
     uint32_t                        array_layers;
     vk::ImageUsageFlags             image_usage;
     vk::SurfaceTransformFlagBitsKHR pre_transform;
@@ -66,7 +66,7 @@ public:
                  uint32_t                                image_count       = 3,
                  vk::SurfaceTransformFlagBitsKHR         transform         = vk::SurfaceTransformFlagBitsKHR::eIdentity,
                  const std::set<vk::ImageUsageFlagBits>& image_usage_flags = {
-                     vk::ImageUsageFlagBits::eColorAttachment, vk::ImageUsageFlagBits::eTransferSrc
+                     vk::ImageUsageFlagBits::eColorAttachment, vk::ImageUsageFlagBits::eTransferDst
                  },
                  vk::SwapchainKHR old_swapchain = nullptr);
 
@@ -106,8 +106,8 @@ public:
 
     vk::PresentModeKHR get_present_mode() const;
 
-    void clear();
-
+    void clearSwapchain();
+    void clearSurface();
 private:
     VulkanContext* context;
 

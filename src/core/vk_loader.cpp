@@ -380,7 +380,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         file.meshes[mesh.name.c_str()] = newmesh;
         newmesh->name = mesh.name;
         fmt::print("loading mesh: {}\n", mesh.name);
-        // clear the mesh arrays each mesh, we dont want to merge them by error
+        // clearSwapchain the mesh arrays each mesh, we dont want to merge them by error
         indices.clear();
         vertices.clear();
 
