@@ -11,7 +11,15 @@ VulkanContext::VulkanContext()
 {
     initVulkan();
 }
+void VulkanContext::initVulkan()
+{
+    _window = new core::SDLWindow({ .title{"Vulkan"}, .extent{1280, 720}});
+    initInstance();
+    vk::SurfaceKHR surface = _window->create_surface(reinterpret_cast<vk::Instance&>(_instance));
 
+    initDevice(surface);
+    _swapchain = new Swapchain(*this, surface, vk::PresentModeKHR::eMailbox);
+}
 void VulkanContext::initInstance()
 {
     vkb::InstanceBuilder builder;
@@ -100,16 +108,6 @@ void VulkanContext::initDevice(vk::SurfaceKHR& surface)
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
-}
-
-void VulkanContext::initVulkan()
-{
-    _window = new core::SDLWindow({"Vulkan", 1280, 720});
-    initInstance();
-    vk::SurfaceKHR surface = _window->create_surface(reinterpret_cast<vk::Instance&>(_instance));
-
-    initDevice(surface);
-    _swapchain = new Swapchain(*this, surface, vk::PresentModeKHR::eMailbox);
 }
 
 VulkanContext::~VulkanContext()
