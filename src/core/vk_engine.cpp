@@ -1120,7 +1120,7 @@ void VulkanEngine::init_swapchain()
 
 
     //add to deletion queues
-    _mainDeletionQueue.push_function([=]()
+    _mainDeletionQueue.push_function([this]()
     {
         _context->getDevice().destroyImageView(_drawImage.imageView);
         //vkDestroyImageView(_context->getDevice(), _drawImage.imageView, nullptr);
@@ -1380,7 +1380,7 @@ void VulkanEngine::init_descriptors()
 void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 {
     auto compiler = vkutil::ShaderCompiler::getInstance();
-    compiler.initGlslang();
+    vkutil::ShaderCompiler::initGlslang();
     std::string code1;
     std::string code2;
     vkutil::readShaderFile("C:/code/code_file/Decker/assets/shaders/mesh_pbr.frag", code1);
@@ -1389,7 +1389,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     std::vector<uint32_t> spv_code2;
     compiler.compileGLSLtoSPV(code1, spv_code1, EShLangFragment, false);
     compiler.compileGLSLtoSPV(code2, spv_code2, EShLangVertex, false);
-    compiler.finalizeGlslang();
+    vkutil::ShaderCompiler::finalizeGlslang();
 
 
     print(fg(fmt::color::alice_blue), "-----------------------temp use shader-----------------------\n");
