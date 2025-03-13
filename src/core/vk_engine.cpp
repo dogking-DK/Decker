@@ -5,14 +5,14 @@
 #include "vk_descriptors.h"
 #include <vk_types.h>
 
-#include <SDL.h>
-#include <SDL_vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 #include <vk_initializers.h>
 
 #include "VkBootstrap.h"
 
-#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
 
 #include <glm/gtx/transform.hpp>
@@ -51,7 +51,7 @@ void VulkanEngine::init()
     // only one engine initialization is allowed with the application.
     assert(loadedEngine == nullptr);
     loadedEngine = this;
-    SDL_LogSetAllPriority(SDL_LOG_PRIORITY_DEBUG);
+    SDL_SetLogPriorities(SDL_LOG_PRIORITY_DEBUG);
 
     // We initialize SDL and create a window with it.
     SDL_Init(SDL_INIT_VIDEO);
@@ -696,27 +696,27 @@ void VulkanEngine::run()
         while (SDL_PollEvent(&e) != 0)
         {
             // close the window when user alt-f4s or clicks the X button
-            if (e.type == SDL_QUIT)
+            if (e.type == SDL_EVENT_TERMINATING)
                 bQuit = true;
 
-            if (e.type == SDL_WINDOWEVENT)
+            //if (e.type == SDL_EVENT_WINDOW)
             {
-                if (e.window.event == SDL_WINDOWEVENT_RESIZED)
+                if (e.window.type == SDL_EVENT_WINDOW_RESIZED)
                 {
                     resize_requested = true;
                 }
-                if (e.window.event == SDL_WINDOWEVENT_MINIMIZED)
+                if (e.window.type == SDL_EVENT_WINDOW_MINIMIZED)
                 {
                     freeze_rendering = true;
                 }
-                if (e.window.event == SDL_WINDOWEVENT_RESTORED)
+                if (e.window.type == SDL_EVENT_WINDOW_RESTORED)
                 {
                     freeze_rendering = false;
                 }
             }
 
-            mainCamera.processSDLEvent(e);
-            ImGui_ImplSDL2_ProcessEvent(&e);
+            mainCamera.processSDLEvent(_context->getWindow()->get_window(), e);
+            ImGui_ImplSDL3_ProcessEvent(&e);
         }
 
         if (freeze_rendering) continue;
@@ -728,7 +728,7 @@ void VulkanEngine::run()
 
         // imgui new frame
         ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplSDL2_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
 
         ImGui::NewFrame();
 
@@ -1256,7 +1256,7 @@ void VulkanEngine::init_imgui()
     ImGui::CreateContext();
 
     // this initializes imgui for SDL
-    ImGui_ImplSDL2_InitForVulkan(_context->getWindow()->get_window());
+    ImGui_ImplSDL3_InitForVulkan(_context->getWindow()->get_window());
 
     // this initializes imgui for Vulkan
     ImGui_ImplVulkan_InitInfo init_info = {};

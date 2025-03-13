@@ -1,25 +1,22 @@
 #include "SDLWindow.h"
 
-#include <SDL.h>
-#include <SDL_vulkan.h>
-
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
+#include <SDL3/SDL_log.h>
 #include "vk_debug_util.h"
 
 namespace dk::core {
 SDLWindow::SDLWindow(const Properties& properties) : Window(properties)
 {
-    SDL_LogSetAllPriority(SDL_LOG_PRIORITY_DEBUG);
-
+    SDL_SetLogPriorities(SDL_LOG_PRIORITY_DEBUG);
     // We initialize SDL and create a window with it.
     auto window_flags = SDL_WINDOW_VULKAN;
     if (properties.resizable)
     {
-        window_flags = static_cast<SDL_WindowFlags>(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+        window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
     }
     SDL_Init(SDL_INIT_VIDEO);
     _window = SDL_CreateWindow(properties.title.c_str(),
-                               SDL_WINDOWPOS_CENTERED,
-                               SDL_WINDOWPOS_CENTERED,
                                static_cast<int>(properties.extent.width),
                                static_cast<int>(properties.extent.height),
                                window_flags);
@@ -37,7 +34,7 @@ SDLWindow::~SDLWindow()
 VkSurfaceKHR SDLWindow::create_surface(vk::Instance& instance)
 {
     VkSurfaceKHR surface;
-    auto         sdl_err = SDL_Vulkan_CreateSurface(_window, instance, &surface);
+    auto         sdl_err = SDL_Vulkan_CreateSurface(_window, instance, nullptr, &surface);
     if (!sdl_err)
     {
         fmt::print(stderr, "Failed to create SDL\n");
@@ -47,15 +44,7 @@ VkSurfaceKHR SDLWindow::create_surface(vk::Instance& instance)
 
 float SDLWindow::get_dpi_factor() const
 {
-    int   displayIndex = 0; // 默认显示器
-    float ddpi, hdpi, vdpi;
-
-    // 获取显示器的 DPI 信息
-    if (SDL_GetDisplayDPI(displayIndex, &ddpi, &hdpi, &vdpi) == 0)
-    {
-        return ddpi;
-    }
-    return 1.0f;
+    return SDL_GetWindowDisplayScale(_window);
 }
 
 float SDLWindow::get_content_scale_factor() const
@@ -80,7 +69,7 @@ bool SDLWindow::should_close()
     SDL_Event e;
     while (SDL_PollEvent(&e))
     {
-        if (e.type == SDL_QUIT)
+        if (e.type == SDL_EVENT_QUIT)
         {
             return true;
         }
@@ -88,12 +77,11 @@ bool SDLWindow::should_close()
     return false;
 }
 
-std::vector<const char*> SDLWindow::get_required_surface_extensions() const
+std::vector<std::string> SDLWindow::get_required_surface_extensions() const
 {
-    unsigned int extensionCount;
-    SDL_Vulkan_GetInstanceExtensions(_window, &extensionCount, nullptr);
-    std::vector<const char*> extensions(extensionCount);
-    SDL_Vulkan_GetInstanceExtensions(_window, &extensionCount, extensions.data());
+    unsigned int             extensionCount;
+    auto                     result = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
+    std::vector<std::string> extensions(result, result + extensionCount);
     return extensions;
 }
 }

@@ -53,7 +53,7 @@ glm::mat4 Camera::getRotationMatrix()
 	return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 }
 
-void Camera::processSDLEvent(SDL_Event& e)
+void Camera::processSDLEvent(SDL_Window* window, SDL_Event& e)
 {
 	// 如果 ImGui 正在捕获鼠标事件，直接返回
 	if (ImGui::GetIO().WantCaptureMouse)
@@ -61,39 +61,42 @@ void Camera::processSDLEvent(SDL_Event& e)
 
 	switch (e.type)
 	{
-	case SDL_MOUSEBUTTONDOWN:
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
 		if (e.button.button == SDL_BUTTON_LEFT)
 		{
-			SDL_SetRelativeMouseMode(SDL_TRUE);
-			SDL_ShowCursor(SDL_DISABLE);
+			SDL_SetWindowRelativeMouseMode(window, true);
+			//SDL_SetRelativeMouseMode(SDL_TRUE);
+			SDL_HideCursor();
 			mouse_left_down = true;
 		}
 		break;
-	case SDL_MOUSEBUTTONUP:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
 		if (e.button.button == SDL_BUTTON_LEFT)
 		{
-			SDL_SetRelativeMouseMode(SDL_FALSE);
-			SDL_ShowCursor(SDL_ENABLE);
+			SDL_SetWindowRelativeMouseMode(window, false);
+			//SDL_SetRelativeMouseMode(SDL_FALSE);
+			//SDL_ShowCursor(SDL_ENABLE);
+			SDL_ShowCursor();
 			mouse_left_down = false;
 		}
 		break;
-	case SDL_KEYDOWN:
-		if (e.key.keysym.sym == SDLK_w) { velocity.z = -1; }
-		if (e.key.keysym.sym == SDLK_s) { velocity.z = 1; }
-		if (e.key.keysym.sym == SDLK_a) { velocity.x = -1; }
-		if (e.key.keysym.sym == SDLK_d) { velocity.x = 1; }
-		if (e.key.keysym.sym == SDLK_LCTRL) { velocity.y = -1; }
-		if (e.key.keysym.sym == SDLK_SPACE) { velocity.y = 1; }
+	case SDL_EVENT_KEY_DOWN:
+		if (e.key.key == SDLK_W) { velocity.z = -1; }
+		if (e.key.key == SDLK_S) { velocity.z = 1; }
+		if (e.key.key == SDLK_A) { velocity.x = -1; }
+		if (e.key.key == SDLK_D) { velocity.x = 1; }
+		if (e.key.key == SDLK_LCTRL) { velocity.y = -1; }
+		if (e.key.key == SDLK_SPACE) { velocity.y = 1; }
 		break;
-	case SDL_KEYUP:
-		if (e.key.keysym.sym == SDLK_w) { velocity.z = 0; }
-		if (e.key.keysym.sym == SDLK_s) { velocity.z = 0; }
-		if (e.key.keysym.sym == SDLK_a) { velocity.x = 0; }
-		if (e.key.keysym.sym == SDLK_d) { velocity.x = 0; }
-		if (e.key.keysym.sym == SDLK_LCTRL) { velocity.y = 0; }
-		if (e.key.keysym.sym == SDLK_SPACE) { velocity.y = 0; }
+	case SDL_EVENT_KEY_UP:
+		if (e.key.key == SDLK_W) { velocity.z = 0; }
+		if (e.key.key == SDLK_S) { velocity.z = 0; }
+		if (e.key.key == SDLK_A) { velocity.x = 0; }
+		if (e.key.key == SDLK_D) { velocity.x = 0; }
+		if (e.key.key == SDLK_LCTRL) { velocity.y = 0; }
+		if (e.key.key == SDLK_SPACE) { velocity.y = 0; }
 		break;
-	case SDL_MOUSEMOTION:
+	case SDL_EVENT_MOUSE_MOTION:
 		if (mouse_left_down)
 		{
 			yaw += (float)e.motion.xrel / 200.f;

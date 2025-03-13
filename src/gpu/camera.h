@@ -1,6 +1,6 @@
 #include <Macros.h>
 #include <vk_types.h>
-#include <SDL_events.h>
+#include <SDL3/SDL_events.h>
 #include <Object.h>
 
 namespace dk {
@@ -34,7 +34,7 @@ public:
 	glm::mat4 getViewMatrix();
 	glm::mat4 getRotationMatrix();
 
-	void processSDLEvent(SDL_Event& e);
+	void processSDLEvent(SDL_Window* window, SDL_Event& e);
 
 
 	bool mouse_left_down = false;

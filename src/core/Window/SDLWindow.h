@@ -1,5 +1,5 @@
 #pragma once
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 
 #include "Window.h"
 
@@ -25,7 +25,7 @@ public:
 
     void                     close() override;
     bool                     should_close() override;
-    std::vector<const char*> get_required_surface_extensions() const override;
+    std::vector<std::string> get_required_surface_extensions() const override;
 
 private:
     SDL_Window* _window{nullptr};

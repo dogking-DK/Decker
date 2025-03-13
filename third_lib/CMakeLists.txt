@@ -16,3 +16,4 @@ set_target_properties(Slang PROPERTIES
 add_library(third_lib INTERFACE)
 target_link_libraries(third_lib INTERFACE Slang)
 target_include_directories(third_lib INTERFACE ${SLANG_ROOT}/include)
+

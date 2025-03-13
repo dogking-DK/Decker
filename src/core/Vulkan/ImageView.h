@@ -26,4 +26,5 @@ public:
 private:
     vk::Device    m_device;       // 用于销毁 ImageView
     vk::ImageView m_imageView; // 封装的 ImageView 对象
+
 };

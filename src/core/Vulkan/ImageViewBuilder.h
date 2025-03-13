@@ -3,6 +3,8 @@
 #include <vulkan/vulkan.hpp>
 #include <memory>
 
+#include "ImageView.h"
+
 // ImageViewBuilder 提供链式接口配置 ImageView 的各项参数
 class ImageViewBuilder
 {

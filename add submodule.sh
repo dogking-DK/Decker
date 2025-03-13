@@ -2,13 +2,6 @@
 
 # 定义子模块列表
 declare -A submodules=(
-    ["imgui"]="https://github.com/ocornut/imgui.git"
-    ["implot"]="https://github.com/epezent/implot.git"
-    ["imgui-node-editor"]="https://github.com/thedmd/imgui-node-editor.git"
-    ["freetype"]="https://github.com/freetype/freetype.git"
-    ["vma"]="https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git"
-    ["sdl"]="https://github.com/libsdl-org/SDL.git"
-    ["volk"]="https://github.com/zeux/volk.git"
     ["vk-bootstrap"]="https://github.com/charles-lunarg/vk-bootstrap.git"
 )
 

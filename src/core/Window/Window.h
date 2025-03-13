@@ -87,7 +87,7 @@ public:
     virtual bool get_display_present_info(VkDisplayPresentInfoKHR* info,
                                           uint32_t                 src_width, uint32_t src_height) const;
 
-    virtual std::vector<const char*> get_required_surface_extensions() const = 0;
+    virtual std::vector<std::string> get_required_surface_extensions() const = 0;
 
     const Extent& get_extent() const;
 

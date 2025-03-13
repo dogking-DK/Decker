@@ -8,7 +8,7 @@ find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(vk-bootstrap CONFIG REQUIRED)
 find_package(VulkanUtilityLibraries CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG)
-find_package(volk CONFIG REQUIRED)
+# find_package(volk CONFIG REQUIRED)
 
 find_package(assimp REQUIRED)
 find_package(fastgltf CONFIG REQUIRED)
@@ -22,9 +22,10 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(magic_enum REQUIRED)
+find_package(robin_hood CONFIG REQUIRED)
 # find_package(slang REQUIRED)
 
-find_package(SDL2 CONFIG REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(Freetype REQUIRED)
@@ -81,8 +82,8 @@ target_link_libraries(${PROJECT_NAME}
     Vulkan::UtilityHeaders 
     Vulkan::CompilerConfiguration
     GPUOpen::VulkanMemoryAllocator
-    volk::volk 
-    volk::volk_headers
+    # volk::volk 
+    # volk::volk_headers
     vk-bootstrap::vk-bootstrap 
     vk-bootstrap::vk-bootstrap-compiler-warnings
     fmt::fmt
@@ -93,8 +94,7 @@ target_link_libraries(${PROJECT_NAME}
     assimp::assimp
     fastgltf::fastgltf
     nlohmann_json::nlohmann_json
-    $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
-    $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+    SDL3::SDL3
     spdlog::spdlog
     magic_enum::magic_enum
     glslang::glslang
@@ -104,7 +104,7 @@ target_link_libraries(${PROJECT_NAME}
     # slang::slang
     implot::implot
     imgui::imgui
-
+    robin_hood::robin_hood
     third_lib
     )
 

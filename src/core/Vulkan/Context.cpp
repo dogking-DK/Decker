@@ -1,8 +1,8 @@
 ﻿#include "Context.h"
 
 #include <VkBootstrap.h>
-#include <SDL.h>
-#include <SDL_vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 #include "vk_debug_util.h"
 

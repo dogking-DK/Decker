@@ -43,4 +43,5 @@ public:
 
 private:
     vk::Image m_image;
+
 };
