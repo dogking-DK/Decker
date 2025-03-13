@@ -14,6 +14,7 @@
 
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_vulkan.h"
+#include "imgui_freetype.h"
 
 #include <glm/gtx/transform.hpp>
 
@@ -150,15 +151,15 @@ void VulkanEngine::init_default_data()
     //3 default textures, white, grey, black. 1 pixel each
     uint32_t white = packUnorm4x8(glm::vec4(1, 1, 1, 1));
     _whiteImage    = create_image(&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                  VK_IMAGE_USAGE_SAMPLED_BIT);
+                               VK_IMAGE_USAGE_SAMPLED_BIT);
 
     uint32_t grey = packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
     _greyImage    = create_image(&grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                 VK_IMAGE_USAGE_SAMPLED_BIT);
+                              VK_IMAGE_USAGE_SAMPLED_BIT);
 
     uint32_t black = packUnorm4x8(glm::vec4(0, 0, 0, 0));
     _blackImage    = create_image(&black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                  VK_IMAGE_USAGE_SAMPLED_BIT);
+                               VK_IMAGE_USAGE_SAMPLED_BIT);
 
     //checkerboard image
     uint32_t                      magenta = packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -713,6 +714,8 @@ void VulkanEngine::run()
                 {
                     freeze_rendering = false;
                 }
+                if (e.window.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
+                    bQuit = true;
             }
 
             mainCamera.processSDLEvent(_context->getWindow()->get_window(), e);
@@ -1223,6 +1226,9 @@ void VulkanEngine::init_renderables()
 
 void VulkanEngine::init_imgui()
 {
+
+
+
     // 1: create descriptor pool for IMGUI
     //  the size of the pool is very oversize, but it's copied from imgui demo
     //  itself.
@@ -1254,6 +1260,16 @@ void VulkanEngine::init_imgui()
 
     // this initializes the core structures of imgui
     ImGui::CreateContext();
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    ImFontConfig font_cfg;
+    font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint;  // 额外的 FreeType 设置
+    font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint | ImGuiFreeTypeBuilderFlags_Monochrome;
+    //io.Fonts->AddFontFromFileTTF("C:/code/code_file/Decker/assets/font/OPPOSans-H.ttf", 16.0f, &font_cfg);
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.FontGlobalScale = _context->getWindow()->get_dpi_factor(); // 放大字体
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // 开启docking
 
     // this initializes imgui for SDL
     ImGui_ImplSDL3_InitForVulkan(_context->getWindow()->get_window());

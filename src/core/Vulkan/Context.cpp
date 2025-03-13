@@ -13,7 +13,7 @@ VulkanContext::VulkanContext()
 }
 void VulkanContext::initVulkan()
 {
-    _window = new core::SDLWindow({ .title{"Vulkan"}, .extent{1280, 720}});
+    _window = new core::SDLWindow({ .title{"Vulkan"}, .extent{1920, 1080}});
     initInstance();
     vk::SurfaceKHR surface = _window->create_surface(reinterpret_cast<vk::Instance&>(_instance));
 

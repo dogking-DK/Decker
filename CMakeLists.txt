@@ -43,7 +43,6 @@ file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
 
 # add_subdirectory(external)
 add_subdirectory(third_lib)
-
 add_subdirectory(src)
 
 install(TARGETS ${PROJECT_NAME}

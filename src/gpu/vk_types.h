@@ -3,7 +3,6 @@
 //> intro
 #pragma once
 #define GLM_ENABLE_EXPERIMENTAL
-
 #include <memory>
 #include <optional>
 #include <string>
