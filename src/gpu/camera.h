@@ -1,3 +1,5 @@
+#pragma once
+
 #include <Macros.h>
 #include <vk_types.h>
 #include <SDL3/SDL_events.h>
@@ -34,7 +36,7 @@ public:
 	glm::mat4 getViewMatrix();
 	glm::mat4 getRotationMatrix();
 
-	void processSDLEvent(SDL_Window* window, SDL_Event& e);
+	void processSDLEvent(SDL_Window* window, const SDL_Event& e);
 
 
 	bool mouse_left_down = false;

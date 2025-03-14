@@ -1,6 +1,4 @@
-﻿#define GLM_ENABLE_EXPERIMENTAL
-
-#include <camera.h>
+﻿#include <camera.h>
 #include <imgui.h>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -53,7 +51,7 @@ glm::mat4 Camera::getRotationMatrix()
 	return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 }
 
-void Camera::processSDLEvent(SDL_Window* window, SDL_Event& e)
+void Camera::processSDLEvent(SDL_Window* window, const SDL_Event& e)
 {
 	// 如果 ImGui 正在捕获鼠标事件，直接返回
 	if (ImGui::GetIO().WantCaptureMouse)
@@ -99,8 +97,8 @@ void Camera::processSDLEvent(SDL_Window* window, SDL_Event& e)
 	case SDL_EVENT_MOUSE_MOTION:
 		if (mouse_left_down)
 		{
-			yaw += (float)e.motion.xrel / 200.f;
-			pitch -= (float)e.motion.yrel / 200.f;
+			yaw += static_cast<float>(e.motion.xrel) / 200.f;
+			pitch -= static_cast<float>(e.motion.yrel) / 200.f;
 		}
 		break;
 	default:

@@ -735,56 +735,50 @@ void VulkanEngine::run()
 
         ImGui::NewFrame();
 
-        ImGui::Begin("Stats");
-
-        ImGui::Text("frametime %f ms", stats.frametime);
-        ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
-        ImGui::Text("triangles %i", stats.triangle_count);
-        ImGui::Text("draws %i", stats.drawcall_count);
-        ImGui::End();
-
-        if (ImGui::Begin("background"))
+        if (ImGui::Begin("设置面板"))
         {
-            ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
-
-            ImGui::Text("Selected effect: ", selected.name);
-
-            ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
-
-            ImGui::InputFloat4("data1", (float*)&selected.data.data1);
-            ImGui::InputFloat4("data2", (float*)&selected.data.data2);
-            ImGui::InputFloat4("data3", (float*)&selected.data.data3);
-            ImGui::InputFloat4("data4", (float*)&selected.data.data4);
-            ImGui::InputInt("view mode", (int*)&mainCamera.view_mode);
-
-            auto mat = mainCamera.getViewMatrix();
-            ImGui::Text("view:");
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[0][0], mat[0][1], mat[0][2], mat[0][3]);
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[1][0], mat[1][1], mat[1][2], mat[1][3]);
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[2][0], mat[2][1], mat[2][2], mat[2][3]);
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
-
-
-            mat = mainCamera.projection;
-            ImGui::Text("projection:");
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[0][0], mat[0][1], mat[0][2], mat[0][3]);
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[1][0], mat[1][1], mat[1][2], mat[1][3]);
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[2][0], mat[2][1], mat[2][2], mat[2][3]);
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
-
-            mat = mainCamera.ortho;
-            ImGui::Text("ortho:");
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[0][0], mat[0][1], mat[0][2], mat[0][3]);
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[1][0], mat[1][1], mat[1][2], mat[1][3]);
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[2][0], mat[2][1], mat[2][2], mat[2][3]);
-            ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
-
-            auto vect = mainCamera.position;
-            ImGui::Text("camera position:");
-            ImGui::Text("%5.5f, %5.5f, %5.5f", vect[0], vect[1], vect[2]);
-
-            if (ImGui::Begin("camera"))
+            if (ImGui::CollapsingHeader("背景设置", ImGuiTreeNodeFlags_DefaultOpen))
             {
+                ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
+
+                ImGui::Text("Selected effect: ", selected.name);
+
+                ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
+
+                ImGui::InputFloat4("data1", (float*)&selected.data.data1);
+                ImGui::InputFloat4("data2", (float*)&selected.data.data2);
+                ImGui::InputFloat4("data3", (float*)&selected.data.data3);
+                ImGui::InputFloat4("data4", (float*)&selected.data.data4);
+                ImGui::InputInt("view mode", (int*)&mainCamera.view_mode);
+            }
+            if (ImGui::CollapsingHeader("位置信息", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                auto mat = mainCamera.getViewMatrix();
+                ImGui::Text("view:");
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[0][0], mat[0][1], mat[0][2], mat[0][3]);
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[1][0], mat[1][1], mat[1][2], mat[1][3]);
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[2][0], mat[2][1], mat[2][2], mat[2][3]);
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
+
+
+                mat = mainCamera.projection;
+                ImGui::Text("projection:");
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[0][0], mat[0][1], mat[0][2], mat[0][3]);
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[1][0], mat[1][1], mat[1][2], mat[1][3]);
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[2][0], mat[2][1], mat[2][2], mat[2][3]);
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
+
+                mat = mainCamera.ortho;
+                ImGui::Text("ortho:");
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[0][0], mat[0][1], mat[0][2], mat[0][3]);
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[1][0], mat[1][1], mat[1][2], mat[1][3]);
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[2][0], mat[2][1], mat[2][2], mat[2][3]);
+                ImGui::Text("%5.5f, %5.5f, %5.5f, %5.5f", mat[3][0], mat[3][1], mat[3][2], mat[3][3]);
+
+                auto vect = mainCamera.position;
+                ImGui::Text("camera position:");
+                ImGui::Text("%5.5f, %5.5f, %5.5f", vect[0], vect[1], vect[2]);
+
                 vect = mainCamera.camera_direction;
                 ImGui::Text("camera direction:");
                 ImGui::Text("%5.5f, %5.5f, %5.5f", vect[0], vect[1], vect[2]);
@@ -792,20 +786,52 @@ void VulkanEngine::run()
                 vect = mainCamera.camera_up;
                 ImGui::Text("camera up:");
                 ImGui::Text("%5.5f, %5.5f, %5.5f", vect[0], vect[1], vect[2]);
-
-                ImGui::End();
             }
-
+            if (ImGui::CollapsingHeader("渲染设置", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Text("frametime %f ms", stats.frametime);
+                ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
+                ImGui::Text("triangles %i", stats.triangle_count);
+                ImGui::Separator();
+                ImGui::Text("draws %i", stats.drawcall_count);
+            }
             ImGui::End();
         }
 
+        // 顶部工具栏
+        if (ImGui::BeginMainMenuBar())
+        {
+            if (ImGui::BeginMenu("文件"))
+            {
+                if (ImGui::MenuItem("新建", "Ctrl+N"))
+                {
+                    // 新建操作
+                }
+                if (ImGui::MenuItem("打开", "Ctrl+O"))
+                {
+                    // 打开操作
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("编辑"))
+            {
+                if (ImGui::MenuItem("剪切", "Ctrl+X"))
+                {
+                    // 剪切操作
+                }
+                if (ImGui::MenuItem("复制", "Ctrl+C"))
+                {
+                    // 复制操作
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
+
+
         ImGui::Render();
 
-        // imgui commands
-        // ImGui::ShowDemoWindow();
-
         update_scene();
-
 
         draw();
 
@@ -1226,9 +1252,6 @@ void VulkanEngine::init_renderables()
 
 void VulkanEngine::init_imgui()
 {
-
-
-
     // 1: create descriptor pool for IMGUI
     //  the size of the pool is very oversize, but it's copied from imgui demo
     //  itself.
@@ -1260,16 +1283,16 @@ void VulkanEngine::init_imgui()
 
     // this initializes the core structures of imgui
     ImGui::CreateContext();
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    ImGuiIO& io = ImGui::GetIO();
+    //io.FontGlobalScale = _context->getWindow()->get_dpi_factor(); // 放大字体
+    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // 开启docking
 
     ImFontConfig font_cfg;
     font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint;  // 额外的 FreeType 设置
     font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint | ImGuiFreeTypeBuilderFlags_Monochrome;
-    //io.Fonts->AddFontFromFileTTF("C:/code/code_file/Decker/assets/font/OPPOSans-H.ttf", 16.0f, &font_cfg);
-
-    ImGuiIO& io = ImGui::GetIO();
-    io.FontGlobalScale = _context->getWindow()->get_dpi_factor(); // 放大字体
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // 开启docking
+    io.Fonts->AddFontFromFileTTF("C:/code/code_file/Decker/assets/font/SourceHanSansCN-Regular.otf", 20.0f,
+        &font_cfg, io.Fonts->GetGlyphRangesChineseFull());
 
     // this initializes imgui for SDL
     ImGui_ImplSDL3_InitForVulkan(_context->getWindow()->get_window());
