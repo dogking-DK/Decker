@@ -735,7 +735,7 @@ void VulkanEngine::run()
 
         ImGui::NewFrame();
 
-        if (ImGui::Begin("设置面板"))
+        if (ImGui::Begin("设置面板", nullptr, ImGuiWindowFlags_NoCollapse))
         {
             if (ImGui::CollapsingHeader("背景设置", ImGuiTreeNodeFlags_DefaultOpen))
             {
@@ -792,7 +792,6 @@ void VulkanEngine::run()
                 ImGui::Text("frametime %f ms", stats.frametime);
                 ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
                 ImGui::Text("triangles %i", stats.triangle_count);
-                ImGui::Separator();
                 ImGui::Text("draws %i", stats.drawcall_count);
             }
             ImGui::End();
