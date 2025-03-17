@@ -8,63 +8,69 @@ template <typename BuilderType, typename CreateInfoType>
 class BaseBuilder
 {
 public:
-    BaseBuilder() = default;
-    const VmaAllocationCreateInfo& get_allocation_create_info() const { return _alloc_create_info; }
-    const CreateInfoType&          get_create_info() const { return _create_info; }
-    const std::string&             get_debug_name() const { return _debug_name; }
+    BaseBuilder();
+    const VmaAllocationCreateInfo& getAllocationCreateInfo() const { return _alloc_create_info; }
+    const CreateInfoType&          getCreateInfo() const { return _create_info; }
+    const std::string&             getDebugName() const { return _debug_name; }
+    CreateInfoType&                getCreateInfo() { return _create_info; }
 
-    BuilderType& with_debug_name(const std::string& name);
-    BuilderType& with_vma_flags(VmaAllocationCreateFlags flags);
-    BuilderType& with_vma_pool(VmaPool pool);
-    BuilderType& with_vma_preferred_flags(vk::MemoryPropertyFlags flags);
-    BuilderType& with_vma_required_flags(vk::MemoryPropertyFlags flags);
-    BuilderType& with_vma_usage(VmaMemoryUsage usage);
+    BuilderType& withDebugName(const std::string& name);
+    BuilderType& withVmaFlags(VmaAllocationCreateFlags flags);
+    BuilderType& withVmaPool(VmaPool pool);
+    BuilderType& withVmaFreferredFlags(vk::MemoryPropertyFlags flags);
+    BuilderType& withVmaRequiredFlags(vk::MemoryPropertyFlags flags);
+    BuilderType& withVmaUsage(VmaMemoryUsage usage);
 
 protected:
-    CreateInfoType& get_create_info() { return _create_info; }
-
     VmaAllocationCreateInfo _alloc_create_info = {};
     CreateInfoType          _create_info       = {};
     std::string             _debug_name        = {};
 };
 
 template <typename BuilderType, typename CreateInfoType>
-BuilderType& BaseBuilder<BuilderType, CreateInfoType>::with_debug_name(const std::string& name)
+BaseBuilder<BuilderType, CreateInfoType>::BaseBuilder()
+{
+    _alloc_create_info.usage         = VMA_MEMORY_USAGE_GPU_ONLY;
+    _alloc_create_info.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+}
+
+template <typename BuilderType, typename CreateInfoType>
+BuilderType& BaseBuilder<BuilderType, CreateInfoType>::withDebugName(const std::string& name)
 {
     _debug_name = name;
     return *static_cast<BuilderType*>(this);
 }
 
 template <typename BuilderType, typename CreateInfoType>
-BuilderType& BaseBuilder<BuilderType, CreateInfoType>::with_vma_flags(VmaAllocationCreateFlags flags)
+BuilderType& BaseBuilder<BuilderType, CreateInfoType>::withVmaFlags(VmaAllocationCreateFlags flags)
 {
     _alloc_create_info.flags = flags;
     return *static_cast<BuilderType*>(this);
 }
 
 template <typename BuilderType, typename CreateInfoType>
-BuilderType& BaseBuilder<BuilderType, CreateInfoType>::with_vma_pool(VmaPool pool)
+BuilderType& BaseBuilder<BuilderType, CreateInfoType>::withVmaPool(VmaPool pool)
 {
     _alloc_create_info.pool = pool;
     return *static_cast<BuilderType*>(this);
 }
 
 template <typename BuilderType, typename CreateInfoType>
-BuilderType& BaseBuilder<BuilderType, CreateInfoType>::with_vma_preferred_flags(vk::MemoryPropertyFlags flags)
+BuilderType& BaseBuilder<BuilderType, CreateInfoType>::withVmaFreferredFlags(vk::MemoryPropertyFlags flags)
 {
     _alloc_create_info.preferredFlags = static_cast<VkMemoryPropertyFlags>(flags);
     return *static_cast<BuilderType*>(this);
 }
 
 template <typename BuilderType, typename CreateInfoType>
-BuilderType& BaseBuilder<BuilderType, CreateInfoType>::with_vma_required_flags(vk::MemoryPropertyFlags flags)
+BuilderType& BaseBuilder<BuilderType, CreateInfoType>::withVmaRequiredFlags(vk::MemoryPropertyFlags flags)
 {
     _alloc_create_info.requiredFlags = static_cast<VkMemoryPropertyFlags>(flags);
     return *static_cast<BuilderType*>(this);
 }
 
 template <typename BuilderType, typename CreateInfoType>
-BuilderType& BaseBuilder<BuilderType, CreateInfoType>::with_vma_usage(VmaMemoryUsage usage)
+BuilderType& BaseBuilder<BuilderType, CreateInfoType>::withVmaUsage(VmaMemoryUsage usage)
 {
     _alloc_create_info.usage = usage;
     return *static_cast<BuilderType*>(this);

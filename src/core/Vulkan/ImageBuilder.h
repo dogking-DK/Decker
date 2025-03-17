@@ -1,9 +1,9 @@
-#pragma once
+ï»¿#pragma once
 #include "Image.h"
 #include "BaseBuilder.h"
 
 namespace dk::vkcore {
-// ImageResource µÄ Builder Àà
+// ImageResource çš„ Builder ç±»
 class ImageBuilder : BaseBuilder<ImageBuilder, vk::ImageCreateInfo>
 {
 public:
@@ -19,80 +19,49 @@ public:
         _create_info.sharingMode = vk::SharingMode::eExclusive;
     }
 
-
-    // ÉèÖÃ image ¸ñÊ½
+    // è®¾ç½® image æ ¼å¼
     ImageBuilder& setFormat(const vk::Format format)
     {
         _create_info.format = format;
         return *this;
     }
 
-    // ÉèÖÃ image Ê¹ÓÃ±êÖ¾
+    // è®¾ç½® image ä½¿ç”¨æ ‡å¿—
     ImageBuilder& setUsage(const vk::ImageUsageFlags usage)
     {
         _create_info.usage = usage;
         return *this;
     }
 
-    // ÉèÖÃ image ³ß´ç
+    // è®¾ç½® image å°ºå¯¸
     ImageBuilder& setExtent(const vk::Extent3D extent)
     {
         _create_info.extent = extent;
         return *this;
     }
 
-    // ÉèÖÃ tiling ·½Ê½
+    // è®¾ç½® tiling æ–¹å¼
     ImageBuilder& setTiling(const vk::ImageTiling tiling)
     {
         _create_info.tiling = tiling;
         return *this;
     }
 
-    // ÉèÖÃ image ÀàĞÍ£¨1D¡¢2D¡¢3D£©
+    // è®¾ç½® image ç±»å‹ï¼ˆ1Dã€2Dã€3Dï¼‰
     ImageBuilder& setImageType(const vk::ImageType type)
     {
         _create_info.imageType = type;
         return *this;
     }
 
-    // Î´À´¿ÉÀ©Õ¹ mipLevels¡¢arrayLayers¡¢³õÊ¼²¼¾ÖµÈÅäÖÃÏî
+    // æœªæ¥å¯æ‰©å±• mipLevelsã€arrayLayersã€åˆå§‹å¸ƒå±€ç­‰é…ç½®é¡¹
 
-    VmaAllocationCreateInfo const& getVmaCreateInfo() const { return _vma_create_info; }
-    vk::ImageCreateInfo const& getCreateInfo() const { return _create_info; }
-
-    // ´´½¨ ImageResource ¶ÔÏó
-    std::unique_ptr<ImageResource> build()
+    ImageResource build(VulkanContext& context)
     {
-        vk::ImageCreateInfo imageInfo{};
-        _create_info.imageType = _image_type;
-        _create_info.extent = _extent;
-        _create_info.mipLevels = 1;
-        _create_info.arrayLayers = 1;
-        _create_info.format = _format;
-        _create_info.tiling = _tiling;
-        _create_info.initialLayout = vk::ImageLayout::eUndefined;
-        _create_info.samples = vk::SampleCountFlagBits::e1;
-        _create_info.sharingMode   = vk::SharingMode::eExclusive;
-
-        VmaAllocationCreateInfo allocInfo{};
-        // Ä¬ÈÏ·ÖÅä GPU ×¨ÓÃÄÚ´æ£¬¿É¸ù¾İĞèÒªÀ©Õ¹ÅäÖÃ½Ó¿Ú
-        allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-        // ½« vk::ImageCreateInfo ×ª»»Îª VkImageCreateInfo
-        auto vkImageInfo = static_cast<VkImageCreateInfo>(imageInfo);
-
-        VkImage       vkImage;
-        VmaAllocation allocation;
-        if (vmaCreateImage(_allocator, &vkImageInfo, &allocInfo, &vkImage, &allocation, nullptr) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create image!");
-        }
-
-        vk::Image image(vkImage);
-        return std::make_unique<ImageResource>(_allocator, image, allocation);
+        return ImageResource(context, *this);
     }
 
 private:
-
+    friend ImageResource;
 };
 }

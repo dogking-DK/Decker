@@ -1,51 +1,44 @@
-#pragma once
+ï»¿#pragma once
 #include "Buffer.h"
-
+#include "BaseBuilder.h"
 namespace dk::vkcore {
-// BufferResource µÄ Builder Àà
-class BufferBuilder
+// BufferResource çš„ Builder ç±»
+class BufferBuilder : BaseBuilder<BufferBuilder, vk::BufferCreateInfo>
 {
 public:
     BufferBuilder()
-        : m_size(0), m_memoryUsage(VMA_MEMORY_USAGE_GPU_ONLY)
     {
+
     }
 
-    // ÉèÖÃ buffer ´óĞ¡£¨Á´Ê½½Ó¿Ú£©
+    // è®¾ç½® buffer å¤§å°ï¼ˆé“¾å¼æ¥å£ï¼‰
     BufferBuilder& setSize(vk::DeviceSize size)
     {
-        m_size = size;
+        _create_info.size = size;
         return *this;
     }
 
-    // ÉèÖÃ buffer Ê¹ÓÃ±êÖ¾
+    // è®¾ç½® buffer ä½¿ç”¨æ ‡å¿—
     BufferBuilder& setUsage(vk::BufferUsageFlags usage)
     {
-        m_usage = usage;
+        _create_info.usage = usage;
         return *this;
     }
 
-    // ÉèÖÃÄÚ´æÊ¹ÓÃÀàĞÍ£¨VMA ÄÚ´æÀàĞÍ£©
-    BufferBuilder& setMemoryUsage(VmaMemoryUsage memoryUsage)
-    {
-        m_memoryUsage = memoryUsage;
-        return *this;
-    }
+    // æœªæ¥å¯ä»¥å¢åŠ æ›´å¤šçš„é…ç½®é¡¹ï¼Œå¦‚å…±äº«æ¨¡å¼ã€é˜Ÿåˆ—æ—ç´¢å¼•ç­‰
 
-    // Î´À´¿ÉÒÔÔö¼Ó¸ü¶àµÄÅäÖÃÏî£¬Èç¹²ÏíÄ£Ê½¡¢¶ÓÁĞ×åË÷ÒıµÈ
-
-    // ´´½¨ BufferResource ¶ÔÏó
+    // åˆ›å»º BufferResource å¯¹è±¡
     std::unique_ptr<BufferResource> build()
     {
         vk::BufferCreateInfo bufferInfo{};
-        bufferInfo.size        = m_size;
-        bufferInfo.usage       = m_usage;
+        //bufferInfo.size        = m_size;
+        //bufferInfo.usage       = m_usage;
         bufferInfo.sharingMode = vk::SharingMode::eExclusive;
 
         VmaAllocationCreateInfo allocInfo{};
-        allocInfo.usage = m_memoryUsage;
+        //allocInfo.usage = m_memoryUsage;
 
-        // ½« vk::BufferCreateInfo ×ª»»Îªµ×²ã VkBufferCreateInfo
+        // å°† vk::BufferCreateInfo è½¬æ¢ä¸ºåº•å±‚ VkBufferCreateInfo
         auto vkBufferInfo = static_cast<VkBufferCreateInfo>(bufferInfo);
 
         VkBuffer      vkBuffer;
@@ -60,8 +53,5 @@ public:
     }
 
 private:
-    vk::DeviceSize       m_size;
-    vk::BufferUsageFlags m_usage{vk::BufferUsageFlagBits::eStorageBuffer};
-    VmaMemoryUsage       m_memoryUsage;
 };
 }

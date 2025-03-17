@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <vulkan/vulkan.hpp>
 #include "vk_mem_alloc.h"
 #include <stdexcept>
@@ -7,7 +7,7 @@
 #include "Context.h"
 
 namespace dk::vkcore {
-// ×ÊÔ´»ùÀà
+// èµ„æºåŸºç±»
 template <typename Handle, vk::ObjectType Type>
 class Resource
 {

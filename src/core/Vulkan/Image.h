@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Resource.hpp"
 
@@ -7,31 +7,24 @@ class ImageBuilder;
 }
 
 namespace dk::vkcore {
-// Ê¹ÓÃ vk::Image ·â×°µÄ Image ×ÊÔ´Àà
+// ä½¿ç”¨ vk::Image å°è£…çš„ Image èµ„æºç±»
 class ImageResource : public Resource<vk::Image, vk::ObjectType::eImage>
 {
 public:
 
-    //ImageResource(ImageBuilder& builder)
-
-    ImageResource(VmaAllocator allocator, vk::Image image, VmaAllocation allocation)
-        : m_image(image)
-    {
-        m_allocator  = allocator;
-        m_allocation = allocation;
-    }
+    ImageResource(VulkanContext& context, ImageBuilder& builder);
 
     ~ImageResource() override
     {
         if (m_image)
         {
-            // Í¨¹ı¾²Ì¬×ª»»»ñÈ¡µ×²ã VkImage£¬ÔÙÊ¹ÓÃ VMA Ïú»Ù
-            vmaDestroyImage(m_allocator, m_image, m_allocation);
+            // é€šè¿‡é™æ€è½¬æ¢è·å–åº•å±‚ VkImageï¼Œå†ä½¿ç”¨ VMA é”€æ¯
+            vmaDestroyImage(_context->getVmaAllocator(), m_image, allocation);
         }
     }
 
-    // ´´½¨¶ÔÓ¦µÄ ImageView£¬ÓÃÓÚÔÚ×ÅÉ«Æ÷ÖĞ×÷Îª²ÉÑùÆ÷ÊäÈë
-    // µ÷ÓÃÕß¸ºÔğÏú»Ù·µ»ØµÄ vk::ImageView
+    // åˆ›å»ºå¯¹åº”çš„ ImageViewï¼Œç”¨äºåœ¨ç€è‰²å™¨ä¸­ä½œä¸ºé‡‡æ ·å™¨è¾“å…¥
+    // è°ƒç”¨è€…è´Ÿè´£é”€æ¯è¿”å›çš„ vk::ImageView
     vk::ImageView createImageView(vk::Device device, vk::Format format, vk::ImageAspectFlags aspectFlags) const
     {
         vk::ImageViewCreateInfo viewInfo{};
@@ -51,8 +44,7 @@ public:
 
 private:
     vk::Image m_image;
-    // ËùÓĞ×ÊÔ´¹²ÓÃ VMA ·ÖÅäÆ÷ºÍÄÚ´æ·ÖÅä¾ä±ú
-    VmaAllocator  m_allocator = VK_NULL_HANDLE;
-    VmaAllocation m_allocation = VK_NULL_HANDLE;
+    VmaAllocationCreateInfo allocation_create_info = {};
+    VmaAllocation           allocation = VK_NULL_HANDLE;
 };
 }

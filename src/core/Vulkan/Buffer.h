@@ -7,7 +7,7 @@ class VulkanContext;
 }
 
 namespace dk::vkcore {
-// Ê¹ÓÃ vk::Buffer ·â×°µÄ Buffer ×ÊÔ´Àà
+// ä½¿ç”¨ vk::Buffer å°è£…çš„ Buffer èµ„æºç±»
 class BufferResource : public Resource<vk::Buffer, vk::ObjectType::eBuffer>
 {
 public:
@@ -22,13 +22,13 @@ public:
     {
         if (m_buffer)
         {
-            // Í¨¹ı¾²Ì¬×ª»»»ñÈ¡µ×²ã VkBuffer£¬ÔÙÊ¹ÓÃ VMA Ïú»Ù
+            // é€šè¿‡é™æ€è½¬æ¢è·å–åº•å±‚ VkBufferï¼Œå†ä½¿ç”¨ VMA é”€æ¯
             vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
         }
     }
 
 
-    // Ó³ÉäÄÚ´æ£¬·µ»Ø CPU ¿É·ÃÎÊµÄÖ¸Õë
+    // æ˜ å°„å†…å­˜ï¼Œè¿”å› CPU å¯è®¿é—®çš„æŒ‡é’ˆ
     void* map()
     {
         void* data;
@@ -39,18 +39,18 @@ public:
         return data;
     }
 
-    // È¡ÏûÓ³Éä
+    // å–æ¶ˆæ˜ å°„
     void unmap()
     {
         vmaUnmapMemory(m_allocator, m_allocation);
     }
 
-    // ¸üĞÂÊı¾İµ½ buffer£¨ÊÊÓÃÓÚ HOST_VISIBLE ÄÚ´æ£©
+    // æ›´æ–°æ•°æ®åˆ° bufferï¼ˆé€‚ç”¨äº HOST_VISIBLE å†…å­˜ï¼‰
     void updateData(const void* srcData, vk::DeviceSize size, vk::DeviceSize offset = 0);
 
 
-    // Í¨¹ı´«ÈëÃüÁî»º³åÇø£¬ÔÚ GPU ÉÏÖ´ĞĞ´Ó srcBuffer ¿½±´Êı¾İµ½±¾ buffer µÄ²Ù×÷
-    // ×¢Òâ£º¸Ãº¯Êı½ö¼ÇÂ¼¿½±´ÃüÁî£¬²»Ìá½»Ö´ĞĞ
+    // é€šè¿‡ä¼ å…¥å‘½ä»¤ç¼“å†²åŒºï¼Œåœ¨ GPU ä¸Šæ‰§è¡Œä» srcBuffer æ‹·è´æ•°æ®åˆ°æœ¬ buffer çš„æ“ä½œ
+    // æ³¨æ„ï¼šè¯¥å‡½æ•°ä»…è®°å½•æ‹·è´å‘½ä»¤ï¼Œä¸æäº¤æ‰§è¡Œ
     void copyFrom(vk::CommandBuffer commandBuffer, const BufferResource& srcBuffer, vk::DeviceSize size);
 
 
@@ -58,7 +58,7 @@ public:
 
 private:
     vk::Buffer m_buffer;
-    // ËùÓĞ×ÊÔ´¹²ÓÃ VMA ·ÖÅäÆ÷ºÍÄÚ´æ·ÖÅä¾ä±ú
+    // æ‰€æœ‰èµ„æºå…±ç”¨ VMA åˆ†é…å™¨å’Œå†…å­˜åˆ†é…å¥æŸ„
     VmaAllocator  m_allocator = VK_NULL_HANDLE;
     VmaAllocation m_allocation = VK_NULL_HANDLE;
 };
