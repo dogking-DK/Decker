@@ -41,23 +41,13 @@ public:
     }
 
     // 更新数据到 buffer（适用于 HOST_VISIBLE 内存）
-    void updateData(const void* srcData, vk::DeviceSize size, vk::DeviceSize offset = 0)
-    {
-        void* mapped = map();
-        std::memcpy(static_cast<char*>(mapped) + offset, srcData, size);
-        unmap();
-    }
+    void updateData(const void* srcData, vk::DeviceSize size, vk::DeviceSize offset = 0);
+
 
     // 通过传入命令缓冲区，在 GPU 上执行从 srcBuffer 拷贝数据到本 buffer 的操作
     // 注意：该函数仅记录拷贝命令，不提交执行
-    void copyFrom(vk::CommandBuffer commandBuffer, const BufferResource& srcBuffer, vk::DeviceSize size)
-    {
-        vk::BufferCopy copyRegion;
-        copyRegion.srcOffset = 0;
-        copyRegion.dstOffset = 0;
-        copyRegion.size      = size;
-        commandBuffer.copyBuffer(srcBuffer.getBuffer(), this->getBuffer(), copyRegion);
-    }
+    void copyFrom(vk::CommandBuffer commandBuffer, const BufferResource& srcBuffer, vk::DeviceSize size);
+
 
     vk::Buffer getBuffer() const { return m_buffer; }
 

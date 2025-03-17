@@ -19,7 +19,33 @@ void VulkanContext::initVulkan()
 
     initDevice(surface);
     _swapchain = new Swapchain(*this, surface, vk::PresentModeKHR::eMailbox);
+
+    initVma();
 }
+
+void VulkanContext::initVma()
+{
+    // initialize the memory allocator
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    allocatorInfo.physicalDevice = _physical_device;
+    allocatorInfo.device = _device;
+    allocatorInfo.instance = _instance;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    vmaCreateAllocator(&allocatorInfo, &_allocator);
+}
+
+void VulkanContext::deleVma()
+{
+    if (_allocator != VK_NULL_HANDLE)
+    {
+        VmaTotalStatistics stats;
+        vmaCalculateStatistics(_allocator, &stats);
+        fmt::print("Total device memory leaked: {} bytes.", stats.total.statistics.allocationBytes);
+        vmaDestroyAllocator(_allocator);
+        _allocator = VK_NULL_HANDLE;
+    }
+}
+
 void VulkanContext::initInstance()
 {
     vkb::InstanceBuilder builder;
@@ -126,6 +152,7 @@ void VulkanContext::resizeSwapchainAuto()
 
 void VulkanContext::cleanup()
 {
+    deleVma();
     delete _swapchain;
     delete _window;
     vkDestroyDevice(_device, nullptr);

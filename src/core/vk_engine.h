@@ -169,8 +169,6 @@ public:
 
     DeletionQueue _mainDeletionQueue;
 
-    VmaAllocator _allocator; // vma lib allocator
-
     VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 
     GLTFMetallic_Roughness metalRoughMaterial;
