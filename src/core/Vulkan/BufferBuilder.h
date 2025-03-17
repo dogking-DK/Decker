@@ -6,9 +6,8 @@ namespace dk::vkcore {
 class BufferBuilder
 {
 public:
-    // 构造时传入 VMA 分配器
-    BufferBuilder(VmaAllocator allocator)
-        : m_allocator(allocator), m_size(0), m_memoryUsage(VMA_MEMORY_USAGE_GPU_ONLY)
+    BufferBuilder()
+        : m_size(0), m_memoryUsage(VMA_MEMORY_USAGE_GPU_ONLY)
     {
     }
 
@@ -51,19 +50,18 @@ public:
 
         VkBuffer      vkBuffer;
         VmaAllocation allocation;
-        if (vmaCreateBuffer(m_allocator, &vkBufferInfo, &allocInfo, &vkBuffer, &allocation, nullptr) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create buffer!");
-        }
+        //if (vmaCreateBuffer(m_allocator, &vkBufferInfo, &allocInfo, &vkBuffer, &allocation, nullptr) != VK_SUCCESS)
+        //{
+        //    throw std::runtime_error("Failed to create buffer!");
+        //}
 
-        vk::Buffer buffer(vkBuffer);
-        return std::make_unique<BufferResource>(m_allocator, buffer, allocation);
+        //vk::Buffer buffer(vkBuffer);
+        //return std::make_unique<BufferResource>(m_allocator, buffer, allocation);
     }
 
 private:
-    VmaAllocator         m_allocator;
     vk::DeviceSize       m_size;
-    vk::BufferUsageFlags m_usage{vk::BufferUsageFlagBits::eStorageBuffer };
+    vk::BufferUsageFlags m_usage{vk::BufferUsageFlagBits::eStorageBuffer};
     VmaMemoryUsage       m_memoryUsage;
 };
 }

@@ -2,6 +2,11 @@
 #include "Resource.hpp"
 
 namespace dk::vkcore {
+class BufferBuilder;
+class VulkanContext;
+}
+
+namespace dk::vkcore {
 // 使用 vk::Buffer 封装的 Buffer 资源类
 class BufferResource : public Resource<vk::Buffer, vk::ObjectType::eBuffer>
 {
@@ -12,7 +17,7 @@ public:
         m_allocator  = allocator;
         m_allocation = allocation;
     }
-
+    BufferResource(VulkanContext& context, BufferBuilder& builder);
     ~BufferResource() override
     {
         if (m_buffer)

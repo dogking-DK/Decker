@@ -1,72 +1,78 @@
 #pragma once
 #include "Image.h"
+#include "BaseBuilder.h"
 
 namespace dk::vkcore {
 // ImageResource 的 Builder 类
-class ImageBuilder
+class ImageBuilder : BaseBuilder<ImageBuilder, vk::ImageCreateInfo>
 {
 public:
-    ImageBuilder(VmaAllocator allocator)
-        : _allocator(allocator),
-          _format(vk::Format::eUndefined),
-          _usage(vk::ImageUsageFlagBits::eSampled),
-          _tiling(vk::ImageTiling::eOptimal),
-        _image_type(vk::ImageType::e2D),
-          _extent{0, 0, 1}
+    ImageBuilder()
     {
+        _create_info.format = (vk::Format::eUndefined);
+        _create_info.usage = (vk::ImageUsageFlagBits::eSampled);
+        _create_info.tiling = (vk::ImageTiling::eOptimal);
+        _create_info.imageType = (vk::ImageType::e2D);
+        _create_info.extent = vk::Extent3D(0, 0, 1);
+        _create_info.initialLayout = vk::ImageLayout::eUndefined;
+        _create_info.samples = vk::SampleCountFlagBits::e1;
+        _create_info.sharingMode = vk::SharingMode::eExclusive;
     }
 
+
     // 设置 image 格式
-    ImageBuilder& setFormat(vk::Format format)
+    ImageBuilder& setFormat(const vk::Format format)
     {
-        _format = format;
+        _create_info.format = format;
         return *this;
     }
 
     // 设置 image 使用标志
-    ImageBuilder& setUsage(vk::ImageUsageFlags usage)
+    ImageBuilder& setUsage(const vk::ImageUsageFlags usage)
     {
-        _usage = usage;
+        _create_info.usage = usage;
         return *this;
     }
 
     // 设置 image 尺寸
-    ImageBuilder& setExtent(vk::Extent3D extent)
+    ImageBuilder& setExtent(const vk::Extent3D extent)
     {
-        _extent = extent;
+        _create_info.extent = extent;
         return *this;
     }
 
     // 设置 tiling 方式
-    ImageBuilder& setTiling(vk::ImageTiling tiling)
+    ImageBuilder& setTiling(const vk::ImageTiling tiling)
     {
-        _tiling = tiling;
+        _create_info.tiling = tiling;
         return *this;
     }
 
     // 设置 image 类型（1D、2D、3D）
-    ImageBuilder& setImageType(vk::ImageType type)
+    ImageBuilder& setImageType(const vk::ImageType type)
     {
-        _image_type = type;
+        _create_info.imageType = type;
         return *this;
     }
 
     // 未来可扩展 mipLevels、arrayLayers、初始布局等配置项
 
+    VmaAllocationCreateInfo const& getVmaCreateInfo() const { return _vma_create_info; }
+    vk::ImageCreateInfo const& getCreateInfo() const { return _create_info; }
+
     // 创建 ImageResource 对象
     std::unique_ptr<ImageResource> build()
     {
         vk::ImageCreateInfo imageInfo{};
-        imageInfo.imageType     = _image_type;
-        imageInfo.extent        = _extent;
-        imageInfo.mipLevels     = 1;
-        imageInfo.arrayLayers   = 1;
-        imageInfo.format        = _format;
-        imageInfo.tiling        = _tiling;
-        imageInfo.initialLayout = vk::ImageLayout::eUndefined;
-        imageInfo.usage         = _usage;
-        imageInfo.samples       = vk::SampleCountFlagBits::e1;
-        imageInfo.sharingMode   = vk::SharingMode::eExclusive;
+        _create_info.imageType = _image_type;
+        _create_info.extent = _extent;
+        _create_info.mipLevels = 1;
+        _create_info.arrayLayers = 1;
+        _create_info.format = _format;
+        _create_info.tiling = _tiling;
+        _create_info.initialLayout = vk::ImageLayout::eUndefined;
+        _create_info.samples = vk::SampleCountFlagBits::e1;
+        _create_info.sharingMode   = vk::SharingMode::eExclusive;
 
         VmaAllocationCreateInfo allocInfo{};
         // 默认分配 GPU 专用内存，可根据需要扩展配置接口
@@ -87,12 +93,6 @@ public:
     }
 
 private:
-    VmaAllocator        _allocator;
-    vk::ImageCreateInfo _create_info;
-    vk::Format          _format;
-    vk::ImageUsageFlags _usage;
-    vk::ImageTiling     _tiling;
-    vk::ImageType       _image_type;
-    vk::Extent3D        _extent;
+
 };
 }

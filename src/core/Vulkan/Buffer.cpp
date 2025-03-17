@@ -1,6 +1,13 @@
 #include "Buffer.h"
+#include "BufferBuilder.h"
 
 namespace dk::vkcore {
+    BufferResource::BufferResource(VulkanContext& context, BufferBuilder& builder)
+        : Resource(&context, nullptr)
+{
+
+}
+
 void BufferResource::updateData(const void* srcData, vk::DeviceSize size, vk::DeviceSize offset)
 {
     void* mapped = map();
