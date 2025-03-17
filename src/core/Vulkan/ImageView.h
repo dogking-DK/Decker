@@ -3,28 +3,32 @@
 #include <vulkan/vulkan.hpp>
 #include <memory>
 
+#include "Context.h"
+#include "Resource.hpp"
+
+namespace dk::vkcore {
 // ImageViewResource 封装了 vk::ImageView，并在析构时自动销毁
-class ImageViewResource
+class ImageViewResource : Resource<vk::ImageView, vk::ObjectType::eImageView>
 {
 public:
     // 构造时传入创建 ImageView 的设备和创建好的 vk::ImageView 对象
-    ImageViewResource(vk::Device device, vk::ImageView imageView)
-        : m_device(device), m_imageView(imageView)
+    ImageViewResource(VulkanContext* context, vk::ImageView image_view, ImageResource* image)
+        : Resource(_context, image_view), _image(image)
     {
     }
 
-    ~ImageViewResource()
+    ~ImageViewResource() override
     {
-        if (m_imageView)
+        if (_handle)
         {
-            m_device.destroyImageView(m_imageView);
+            _context->getDevice().destroyImageView(_handle);
         }
     }
 
-    vk::ImageView get() const { return m_imageView; }
+    vk::Format                 get_format() const;
+    vkb::core::HPPImage const& get_image() const;
 
 private:
-    vk::Device    m_device;       // 用于销毁 ImageView
-    vk::ImageView m_imageView; // 封装的 ImageView 对象
-
+    ImageResource* _image;
 };
+}

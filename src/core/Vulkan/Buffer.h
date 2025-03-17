@@ -1,8 +1,9 @@
 #pragma once
-#include "Resource.h"
+#include "Resource.hpp"
 
+namespace dk::vkcore {
 // 使用 vk::Buffer 封装的 Buffer 资源类
-class BufferResource : public Resource
+class BufferResource : public Resource<vk::Buffer, vk::ObjectType::eBuffer>
 {
 public:
     BufferResource(VmaAllocator allocator, vk::Buffer buffer, VmaAllocation allocation)
@@ -62,4 +63,8 @@ public:
 
 private:
     vk::Buffer m_buffer;
+    // 所有资源共用 VMA 分配器和内存分配句柄
+    VmaAllocator  m_allocator = VK_NULL_HANDLE;
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
 };
+}

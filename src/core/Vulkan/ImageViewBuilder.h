@@ -3,14 +3,16 @@
 #include <vulkan/vulkan.hpp>
 #include <memory>
 
+#include "Image.h"
 #include "ImageView.h"
 
+namespace dk::vkcore {
 // ImageViewBuilder 提供链式接口配置 ImageView 的各项参数
 class ImageViewBuilder
 {
 public:
     // 构造时需要传入所属设备和要创建视图的 vk::Image
-    ImageViewBuilder(vk::Device device, vk::Image image)
+    ImageViewBuilder(vk::Device device, ImageResource& image)
         : m_device(device), m_image(image),
           m_viewType(vk::ImageViewType::e2D),
           m_format(vk::Format::eUndefined),
@@ -76,7 +78,7 @@ public:
 
 private:
     vk::Device           m_device;
-    vk::Image            m_image;
+    ImageResource*       m_image;
     vk::ImageViewType    m_viewType;
     vk::Format           m_format;
     vk::ImageAspectFlags m_aspectFlags;
@@ -85,3 +87,4 @@ private:
     uint32_t             m_baseArrayLayer;
     uint32_t             m_layerCount;
 };
+}

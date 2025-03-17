@@ -3,7 +3,7 @@
 #include <VkBootstrap.h>
 #include <vulkan/vulkan_core.h>
 
-namespace dk {
+namespace dk::vkcore {
     class Instance
     {
     public:

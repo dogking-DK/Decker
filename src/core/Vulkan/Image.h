@@ -1,11 +1,14 @@
 #pragma once
 
-#include "Resource.h"
+#include "Resource.hpp"
 
+namespace dk::vkcore {
 // 使用 vk::Image 封装的 Image 资源类
-class ImageResource : public Resource
+class ImageResource : public Resource<vk::Image, vk::ObjectType::eImage>
 {
 public:
+
+
     ImageResource(VmaAllocator allocator, vk::Image image, VmaAllocation allocation)
         : m_image(image)
     {
@@ -43,5 +46,8 @@ public:
 
 private:
     vk::Image m_image;
-
+    // 所有资源共用 VMA 分配器和内存分配句柄
+    VmaAllocator  m_allocator = VK_NULL_HANDLE;
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
 };
+}

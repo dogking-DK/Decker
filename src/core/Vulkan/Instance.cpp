@@ -4,7 +4,7 @@
 
 #include "vk_debug_util.h"
 
-namespace dk {
+namespace dk::vkcore {
     void Instance::initInstance()
     {
         vkb::InstanceBuilder builder;

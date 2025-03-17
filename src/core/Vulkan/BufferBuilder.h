@@ -1,13 +1,14 @@
 #pragma once
 #include "Buffer.h"
 
+namespace dk::vkcore {
 // BufferResource 的 Builder 类
 class BufferBuilder
 {
 public:
     // 构造时传入 VMA 分配器
     BufferBuilder(VmaAllocator allocator)
-        : m_allocator(allocator), m_size(0), m_usage({}), m_memoryUsage(VMA_MEMORY_USAGE_GPU_ONLY)
+        : m_allocator(allocator), m_size(0), m_memoryUsage(VMA_MEMORY_USAGE_GPU_ONLY)
     {
     }
 
@@ -62,6 +63,7 @@ public:
 private:
     VmaAllocator         m_allocator;
     vk::DeviceSize       m_size;
-    vk::BufferUsageFlags m_usage;
+    vk::BufferUsageFlags m_usage{vk::BufferUsageFlagBits::eStorageBuffer };
     VmaMemoryUsage       m_memoryUsage;
 };
+}
