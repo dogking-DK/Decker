@@ -11,6 +11,8 @@ ImageResource::ImageResource(VulkanContext& context, ImageBuilder& builder)
                                      reinterpret_cast<VkImage*>(&_handle),
                                      &allocation,
                                      nullptr);
+    
+    allocation_create_info = builder.getAllocationCreateInfo(); // 储存分配的创建信息
 
     if (result != VK_SUCCESS)
     {

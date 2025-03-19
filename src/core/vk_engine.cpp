@@ -17,6 +17,9 @@
 #include "imgui_freetype.h"
 
 #include <glm/gtx/transform.hpp>
+#include <nlohmann/json.hpp>
+#include <fstream>
+#include <filesystem>
 
 #define VMA_IMPLEMENTATION
 #define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
@@ -1223,13 +1226,19 @@ void VulkanEngine::init_sync_structures()
 
 void VulkanEngine::init_renderables()
 {
-    //std::string structurePath = { "C:/code/code_file/example/vulkan guide/vulkan-guide-all-chapters-2/assets/structure.glb" };
-    std::string structurePath = {"C:/code/data/gltf/just_a_girl/scene.gltf"};
-    //std::string structurePath = { "C:/code/data/glTF-Sample-Models-main/2.0/Sponza/glTF/Sponza.gltf" };
-    //std::string structurePath = { "C:/code/data/gltf/cathedral/scene.gltf" };
-    //std::string structurePath = { "C:/code/data/gltf/damascus_steel_katana/scene.gltf" };
-    //std::string structurePath = { "C:/code/data/gltf/crystal_palace_cinema_from_realityvirtual.co/scene.gltf" };
-
+    namespace fs = std::filesystem;
+    std::string structurePath;
+    fs::path current_dir = fs::current_path(); // 当前目录
+    fs::path file_json_path = fs::absolute(current_dir / "../../assets/config/file.json"); // 矫正分隔符
+    fmt::print(fmt::fg(fmt::color::bisque), "file config path: {}\n", file_json_path.string());
+    if (fs::exists(file_json_path)) 
+    {
+        std::ifstream  file(file_json_path);
+        nlohmann::json j;
+        file >> j;
+        structurePath = j["file_path"];
+    }
+    fmt::print(fmt::fg(fmt::color::bisque), "model file path: {}\n", structurePath);
     auto structureFile = loadGltf(this, structurePath);
 
     assert(structureFile.has_value());

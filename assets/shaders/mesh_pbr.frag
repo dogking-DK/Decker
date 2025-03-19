@@ -62,6 +62,7 @@ void main()
     vec3 color = inColor * texture(allTextures[colorID],inUV).xyz;
 
 	outFragColor = vec4(color * lightValue + color * irradiance.x * vec3(0.2f) ,1.0f);
+    outFragColor = vec4(color, 1.0f);
 }
 
 

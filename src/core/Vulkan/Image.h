@@ -16,10 +16,10 @@ public:
 
     ~ImageResource() override
     {
-        if (m_image)
+        if (_handle)
         {
             // 通过静态转换获取底层 VkImage，再使用 VMA 销毁
-            vmaDestroyImage(_context->getVmaAllocator(), m_image, allocation);
+            vmaDestroyImage(_context->getVmaAllocator(), _handle, allocation);
         }
     }
 
@@ -28,7 +28,7 @@ public:
     vk::ImageView createImageView(vk::Device device, vk::Format format, vk::ImageAspectFlags aspectFlags) const
     {
         vk::ImageViewCreateInfo viewInfo{};
-        viewInfo.image                           = m_image;
+        viewInfo.image                           = _handle;
         viewInfo.viewType                        = vk::ImageViewType::e2D;
         viewInfo.format                          = format;
         viewInfo.subresourceRange.aspectMask     = aspectFlags;
@@ -40,10 +40,7 @@ public:
         return device.createImageView(viewInfo);
     }
 
-    vk::Image getImage() const { return m_image; }
-
 private:
-    vk::Image m_image;
     VmaAllocationCreateInfo allocation_create_info = {};
     VmaAllocation           allocation = VK_NULL_HANDLE;
 };

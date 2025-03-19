@@ -58,7 +58,7 @@ public:
 
     ImageResource build(VulkanContext& context)
     {
-        return ImageResource(context, *this);
+        return { context, *this };
     }
 
 private:

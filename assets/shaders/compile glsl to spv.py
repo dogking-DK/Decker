@@ -51,4 +51,4 @@ if __name__ == "__main__":
     compile_shaders(shader_directory, output_directory, glslang_validator_exe)
 
     # Prevent the command window from closing immediately..
-    # input("Press Enter to exit...")
+    input("Press Enter to exit...")
