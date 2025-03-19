@@ -22,7 +22,7 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(magic_enum REQUIRED)
-find_package(robin_hood CONFIG REQUIRED)
+find_package(tsl-robin-map CONFIG REQUIRED)
 # find_package(slang REQUIRED)
 
 find_package(SDL3 CONFIG REQUIRED)
@@ -104,7 +104,7 @@ target_link_libraries(${PROJECT_NAME}
     # slang::slang
     implot::implot
     imgui::imgui
-    robin_hood::robin_hood
+    tsl::robin_map
     third_lib
     )
 

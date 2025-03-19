@@ -1,8 +1,10 @@
 ﻿#pragma once
-
+#include <tsl/robin_set.h>
+#include <tsl/robin_map.h>
 #include "Resource.hpp"
 
 namespace dk::vkcore {
+class ImageViewResource;
 class ImageBuilder;
 }
 
@@ -40,8 +42,11 @@ public:
         return device.createImageView(viewInfo);
     }
 
+    tsl::robin_set<ImageViewResource*>& getImageViews() { return _image_views; }
+
 private:
     VmaAllocationCreateInfo allocation_create_info = {};
     VmaAllocation           allocation = VK_NULL_HANDLE;
+    tsl::robin_set<ImageViewResource*> _image_views;
 };
 }

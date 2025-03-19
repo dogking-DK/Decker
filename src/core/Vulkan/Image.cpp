@@ -14,6 +14,8 @@ ImageResource::ImageResource(VulkanContext& context, ImageBuilder& builder)
     
     allocation_create_info = builder.getAllocationCreateInfo(); // 储存分配的创建信息
 
+
+
     if (result != VK_SUCCESS)
     {
         fmt::print("image create fail\n");

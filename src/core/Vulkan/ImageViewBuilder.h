@@ -69,6 +69,7 @@ public:
     }
 
     ImageResource& getImage() { return *_image; }
+    vk::ImageViewCreateInfo getImageViewCreateInfo() { return _create_info; }
 
 private:
     ImageResource*          _image;

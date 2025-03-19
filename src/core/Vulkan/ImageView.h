@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "Context.h"
+#include "Image.h"
 #include "Resource.hpp"
 
 namespace dk::vkcore {
@@ -16,15 +17,11 @@ namespace dk::vkcore {
 class ImageViewResource : Resource<vk::ImageView, vk::ObjectType::eImageView>
 {
 public:
-    // 构造时传入创建 ImageView 的设备和创建好的 vk::ImageView 对象
-    ImageViewResource(VulkanContext* context, vk::ImageView image_view, ImageResource* image)
-        : Resource(context, image_view), _image(image)
-    {
-    }
     ImageViewResource(VulkanContext& context, ImageViewBuilder& builder);
 
     ~ImageViewResource() override
     {
+        _image->getImageViews().erase(this);
         if (_handle)
         {
             _context->getDevice().destroyImageView(_handle);
@@ -35,6 +32,8 @@ public:
     ImageResource const& get_image() const;
 
 private:
+    vk::Format                _format;
+    vk::ImageSubresourceRange _subresource_range;
     ImageResource* _image{nullptr};
 };
 }
