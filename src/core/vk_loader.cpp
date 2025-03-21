@@ -307,9 +307,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
 
         auto passType = MaterialPass::MainColor;
+        // 混合材质
         if (mat.alphaMode == fastgltf::AlphaMode::Blend)
         {
-            passType = MaterialPass::Transparent;
+            //passType = MaterialPass::Transparent;
         }
 
         GLTFMetallic_Roughness::MaterialResources materialResources;

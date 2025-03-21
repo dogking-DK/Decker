@@ -1,7 +1,7 @@
 {
     "load_file" : 
     {
-        "name" : "bath room",
+        "name" : "rainier ak",
         "comment" : "打开文件对应的名字"
     },
     "file_paths": 
@@ -21,6 +21,14 @@
         {
             "name" : "bath room",
             "path" : "C:/code/data/gltf/the_bathroom_free/scene.gltf"
+        },
+        {
+            "name" : "late night coffee",
+            "path" : "C:/code/data/gltf/late_night_office/scene.gltf"
+        },
+        {
+            "name" : "rainier ak",
+            "path" : "C:/code/data/gltf/rainier_ak_-_3d/scene.gltf"
         }
     ]
 }
