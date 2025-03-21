@@ -27,7 +27,7 @@ public:
 	glm::mat4 projection;
 	glm::mat4 ortho;
 
-
+	float velocity_coefficient = 1.0f;
 	// vertical rotation
 	float pitch{ 0.f };
 	// horizontal rotation
@@ -38,6 +38,7 @@ public:
 
 	void processSDLEvent(SDL_Window* window, const SDL_Event& e);
 
+	void renderUI();
 
 	bool mouse_left_down = false;
 

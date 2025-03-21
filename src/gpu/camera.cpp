@@ -16,7 +16,7 @@ void Camera::update()
 {
 	glm::mat4 cameraRotation = getRotationMatrix();
 
-	position += glm::vec3(cameraRotation * glm::vec4(velocity, 0.f));
+	position += glm::vec3(cameraRotation * glm::vec4(velocity, 0.f)) * velocity_coefficient;
 }
 
 glm::mat4 Camera::getViewMatrix()
@@ -27,19 +27,6 @@ glm::mat4 Camera::getViewMatrix()
 	glm::mat4 cameraTranslation = glm::translate(glm::mat4(1.f), position);
 	glm::mat4 cameraRotation = getRotationMatrix();
 	return glm::inverse(cameraTranslation * cameraRotation);
-
-	glm::vec3 direction;
-	direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-	direction.y = sin(glm::radians(pitch));
-	direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-	camera_direction = direction;
-
-	direction.x = -cos(glm::radians(yaw)) * sin(glm::radians(pitch));
-	direction.y = cos(glm::radians(pitch));
-	direction.z = -sin(glm::radians(yaw)) * sin(glm::radians(pitch));
-	camera_up = direction;
-
-	return glm::lookAt(position, position + camera_direction, camera_up);
 }
 
 glm::mat4 Camera::getRotationMatrix()
@@ -106,4 +93,11 @@ void Camera::processSDLEvent(SDL_Window* window, const SDL_Event& e)
 	}
 }
 
+void Camera::renderUI()
+{
+	if (ImGui::CollapsingHeader("相机设置", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		ImGui::InputFloat("相机移速", &velocity_coefficient);
+	}
+}
 } // dk

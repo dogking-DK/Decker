@@ -1,3 +1,26 @@
 {
-    "file_path": "C:/code/data/gltf/just_a_girl/scene.gltf"
+    "load_file" : 
+    {
+        "name" : "bath room",
+        "comment" : "打开文件对应的名字"
+    },
+    "file_paths": 
+    [
+        {
+            "name" : "girl",
+            "path" : "C:/code/data/gltf/just_a_girl/scene.gltf"
+        },
+        {
+            "name" : "alien",
+            "path" : "C:/code/data/gltf/xeno_raven/scene.gltf"
+        },
+        {
+            "name" : "911",
+            "path" : "C:/code/data/gltf/free_1975_porsche_911_930_turbo/scene.gltf"
+        },
+        {
+            "name" : "bath room",
+            "path" : "C:/code/data/gltf/the_bathroom_free/scene.gltf"
+        }
+    ]
 }

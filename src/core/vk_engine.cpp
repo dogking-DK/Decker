@@ -744,11 +744,11 @@ void VulkanEngine::run()
 
                 ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
 
-                ImGui::InputFloat4("data1", (float*)&selected.data.data1);
-                ImGui::InputFloat4("data2", (float*)&selected.data.data2);
-                ImGui::InputFloat4("data3", (float*)&selected.data.data3);
-                ImGui::InputFloat4("data4", (float*)&selected.data.data4);
-                ImGui::InputInt("view mode", (int*)&mainCamera.view_mode);
+                ImGui::InputFloat4("data1", reinterpret_cast<float*>(&selected.data.data1));
+                ImGui::InputFloat4("data2", reinterpret_cast<float*>(&selected.data.data2));
+                ImGui::InputFloat4("data3", reinterpret_cast<float*>(&selected.data.data3));
+                ImGui::InputFloat4("data4", reinterpret_cast<float*>(&selected.data.data4));
+                ImGui::InputInt("view mode", reinterpret_cast<int*>(&mainCamera.view_mode));
             }
             if (ImGui::CollapsingHeader("位置信息", ImGuiTreeNodeFlags_DefaultOpen))
             {
@@ -793,6 +793,7 @@ void VulkanEngine::run()
                 ImGui::Text("triangles %i", stats.triangle_count);
                 ImGui::Text("draws %i", stats.drawcall_count);
             }
+            mainCamera.renderUI();
             ImGui::End();
         }
 
@@ -1236,7 +1237,7 @@ void VulkanEngine::init_renderables()
         std::ifstream  file(file_json_path);
         nlohmann::json j;
         file >> j;
-        structurePath = j["file_path"];
+        structurePath = vkutil::get_model_path(j, j["load_file"]["name"]).string();
     }
     fmt::print(fmt::fg(fmt::color::bisque), "model file path: {}\n", structurePath);
     auto structureFile = loadGltf(this, structurePath);

@@ -8,6 +8,7 @@
 #include "vk_descriptors.h"
 #include <unordered_map>
 #include <filesystem>
+#include <nlohmann/json_fwd.hpp>
 
 #include "Macros.h"
 #include "Scene/Node.h"
@@ -22,9 +23,9 @@ struct GLTFMaterial
 
 struct GeoSurface
 {
-    uint32_t startIndex;
-    uint32_t count;
-    Bounds bounds;
+    uint32_t                      startIndex;
+    uint32_t                      count;
+    Bounds                        bounds;
     std::shared_ptr<GLTFMaterial> material;
 };
 
@@ -33,15 +34,15 @@ struct MeshAsset
     std::string name;
 
     std::vector<GeoSurface> surfaces;
-    GPUMeshBuffers meshBuffers;
+    GPUMeshBuffers          meshBuffers;
 };
 
 struct LoadedGLTF : IRenderable
 {
     // storage for all the data on a given gltf file
-    std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
-    std::unordered_map<std::string, std::shared_ptr<Node>> nodes;
-    std::unordered_map<std::string, AllocatedImage> images;
+    std::unordered_map<std::string, std::shared_ptr<MeshAsset>>    meshes;
+    std::unordered_map<std::string, std::shared_ptr<Node>>         nodes;
+    std::unordered_map<std::string, AllocatedImage>                images;
     std::unordered_map<std::string, std::shared_ptr<GLTFMaterial>> materials;
 
     // nodes that dont have a parent, for iterating through the file in tree order
@@ -57,16 +58,17 @@ struct LoadedGLTF : IRenderable
 
     ~LoadedGLTF() override { clearAll(); }
 
-    virtual void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+    void draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
 
 private:
     void clearAll();
 };
 
 std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath);
-
 } // dk
 
 namespace vkutil {
+std::filesystem::path get_model_path(const nlohmann::json& j, const std::string& model_name);
+
 bool readShaderFile(const std::string& file_path, std::string& code);
 } // vkutil
