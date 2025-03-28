@@ -4,7 +4,7 @@
 
 namespace dk::vkcore {
 // ImageResource 的 Builder 类
-class ImageBuilder : BaseBuilder<ImageBuilder, vk::ImageCreateInfo>
+class ImageBuilder : public BaseBuilder<ImageBuilder, vk::ImageCreateInfo>
 {
 public:
     ImageBuilder()

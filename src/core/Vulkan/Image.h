@@ -21,7 +21,7 @@ public:
         if (_handle)
         {
             // 通过静态转换获取底层 VkImage，再使用 VMA 销毁
-            vmaDestroyImage(_context->getVmaAllocator(), _handle, allocation);
+            vmaDestroyImage(_context->getVmaAllocator(), _handle, _allocation);
         }
     }
 
@@ -44,9 +44,11 @@ public:
 
     tsl::robin_set<ImageViewResource*>& getImageViews() { return _image_views; }
 
+    VmaAllocation getAllocation() const { return _allocation; }
+
 private:
-    VmaAllocationCreateInfo allocation_create_info = {};
-    VmaAllocation           allocation = VK_NULL_HANDLE;
+    VmaAllocationCreateInfo _allocation_create_info = {};
+    VmaAllocation           _allocation = VK_NULL_HANDLE;
     tsl::robin_set<ImageViewResource*> _image_views;
 };
 }

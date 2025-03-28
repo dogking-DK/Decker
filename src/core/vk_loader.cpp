@@ -179,7 +179,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
     auto scene     = std::make_shared<LoadedGLTF>();
     scene->creator = engine;
-    auto& file     = *scene.get();
+    auto& file     = *scene;
 
     fastgltf::Parser parser{};
 
