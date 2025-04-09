@@ -15,7 +15,8 @@ public:
     Resource(VulkanContext* context, Handle handle = nullptr) : _context(context), _handle(handle)
     {
     }
-    Resource() = default;
+
+    Resource()          = default;
     virtual ~Resource() = default;
 
     Handle&        getHandle() { return _handle; }
@@ -33,7 +34,7 @@ protected:
 template <typename Handle, vk::ObjectType Type>
 void Resource<Handle, Type>::setDebugName(const std::string& name)
 {
-    vk::DebugUtilsObjectNameInfoEXT debugNameInfo{Type,_handle,name.c_str()};
+    vk::DebugUtilsObjectNameInfoEXT debugNameInfo{Type, _handle, name.c_str()};
 
     _context->getDevice().setDebugUtilsObjectNameEXT(debugNameInfo);
 }

@@ -4,6 +4,7 @@
 
 namespace dk::vkcore {
 ImageResource::ImageResource(VulkanContext& context, ImageBuilder& builder)
+    : Resource(&context, nullptr)
 {
     VkResult result = vmaCreateImage(context.getVmaAllocator(),
                                      reinterpret_cast<const VkImageCreateInfo*>(&builder.getCreateInfo()),
