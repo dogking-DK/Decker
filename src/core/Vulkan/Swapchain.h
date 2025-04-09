@@ -90,7 +90,7 @@ public:
 
     const vk::Extent2D& get_extent() const;
 
-    vk::Format get_format() const { return properties.surface_format.format; }
+    vk::SurfaceFormatKHR get_format() const { return _properties.surface_format; }
 
     const std::vector<vk::Image>& get_images() const { return images; }
 
@@ -117,14 +117,14 @@ private:
     std::vector<vk::Image> images;
     std::vector<vk::ImageView> image_views;
 
-    HPPSwapchainProperties properties;
+    HPPSwapchainProperties _properties;
 
     // A list of present modes in order of priority (vector[0] has high priority, vector[size-1] has low priority)
-    std::vector<vk::PresentModeKHR> present_mode_priority_list;
+    std::vector<vk::PresentModeKHR> _present_mode_priority_list;
 
     // A list of surface formats in order of priority (vector[0] has high priority, vector[size-1] has low priority)
-    std::vector<vk::SurfaceFormatKHR> surface_format_priority_list;
+    std::vector<vk::SurfaceFormatKHR> _surface_format_priority_list;
 
-    std::set<vk::ImageUsageFlagBits> image_usage_flags;
+    std::set<vk::ImageUsageFlagBits> _image_usage_flags;
 };
 } // dk::vkcore

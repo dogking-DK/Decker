@@ -1159,9 +1159,9 @@ void VulkanEngine::init_swapchain()
 void VulkanEngine::resize_swapchain()
 {
     vkDeviceWaitIdle(_context->getDevice());
-
     _context->resizeSwapchainAuto();
-
+    _windowExtent.height = _context->getSwapchain()->get_extent().height;
+    _windowExtent.width  = _context->getSwapchain()->get_extent().width;
     resize_requested = false;
 }
 
@@ -1312,7 +1312,7 @@ void VulkanEngine::init_imgui()
     //dynamic rendering parameters for imgui to use
     init_info.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-    auto imguiFormat = static_cast<VkFormat>(_context->getSwapchain()->get_format());
+    VkFormat imguiFormat = VK_FORMAT_B8G8R8A8_UNORM;
     init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &imguiFormat;
 
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;

@@ -10,13 +10,13 @@ Swapchain::Swapchain(Swapchain& old_swapchain, const vk::Extent2D& extent) :
     Swapchain{
         *old_swapchain.context,
         old_swapchain.surface,
-        old_swapchain.properties.present_mode,
-        old_swapchain.present_mode_priority_list,
-        old_swapchain.surface_format_priority_list,
-        extent,
-        old_swapchain.properties.image_count,
-        old_swapchain.properties.pre_transform,
-        old_swapchain.image_usage_flags,
+        old_swapchain._properties.present_mode,
+        old_swapchain._present_mode_priority_list,
+        old_swapchain._surface_format_priority_list,
+        extent,       
+        old_swapchain._properties.image_count,
+        old_swapchain._properties.pre_transform,
+        old_swapchain._image_usage_flags,
         old_swapchain.get_handle()
     }
 {
@@ -26,13 +26,13 @@ Swapchain::Swapchain(Swapchain& old_swapchain, const uint32_t image_count) :
     Swapchain{
         *old_swapchain.context,
         old_swapchain.surface,
-        old_swapchain.properties.present_mode,
-        old_swapchain.present_mode_priority_list,
-        old_swapchain.surface_format_priority_list,
-        old_swapchain.properties.extent,
+        old_swapchain._properties.present_mode,
+        old_swapchain._present_mode_priority_list,
+        old_swapchain._surface_format_priority_list,
+        old_swapchain._properties.extent,
         image_count,
-        old_swapchain.properties.pre_transform,
-        old_swapchain.image_usage_flags,
+        old_swapchain._properties.pre_transform,
+        old_swapchain._image_usage_flags,
         old_swapchain.get_handle()
     }
 {
@@ -42,12 +42,12 @@ Swapchain::Swapchain(Swapchain& old_swapchain, const std::set<vk::ImageUsageFlag
     Swapchain{
         *old_swapchain.context,
         old_swapchain.surface,
-        old_swapchain.properties.present_mode,
-        old_swapchain.present_mode_priority_list,
-        old_swapchain.surface_format_priority_list,
-        old_swapchain.properties.extent,
-        old_swapchain.properties.image_count,
-        old_swapchain.properties.pre_transform,
+        old_swapchain._properties.present_mode,
+        old_swapchain._present_mode_priority_list,
+        old_swapchain._surface_format_priority_list,
+        old_swapchain._properties.extent,
+        old_swapchain._properties.image_count,
+        old_swapchain._properties.pre_transform,
         image_usage_flags,
         old_swapchain.get_handle()
     }
@@ -59,13 +59,13 @@ Swapchain::Swapchain(Swapchain&                            old_swapchain, const 
     Swapchain{
         *old_swapchain.context,
         old_swapchain.surface,
-        old_swapchain.properties.present_mode,
-        old_swapchain.present_mode_priority_list,
-        old_swapchain.surface_format_priority_list,
+        old_swapchain._properties.present_mode,
+        old_swapchain._present_mode_priority_list,
+        old_swapchain._surface_format_priority_list,
         extent,
-        old_swapchain.properties.image_count,
+        old_swapchain._properties.image_count,
         transform,
-        old_swapchain.image_usage_flags,
+        old_swapchain._image_usage_flags,
         old_swapchain.get_handle()
     }
 {
@@ -91,7 +91,7 @@ Swapchain::Swapchain(VulkanContext&                           context,
     {
         image_use_flag |= static_cast<VkImageUsageFlagBits>(flag);
     }
-
+    _image_usage_flags = image_usage_flags;
     vkb::Swapchain vkbSwapchain = swapchainBuilder
                                   //.use_default_format_selection()
                                  .set_desired_format(VkSurfaceFormatKHR{
@@ -101,15 +101,17 @@ Swapchain::Swapchain(VulkanContext&                           context,
                                   //use vsync present mode
                                  .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
                                  .set_desired_extent(extent.width, extent.height)
-                                 .add_image_usage_flags(static_cast<VkImageUsageFlags>(image_use_flag))
+                                 .add_image_usage_flags(image_use_flag)
                                  .build()
                                  .value();
 
-    properties.extent = vkbSwapchain.extent;
+    _properties.extent = vkbSwapchain.extent;
+    _properties.present_mode = present_mode;
+    _properties.image_count = image_count;
     //store swapchain and its related images
     handle = vkbSwapchain.swapchain;
-    for (auto swapchain_images = vkbSwapchain.get_images().value(); auto image : swapchain_images) images.
-        emplace_back(image);
+    for (auto swapchain_images = vkbSwapchain.get_images().value(); auto image : swapchain_images)
+        images.emplace_back(image);
     for (auto swapchain_image_views = vkbSwapchain.get_image_views().value(); auto image_view : swapchain_image_views)
         image_views.emplace_back(image_view);
 }
@@ -125,10 +127,10 @@ Swapchain::Swapchain(Swapchain&& other) :
     surface{std::exchange(other.surface, nullptr)},
     handle{std::exchange(other.handle, nullptr)},
     images{std::exchange(other.images, {})},
-    properties{std::exchange(other.properties, {})},
-    present_mode_priority_list{std::exchange(other.present_mode_priority_list, {})},
-    surface_format_priority_list{std::exchange(other.surface_format_priority_list, {})},
-    image_usage_flags{std::move(other.image_usage_flags)}
+    _properties{std::exchange(other._properties, {})},
+    _present_mode_priority_list{std::exchange(other._present_mode_priority_list, {})},
+    _surface_format_priority_list{std::exchange(other._surface_format_priority_list, {})},
+    _image_usage_flags{std::move(other._image_usage_flags)}
 {
 }
 
@@ -157,12 +159,12 @@ std::pair<vk::Result, uint32_t> Swapchain::acquire_next_image(vk::Semaphore imag
 
 const vk::Extent2D& Swapchain::get_extent() const
 {
-    return properties.extent;
+    return _properties.extent;
 }
 
 vk::SurfaceTransformFlagBitsKHR Swapchain::get_transform() const
 {
-    return properties.pre_transform;
+    return _properties.pre_transform;
 }
 
 vk::SurfaceKHR Swapchain::get_surface() const
@@ -172,12 +174,12 @@ vk::SurfaceKHR Swapchain::get_surface() const
 
 vk::ImageUsageFlags Swapchain::get_usage() const
 {
-    return properties.image_usage;
+    return _properties.image_usage;
 }
 
 vk::PresentModeKHR Swapchain::get_present_mode() const
 {
-    return properties.present_mode;
+    return _properties.present_mode;
 }
 
 void Swapchain::clearSwapchain()
