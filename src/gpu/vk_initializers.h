@@ -31,6 +31,7 @@ VkRenderingInfo rendering_info(VkExtent2D renderExtent, VkRenderingAttachmentInf
     VkRenderingAttachmentInfo* depthAttachment);
 
 VkImageSubresourceRange image_subresource_range(VkImageAspectFlags aspectMask);
+vk::ImageSubresourceRange image_subresource_range(vk::ImageAspectFlags aspectMask);
 
 VkSemaphoreSubmitInfo semaphore_submit_info(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore);
 VkDescriptorSetLayoutBinding descriptorset_layout_binding(VkDescriptorType type, VkShaderStageFlags stageFlags,

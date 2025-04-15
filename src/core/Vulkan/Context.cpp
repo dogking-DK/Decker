@@ -34,7 +34,7 @@ void VulkanContext::initVma()
     vmaCreateAllocator(&allocatorInfo, &_allocator);
 }
 
-void VulkanContext::deleVma()
+void VulkanContext::deleteVma()
 {
     if (_allocator != VK_NULL_HANDLE)
     {
@@ -152,7 +152,7 @@ void VulkanContext::resizeSwapchainAuto()
 
 void VulkanContext::cleanup()
 {
-    deleVma();
+    deleteVma();
     delete _swapchain;
     delete _window;
     vkDestroyDevice(_device, nullptr);

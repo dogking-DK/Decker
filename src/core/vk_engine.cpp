@@ -567,7 +567,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                                                        VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     //add it to the deletion queue of this frame so it gets deleted once its been used
-    get_current_frame()._deletionQueue.push_function([=, this]()
+    get_current_frame()._deletionQueue.push_function([gpuSceneDataBuffer, this]()
     {
         destroy_buffer(gpuSceneDataBuffer);
     });
@@ -945,6 +945,8 @@ AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat 
     AllocatedImage new_image = create_image(size, format,
                                             usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                                             mipmapped);
+
+
 
     immediate_submit([&](VkCommandBuffer cmd)
     {

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <vulkan/vulkan.hpp>
 
@@ -8,13 +8,13 @@ namespace dk::vkcore {
 class CommandPool : public Resource<vk::CommandPool, vk::ObjectType::eCommandPool>
 {
 public:
-    // ½ûÖ¹¿½±´£¬ÔÊÐíÒÆ¶¯ÓïÒå
+    // ç¦æ­¢æ‹·è´ï¼Œå…è®¸ç§»åŠ¨è¯­ä¹‰
     CommandPool(const CommandPool&)            = delete;
     CommandPool& operator=(const CommandPool&) = delete;
     CommandPool(CommandPool&&)                 = default;
     CommandPool& operator=(CommandPool&&)      = default;
 
-    // ¹¹Ôìº¯Êý£º´«ÈëÉè±¸¡¢¶ÓÁÐ×åË÷ÒýÒÔ¼°¿ÉÑ¡µÄ´´½¨±êÖ¾£¬Ä¬ÈÏ±êÖ¾ÎªÔÊÐíµ¥¸ö Command Buffer ÖØÖÃ¡£
+    // æž„é€ å‡½æ•°ï¼šä¼ å…¥è®¾å¤‡ã€é˜Ÿåˆ—æ—ç´¢å¼•ä»¥åŠå¯é€‰çš„åˆ›å»ºæ ‡å¿—ï¼Œé»˜è®¤æ ‡å¿—ä¸ºå…è®¸å•ä¸ª Command Buffer é‡ç½®ã€‚
     CommandPool(VulkanContext*                   context, const uint32_t queueFamilyIndex,
                 const vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
         : Resource(context)
@@ -23,11 +23,11 @@ public:
         pool_info.queueFamilyIndex = queueFamilyIndex;
         pool_info.flags            = flags;
 
-        // ´´½¨ Command Pool£¬vulkan.hpp ÔÚ´´½¨Ê§°ÜÊ±»áÅ×³öÒì³£
+        // åˆ›å»º Command Poolï¼Œvulkan.hpp åœ¨åˆ›å»ºå¤±è´¥æ—¶ä¼šæŠ›å‡ºå¼‚å¸¸
         _handle = _context->getDevice().createCommandPool(pool_info);
     }
 
-    // Îö¹¹º¯Êý£º×Ô¶¯Ïú»Ù Command Pool£¬ÊÍ·ÅÕ¼ÓÃµÄËùÓÐ×ÊÔ´
+    // æžæž„å‡½æ•°ï¼šè‡ªåŠ¨é”€æ¯ Command Poolï¼Œé‡Šæ”¾å ç”¨çš„æ‰€æœ‰èµ„æº
     ~CommandPool() override
     {
         if (_handle)
@@ -36,12 +36,11 @@ public:
         }
     }
 
-    // ÖØÖÃ Command Pool£¬¿ÉÑ¡Ôñ´«ÈëÖØÖÃ±êÖ¾£¨Ò»°ãÔÚÐèÒªÖØÓÃ Command Buffer Ç°µ÷ÓÃ£©
+    // é‡ç½® Command Poolï¼Œå¯é€‰æ‹©ä¼ å…¥é‡ç½®æ ‡å¿—ï¼ˆä¸€èˆ¬åœ¨éœ€è¦é‡ç”¨ Command Buffer å‰è°ƒç”¨ï¼‰
     void reset(const vk::CommandPoolResetFlags flags = {})
     {
         _context->getDevice().resetCommandPool(_handle, flags);
     }
 
-    void executeImmediate(const vk::Queue& queue, const std::function<void(vk::CommandBuffer)>& record_function);
 };
 }

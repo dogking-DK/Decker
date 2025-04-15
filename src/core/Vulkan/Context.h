@@ -9,6 +9,14 @@
 #include "Window/SDLWindow.h"
 
 namespace dk::vkcore {
+
+enum class VulkanContextType
+{
+    Graphics,
+    Compute,
+    Transfer
+};
+
 class VulkanContext
 {
 public:
@@ -57,7 +65,7 @@ private:
     void initVulkan();
     void initVma();
 
-    void deleVma();
+    void deleteVma();
 
     void cleanup();
 };

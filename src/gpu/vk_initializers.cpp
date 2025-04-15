@@ -175,8 +175,6 @@ VkRenderingInfo vkinit::rendering_info(VkExtent2D renderExtent, VkRenderingAttac
 
     return renderInfo;
 }
-//< render_info
-//> subresource
 VkImageSubresourceRange vkinit::image_subresource_range(VkImageAspectFlags aspectMask)
 {
     VkImageSubresourceRange subImage {};
@@ -188,12 +186,21 @@ VkImageSubresourceRange vkinit::image_subresource_range(VkImageAspectFlags aspec
 
     return subImage;
 }
-//< subresource
 
+vk::ImageSubresourceRange vkinit::image_subresource_range(vk::ImageAspectFlags aspectMask)
+{
+    vk::ImageSubresourceRange subImage{};
+    subImage.aspectMask = aspectMask;
+    subImage.baseMipLevel = 0;
+    subImage.levelCount = VK_REMAINING_MIP_LEVELS;
+    subImage.baseArrayLayer = 0;
+    subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
+    return subImage;
+}
 
 
 VkDescriptorSetLayoutBinding vkinit::descriptorset_layout_binding(VkDescriptorType type, VkShaderStageFlags stageFlags,
-    uint32_t binding)
+                                                                  uint32_t binding)
 {
     VkDescriptorSetLayoutBinding setbind = {};
     setbind.binding = binding;
