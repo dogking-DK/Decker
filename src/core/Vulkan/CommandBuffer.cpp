@@ -2,11 +2,12 @@
 
 #include "Buffer.h"
 #include "CommandPool.h"
+#include "Image.h"
 
 #include "vk_initializers.h"
 
 namespace dk::vkcore {
-void CommandBuffer::generateMipmaps(vk::Image image, vk::Extent2D image_size)
+void CommandBuffer::generateMipmaps(const ImageResource& image, vk::Extent2D image_size)
 {
     const int mip_levels = static_cast<int>(std::floor(std::log2(std::max(image_size.width, image_size.height)))) + 1;
     for (int mip = 0; mip < mip_levels; mip++)
@@ -29,7 +30,7 @@ void CommandBuffer::generateMipmaps(vk::Image image, vk::Extent2D image_size)
         image_barrier.subresourceRange              = vkinit::image_subresource_range(aspect_mask);
         image_barrier.subresourceRange.levelCount   = 1;
         image_barrier.subresourceRange.baseMipLevel = mip;
-        image_barrier.image                         = image;
+        image_barrier.image                         = image.getHandle();
 
         vk::DependencyInfo dep_info;
         dep_info.imageMemoryBarrierCount = 1;
@@ -60,9 +61,9 @@ void CommandBuffer::generateMipmaps(vk::Image image, vk::Extent2D image_size)
             blit_region.dstSubresource.mipLevel       = mip + 1;
 
             vk::BlitImageInfo2 blit_info;
-            blit_info.dstImage       = image;
+            blit_info.dstImage       = image.getHandle();
             blit_info.dstImageLayout = vk::ImageLayout::eTransferDstOptimal;
-            blit_info.srcImage       = image;
+            blit_info.srcImage       = image.getHandle();
             blit_info.srcImageLayout = vk::ImageLayout::eTransferSrcOptimal;
             blit_info.filter         = vk::Filter::eLinear;
             blit_info.regionCount    = 1;
@@ -85,7 +86,7 @@ void CommandBuffer::copyBuffer(const BufferResource& src, const BufferResource& 
     _handle.copyBuffer2(info);
 }
 
-void CommandBuffer::transitionImage(vk::Image image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout)
+void CommandBuffer::transitionImage(const ImageResource& image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout)
 {
     vk::ImageMemoryBarrier2 image_barrier;
     image_barrier.pNext = nullptr;
@@ -102,7 +103,7 @@ void CommandBuffer::transitionImage(vk::Image image, vk::ImageLayout currentLayo
                                                  ? vk::ImageAspectFlagBits::eDepth
                                                  : vk::ImageAspectFlagBits::eColor;
     image_barrier.subresourceRange = vkinit::image_subresource_range(aspect_mask);
-    image_barrier.image            = image;
+    image_barrier.image            = image.getHandle();
 
     vk::DependencyInfo dep_info;
     dep_info.sType = vk::StructureType::eDependencyInfo;
@@ -114,7 +115,7 @@ void CommandBuffer::transitionImage(vk::Image image, vk::ImageLayout currentLayo
     _handle.pipelineBarrier2(&dep_info);
 }
 
-void CommandBuffer::copyImageToImage(vk::Image          source, vk::Image destination, const vk::Extent2D src_size,
+void CommandBuffer::copyImageToImage(const ImageResource& source, const ImageResource& destination, const vk::Extent2D src_size,
                                      const vk::Extent2D dst_size)
 {
     vk::ImageBlit2 blit_region;
@@ -138,9 +139,9 @@ void CommandBuffer::copyImageToImage(vk::Image          source, vk::Image destin
     blit_region.dstSubresource.mipLevel       = 0;
 
     vk::BlitImageInfo2 blit_info;
-    blit_info.dstImage       = destination;
+    blit_info.dstImage       = destination.getHandle();
     blit_info.dstImageLayout = vk::ImageLayout::eTransferDstOptimal;
-    blit_info.srcImage       = source;
+    blit_info.srcImage       = source.getHandle();
     blit_info.srcImageLayout = vk::ImageLayout::eTransferSrcOptimal;
     blit_info.filter         = vk::Filter::eLinear;
     blit_info.regionCount    = 1;

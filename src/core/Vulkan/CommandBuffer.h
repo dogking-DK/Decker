@@ -4,6 +4,10 @@
 #include "Resource.hpp"
 
 namespace dk::vkcore {
+class ImageResource;
+}
+
+namespace dk::vkcore {
 class BufferResource;
 
 class CommandBuffer : public Resource<vk::CommandBuffer, vk::ObjectType::eCommandBuffer>
@@ -59,11 +63,11 @@ public:
     }
 
 
-    void transitionImage(vk::Image image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout);
+    void transitionImage(const ImageResource& image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout);
 
-    void copyImageToImage(vk::Image source, vk::Image destination, vk::Extent2D src_size, vk::Extent2D dst_size);
+    void copyImageToImage(const ImageResource& source, const ImageResource& destination, vk::Extent2D src_size, vk::Extent2D dst_size);
 
-    void generateMipmaps(vk::Image image, vk::Extent2D image_size);
+    void generateMipmaps(const ImageResource& image, vk::Extent2D image_size);
 
     void copyBuffer(const BufferResource& src, const BufferResource& dst, vk::BufferCopy2 copy);
 
