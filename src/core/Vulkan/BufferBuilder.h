@@ -28,30 +28,12 @@ public:
     // 未来可以增加更多的配置项，如共享模式、队列族索引等
 
     // 创建 BufferResource 对象
-    std::unique_ptr<BufferResource> build()
+    BufferResource build(VulkanContext& context)
     {
-        vk::BufferCreateInfo bufferInfo{};
-        //bufferInfo.size        = m_size;
-        //bufferInfo.usage       = m_usage;
-        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-
-        VmaAllocationCreateInfo allocInfo{};
-        //allocInfo.usage = m_memoryUsage;
-
-        // 将 vk::BufferCreateInfo 转换为底层 VkBufferCreateInfo
-        auto vkBufferInfo = static_cast<VkBufferCreateInfo>(bufferInfo);
-
-        VkBuffer      vkBuffer;
-        VmaAllocation allocation;
-        //if (vmaCreateBuffer(m_allocator, &vkBufferInfo, &allocInfo, &vkBuffer, &allocation, nullptr) != VK_SUCCESS)
-        //{
-        //    throw std::runtime_error("Failed to create buffer!");
-        //}
-
-        //vk::Buffer buffer(vkBuffer);
-        //return std::make_unique<BufferResource>(m_allocator, buffer, allocation);
+        return { context, *this };
     }
 
 private:
+    friend BufferResource;
 };
 }

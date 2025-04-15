@@ -5,7 +5,20 @@ namespace dk::vkcore {
     BufferResource::BufferResource(VulkanContext& context, BufferBuilder& builder)
         : Resource(&context, nullptr)
 {
+        _allocation_create_info = builder.getAllocationCreateInfo(); // 储存分配的创建信息
 
+        VkResult result = vmaCreateBuffer(context.getVmaAllocator(),
+            reinterpret_cast<const VkBufferCreateInfo*>(&builder.getCreateInfo()),
+            &_allocation_create_info,
+            reinterpret_cast<VkBuffer*>(&_handle),
+            &_allocation,
+            nullptr);
+
+
+        if (result != VK_SUCCESS)
+        {
+            fmt::print("image create fail\n");
+        }
 }
 
 void BufferResource::updateData(const void* srcData, vk::DeviceSize size, vk::DeviceSize offset)
@@ -15,12 +28,4 @@ void BufferResource::updateData(const void* srcData, vk::DeviceSize size, vk::De
     unmap();
 }
 
-void BufferResource::copyFrom(vk::CommandBuffer commandBuffer, const BufferResource& srcBuffer, vk::DeviceSize size)
-{
-    vk::BufferCopy copyRegion;
-    copyRegion.srcOffset = 0;
-    copyRegion.dstOffset = 0;
-    copyRegion.size      = size;
-    commandBuffer.copyBuffer(srcBuffer.getBuffer(), this->getBuffer(), copyRegion);
-}
 }

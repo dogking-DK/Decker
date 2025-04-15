@@ -4,6 +4,8 @@
 #include "Resource.hpp"
 
 namespace dk::vkcore {
+class BufferResource;
+
 class CommandBuffer : public Resource<vk::CommandBuffer, vk::ObjectType::eCommandBuffer>
 {
 public:
@@ -62,6 +64,9 @@ public:
     void copyImageToImage(vk::Image source, vk::Image destination, vk::Extent2D src_size, vk::Extent2D dst_size);
 
     void generateMipmaps(vk::Image image, vk::Extent2D image_size);
+
+    void copyBuffer(const BufferResource& src, const BufferResource& dst, vk::BufferCopy2 copy);
+
     // 提交命令缓冲区到队列
     void submit(const vk::Queue& queue, const vk::Fence& fence = nullptr)
     {

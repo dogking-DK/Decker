@@ -1,4 +1,6 @@
 #include "CommandBuffer.h"
+
+#include "Buffer.h"
 #include "CommandPool.h"
 
 #include "vk_initializers.h"
@@ -74,6 +76,13 @@ void CommandBuffer::generateMipmaps(vk::Image image, vk::Extent2D image_size)
 
     // transition all mip levels into the final read_only layout
     transitionImage(image, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+}
+
+void CommandBuffer::copyBuffer(const BufferResource& src, const BufferResource& dst, vk::BufferCopy2 copy)
+{
+    vk::CopyBufferInfo2 info;
+    info.setSrcBuffer(src.getHandle()).setDstBuffer(dst.getHandle()).setRegions(copy).setRegionCount(1);
+    _handle.copyBuffer2(info);
 }
 
 void CommandBuffer::transitionImage(vk::Image image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout)
