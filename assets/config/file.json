@@ -29,6 +29,11 @@
         {
             "name" : "rainier ak",
             "path" : "C:/code/data/gltf/rainier_ak_-_3d/scene.gltf"
+        },
+        {
+            "name" : "sponza",
+            "path" : "C:/code/data/glTF-Sample-Models-main/2.0/Sponza/glTF/Sponza.gltf"
         }
+        
     ]
 }

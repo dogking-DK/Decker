@@ -10,6 +10,8 @@ find_package(VulkanUtilityLibraries CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG)
 find_package(volk CONFIG REQUIRED)
 
+find_package(Eigen3 CONFIG REQUIRED)
+# find_package(SuiteSparse_config  CONFIG REQUIRED)
 find_package(assimp REQUIRED)
 find_package(fastgltf CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -105,6 +107,14 @@ target_link_libraries(${PROJECT_NAME}
     implot::implot
     imgui::imgui
     tsl::robin_map
+    Eigen3::Eigen
+    # SuiteSparse::SuiteSparseConfig
+    # SuiteSparse::spqr
+    # SuiteSparse::cholmod
+    # SuiteSparse::amd
+    # SuiteSparse::colamd
+    # SuiteSparse::camd
+    # SuiteSparse::ccolamd
     third_lib
     )
 

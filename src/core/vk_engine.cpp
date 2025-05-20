@@ -409,7 +409,6 @@ void VulkanEngine::draw()
         return;
     }
     uint32_t swapchainImageIndex = result.second;
-
     _drawExtent.height = std::min(_context->getSwapchain()->get_extent().height, _drawImage.imageExtent.height) * 1.f;
     _drawExtent.width  = std::min(_context->getSwapchain()->get_extent().width, _drawImage.imageExtent.width) * 1.f;
 
@@ -733,7 +732,10 @@ void VulkanEngine::run()
         ImGui_ImplSDL3_NewFrame();
 
         ImGui::NewFrame();
-
+        static float time = 0;
+        backgroundEffects[currentBackgroundEffect].data.data1.x = mainCamera.position.x;
+        backgroundEffects[currentBackgroundEffect].data.data1.y = time;
+        time += 0.001f;
         if (ImGui::Begin("设置面板", nullptr, ImGuiWindowFlags_NoCollapse))
         {
             if (ImGui::CollapsingHeader("背景设置", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1038,6 +1040,11 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 FrameData& VulkanEngine::get_current_frame()
 {
     return _frames[_frameNumber % FRAME_OVERLAP];
+}
+
+FrameData& VulkanEngine::get_frame(const int id)
+{
+    return _frames[id];
 }
 
 FrameData& VulkanEngine::get_last_frame()

@@ -6,6 +6,7 @@
 
 #include "vk_initializers.h"
 
+#include <Eigen/Eigen>
 namespace dk::vkcore {
 void CommandBuffer::generateMipmaps(const ImageResource& image, vk::Extent2D image_size)
 {

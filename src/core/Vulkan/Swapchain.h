@@ -62,7 +62,7 @@ public:
                      {vk::Format::eB8G8R8A8Srgb, vk::ColorSpaceKHR::eSrgbNonlinear}
                  },
                  const vk::Extent2D&                     extent            = {1280, 720},
-                 uint32_t                                image_count       = 3,
+                 uint32_t                                image_count       = 2,
                  vk::SurfaceTransformFlagBitsKHR         transform         = vk::SurfaceTransformFlagBitsKHR::eIdentity,
                  const std::set<vk::ImageUsageFlagBits>& image_usage_flags = {
                      vk::ImageUsageFlagBits::eColorAttachment, vk::ImageUsageFlagBits::eTransferDst

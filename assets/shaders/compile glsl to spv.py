@@ -17,7 +17,7 @@ def compile_shaders(shader_dir, output_dir, glslang_validator_path="glslangValid
     for root, _, files in os.walk(shader_dir):
         for file in files:
             # Check if the file is a .vert or .frag file
-            if file.endswith(".vert") or file.endswith(".frag"):
+            if file.endswith(".vert") or file.endswith(".frag") or file.endswith(".comp"):
                 shader_path = os.path.join(root, file)
                 spv_filename = f"{file}.spv"
                 spv_path = os.path.join(output_dir, spv_filename)

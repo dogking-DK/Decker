@@ -13,7 +13,7 @@ Swapchain::Swapchain(Swapchain& old_swapchain, const vk::Extent2D& extent) :
         old_swapchain._properties.present_mode,
         old_swapchain._present_mode_priority_list,
         old_swapchain._surface_format_priority_list,
-        extent,       
+        extent,
         old_swapchain._properties.image_count,
         old_swapchain._properties.pre_transform,
         old_swapchain._image_usage_flags,
@@ -91,7 +91,7 @@ Swapchain::Swapchain(VulkanContext&                           context,
     {
         image_use_flag |= static_cast<VkImageUsageFlagBits>(flag);
     }
-    _image_usage_flags = image_usage_flags;
+    _image_usage_flags          = image_usage_flags;
     vkb::Swapchain vkbSwapchain = swapchainBuilder
                                   //.use_default_format_selection()
                                  .set_desired_format(VkSurfaceFormatKHR{
@@ -99,15 +99,16 @@ Swapchain::Swapchain(VulkanContext&                           context,
                                       .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
                                   })
                                   //use vsync present mode
-                                 .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+                                 .set_desired_present_mode(static_cast<VkPresentModeKHR>(present_mode))
                                  .set_desired_extent(extent.width, extent.height)
                                  .add_image_usage_flags(image_use_flag)
+                                 .set_required_min_image_count(image_count)
                                  .build()
                                  .value();
 
-    _properties.extent = vkbSwapchain.extent;
+    _properties.extent       = vkbSwapchain.extent;
     _properties.present_mode = present_mode;
-    _properties.image_count = image_count;
+    _properties.image_count  = image_count;
     //store swapchain and its related images
     handle = vkbSwapchain.swapchain;
     for (auto swapchain_images = vkbSwapchain.get_images().value(); auto image : swapchain_images)

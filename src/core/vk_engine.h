@@ -232,6 +232,7 @@ public:
     GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
     FrameData& get_current_frame();
+    FrameData& get_frame(const int id);
     FrameData& get_last_frame();
 
     AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);

@@ -65,10 +65,10 @@ public:
 
     ImageViewResource build(VulkanContext& context)
     {
-        return { context, *this};
+        return {context, *this};
     }
 
-    ImageResource& getImage() { return *_image; }
+    ImageResource&          getImage() { return *_image; }
     vk::ImageViewCreateInfo getImageViewCreateInfo() { return _create_info; }
 
 private:

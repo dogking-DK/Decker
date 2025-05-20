@@ -13,20 +13,55 @@ layout( push_constant ) uniform constants
  vec4 data4;
 } PushConstants;
 
-void main() 
+// void main() 
+// {
+//     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+
+// 	ivec2 size = imageSize(image);
+
+//     vec4 topColor = PushConstants.data1;
+//     vec4 bottomColor = PushConstants.data2;
+
+//     if(texelCoord.x < size.x && texelCoord.y < size.y)
+//     {
+//         float blend = float(texelCoord.y)/(size.y); 
+    
+//         imageStore(image, texelCoord, mix(topColor,bottomColor, blend));
+//     }
+// }
+
+
+void main()
 {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 
 	ivec2 size = imageSize(image);
 
-    vec4 topColor = PushConstants.data1;
-    vec4 bottomColor = PushConstants.data2;
-
+    vec2 v = size.xy;
+    vec2 u = .2*(texelCoord + texelCoord-v)/v.y;    
+         
+    vec4 z = vec4(1,2,3,0);
+    vec4 o = vec4(1,2,3,0);
+     
+    for (float a = .5, t = PushConstants.data1.y, i = 0; 
+         ++i < 19.; 
+         o += (1. + cos(z+t)) 
+            / length((1.+i*dot(v,v)) 
+                   * sin(1.5*u/(.5-dot(u,u)) - 9.*u.yx + t))
+         )  
+        v = cos(++t - 7.*u*pow(a += .03, i)) - 5.*u, 
+        // use stanh here if shader has black artifacts
+        //   vvvv
+        u += tanh(40. * dot(u *= mat2(cos(i + .02*t - vec4(0,11,33,0)))
+                           ,u)
+                      * cos(1e2*u.yx + t)) / 2e2
+           + .2 * a * u
+           + cos(4./exp(dot(o,o)/1e2) + t) / 3e2;
+              
+     o = 25.6 / (min(o, 13.) + 164. / o) - dot(u, u) / 250.;
     if(texelCoord.x < size.x && texelCoord.y < size.y)
     {
-        float blend = float(texelCoord.y)/(size.y); 
-    
-        imageStore(image, texelCoord, mix(topColor,bottomColor, blend));
+        imageStore(image, texelCoord, o);
     }
+    
 }
-
