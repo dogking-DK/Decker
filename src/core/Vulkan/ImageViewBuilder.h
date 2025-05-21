@@ -7,11 +7,11 @@
 #include "ImageView.h"
 
 namespace dk::vkcore {
-// ImageViewBuilder Ìá¹©Á´Ê½½Ó¿ÚÅäÖÃ ImageView µÄ¸÷Ïî²ÎÊı
+// ImageViewBuilder æä¾›é“¾å¼æ¥å£é…ç½® ImageView çš„å„é¡¹å‚æ•°
 class ImageViewBuilder
 {
 public:
-    // ¹¹ÔìÊ±ĞèÒª´«ÈëËùÊôÉè±¸ºÍÒª´´½¨ÊÓÍ¼µÄ vk::Image
+    // æ„é€ æ—¶éœ€è¦ä¼ å…¥æ‰€å±è®¾å¤‡å’Œè¦åˆ›å»ºè§†å›¾çš„ vk::Image
     ImageViewBuilder(ImageResource& image)
         : _image(&image)
     {
@@ -26,28 +26,28 @@ public:
         _create_info.setViewType(vk::ImageViewType::e2D);
     }
 
-    // ÉèÖÃÊÓÍ¼ÀàĞÍ£¨Èç 1D¡¢2D¡¢3D »ò Cube µÈ£©
+    // è®¾ç½®è§†å›¾ç±»å‹ï¼ˆå¦‚ 1Dã€2Dã€3D æˆ– Cube ç­‰ï¼‰
     ImageViewBuilder& setViewType(vk::ImageViewType type)
     {
         _create_info.viewType = type;
         return *this;
     }
 
-    // ÉèÖÃ¸ñÊ½£¬Í¨³£Óëµ×²ã image ¸ñÊ½±£³ÖÒ»ÖÂ
+    // è®¾ç½®æ ¼å¼ï¼Œé€šå¸¸ä¸åº•å±‚ image æ ¼å¼ä¿æŒä¸€è‡´
     ImageViewBuilder& setFormat(vk::Format format)
     {
         _create_info.format = format;
         return *this;
     }
 
-    // ÉèÖÃĞèÒªÃèÊöµÄ×Ó×ÊÔ´µÄ aspect£¨ÀıÈçÑÕÉ«¡¢Éî¶È»òÄ£°å£©
+    // è®¾ç½®éœ€è¦æè¿°çš„å­èµ„æºçš„ aspectï¼ˆä¾‹å¦‚é¢œè‰²ã€æ·±åº¦æˆ–æ¨¡æ¿ï¼‰
     ImageViewBuilder& setAspectFlags(vk::ImageAspectFlags flags)
     {
         _create_info.subresourceRange.aspectMask = flags;
         return *this;
     }
 
-    // ÉèÖÃ mipmap ²ã¼¶·¶Î§
+    // è®¾ç½® mipmap å±‚çº§èŒƒå›´
     ImageViewBuilder& setMipLevels(uint32_t baseMipLevel, uint32_t levelCount)
     {
         _create_info.subresourceRange.baseMipLevel = baseMipLevel;
@@ -55,7 +55,7 @@ public:
         return *this;
     }
 
-    // ÉèÖÃÊı×é²ã¼¶·¶Î§£¨ÀıÈç CubeMap ¿ÉÄÜÓĞ 6 ¸ö²ã£©
+    // è®¾ç½®æ•°ç»„å±‚çº§èŒƒå›´ï¼ˆä¾‹å¦‚ CubeMap å¯èƒ½æœ‰ 6 ä¸ªå±‚ï¼‰
     ImageViewBuilder& setArrayLayers(uint32_t baseArrayLayer, uint32_t layerCount)
     {
         _create_info.subresourceRange.baseArrayLayer = baseArrayLayer;

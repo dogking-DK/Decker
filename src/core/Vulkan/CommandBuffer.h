@@ -13,36 +13,36 @@ class BufferResource;
 class CommandBuffer : public Resource<vk::CommandBuffer, vk::ObjectType::eCommandBuffer>
 {
 public:
-    // ½ûÖ¹¿½±´£¬ÔÊÐíÒÆ¶¯
+    // ç¦æ­¢æ‹·è´ï¼Œå…è®¸ç§»åŠ¨
     CommandBuffer(const CommandBuffer&)            = delete;
     CommandBuffer& operator=(const CommandBuffer&) = delete;
     CommandBuffer(CommandBuffer&&)                 = default;
     CommandBuffer& operator=(CommandBuffer&&)      = default;
 
-    // ¹¹ÔìÊ±Í¨¹ýÖ¸¶¨Éè±¸ºÍÃüÁî³ØÀ´·ÖÅäÒ»¸öÃüÁî»º³åÇø
+    // æž„é€ æ—¶é€šè¿‡æŒ‡å®šè®¾å¤‡å’Œå‘½ä»¤æ± æ¥åˆ†é…ä¸€ä¸ªå‘½ä»¤ç¼“å†²åŒº
     CommandBuffer(VulkanContext* context, CommandPool* command_pool)
         : Resource(context), _command_pool(command_pool)
     {
         vk::CommandBufferAllocateInfo allocInfo{command_pool->getHandle(), vk::CommandBufferLevel::ePrimary, 1};
 
-        // ·ÖÅäÃüÁî»º³åÇø¿ÉÄÜ»áÅ×³öÒì³££¨vulkan.hpp Ä¬ÈÏ²ÉÓÃÒì³£´¦ÀíÄ£ÐÍ£©
+        // åˆ†é…å‘½ä»¤ç¼“å†²åŒºå¯èƒ½ä¼šæŠ›å‡ºå¼‚å¸¸ï¼ˆvulkan.hpp é»˜è®¤é‡‡ç”¨å¼‚å¸¸å¤„ç†æ¨¡åž‹ï¼‰
         auto buffers = _context->getDevice().allocateCommandBuffers(allocInfo);
         _handle      = buffers.front();
     }
 
-    // ×¢Òâ£ºÔÚ Vulkan ÖÐ£¬Ò»°ã²»ÐèÒª¶Ôµ¥¸ö command buffer µ÷ÓÃ destroy£¬
-    // ¶øÊÇÍ³Ò»ÓÉ command pool ¸ºÔðÊÍ·Å¡£Èç¹ûÐèÒªÊÖ¶¯ÖØÖÃ»ò»ØÊÕ£¬
-    // Ôò¿Éµ÷ÓÃ m_device.freeCommandBuffers(m_commandPool, {_handle});
+    // æ³¨æ„ï¼šåœ¨ Vulkan ä¸­ï¼Œä¸€èˆ¬ä¸éœ€è¦å¯¹å•ä¸ª command buffer è°ƒç”¨ destroyï¼Œ
+    // è€Œæ˜¯ç»Ÿä¸€ç”± command pool è´Ÿè´£é‡Šæ”¾ã€‚å¦‚æžœéœ€è¦æ‰‹åŠ¨é‡ç½®æˆ–å›žæ”¶ï¼Œ
+    // åˆ™å¯è°ƒç”¨ m_device.freeCommandBuffers(m_commandPool, {_handle});
     ~CommandBuffer() override = default;
 
-    // ¿ªÊ¼Â¼ÖÆÃüÁî£¬¿ÉÒÔÖ¸¶¨Ê¹ÓÃµÄ±êÖ¾£¬Ä¬ÈÏ eOneTimeSubmit
+    // å¼€å§‹å½•åˆ¶å‘½ä»¤ï¼Œå¯ä»¥æŒ‡å®šä½¿ç”¨çš„æ ‡å¿—ï¼Œé»˜è®¤ eOneTimeSubmit
     void begin(const vk::CommandBufferUsageFlags usageFlags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
     {
         const vk::CommandBufferBeginInfo begin_info{usageFlags};
         _handle.begin(begin_info);
     }
 
-    // ½áÊøÂ¼ÖÆ
+    // ç»“æŸå½•åˆ¶
     void end()
     {
         _handle.end();
@@ -52,11 +52,11 @@ public:
     void record(Func&&                      recordingFunction,
                 vk::CommandBufferUsageFlags usageFlags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
     {
-        // ½«ÄÚ²¿µÄ command buffer ¶ÔÏó´«Èë lambda ÖÐ
+        // å°†å†…éƒ¨çš„ command buffer å¯¹è±¡ä¼ å…¥ lambda ä¸­
         recordingFunction(_handle);
     }
 
-    // ÈçÓÐÐèÒª£¬»¹¿ÉÒÔÌá¹© reset ¹¦ÄÜ
+    // å¦‚æœ‰éœ€è¦ï¼Œè¿˜å¯ä»¥æä¾› reset åŠŸèƒ½
     void reset(const vk::CommandBufferResetFlags flags = {})
     {
         _handle.reset(flags);
@@ -71,7 +71,7 @@ public:
 
     void copyBuffer(const BufferResource& src, const BufferResource& dst, vk::BufferCopy2 copy);
 
-    // Ìá½»ÃüÁî»º³åÇøµ½¶ÓÁÐ
+    // æäº¤å‘½ä»¤ç¼“å†²åŒºåˆ°é˜Ÿåˆ—
     void submit(const vk::Queue& queue, const vk::Fence& fence = nullptr)
     {
         vk::SubmitInfo submitInfo;
@@ -83,16 +83,16 @@ public:
     void submit2(const vk::Queue& queue,
                  const vk::Fence& fence = nullptr)
     {
-        // ¹¹Ôì vk::CommandBufferSubmitInfo ·â×°µ×²ãÃüÁî»º³åÇø
+        // æž„é€  vk::CommandBufferSubmitInfo å°è£…åº•å±‚å‘½ä»¤ç¼“å†²åŒº
         vk::CommandBufferSubmitInfo cmdBufInfo{};
         cmdBufInfo.commandBuffer = _handle;
 
         vk::SubmitInfo2 submitInfo2;
         submitInfo2.commandBufferInfoCount = 1;
         submitInfo2.pCommandBufferInfos    = &cmdBufInfo;
-        // ÈôÐèÒªÉèÖÃÐÅºÅÁ¿»òµÈ´ýÐÅºÅÁ¿ÐÅÏ¢£¬¿ÉÌî³ä¶ÔÓ¦µÄ wait/semaphore ÐÅÏ¢½á¹¹
+        // è‹¥éœ€è¦è®¾ç½®ä¿¡å·é‡æˆ–ç­‰å¾…ä¿¡å·é‡ä¿¡æ¯ï¼Œå¯å¡«å……å¯¹åº”çš„ wait/semaphore ä¿¡æ¯ç»“æž„
 
-        // Ìá½»µ½¶ÓÁÐ£¨×¢Òâ£ºÐèÒªÖ§³Ö VK_KHR_synchronization2£©
+        // æäº¤åˆ°é˜Ÿåˆ—ï¼ˆæ³¨æ„ï¼šéœ€è¦æ”¯æŒ VK_KHR_synchronization2ï¼‰
         queue.submit2({submitInfo2}, fence);
     }
 
@@ -109,23 +109,23 @@ void executeImmediate(VulkanContext*                                 context,
     CommandBuffer cmd(context, command_pool);
     cmd.begin(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
-    // 3. µ÷ÓÃ´«ÈëµÄ lambda Â¼ÖÆ¾ßÌåÃüÁî£¨ÀýÈç£ºblitImage¡¢copyImage¡¢generateMipMap µÈ£©
+    // 3. è°ƒç”¨ä¼ å…¥çš„ lambda å½•åˆ¶å…·ä½“å‘½ä»¤ï¼ˆä¾‹å¦‚ï¼šblitImageã€copyImageã€generateMipMap ç­‰ï¼‰
     function(cmd);
 
-    // 4. ½áÊøÂ¼ÖÆ
+    // 4. ç»“æŸå½•åˆ¶
     cmd.end();
 
-    // 6. ´´½¨ fence Í¬²½µÈ´ýÁ¢¼´Ìá½»ÃüÁîÖ´ÐÐÍê±Ï
+    // 6. åˆ›å»º fence åŒæ­¥ç­‰å¾…ç«‹å³æäº¤å‘½ä»¤æ‰§è¡Œå®Œæ¯•
     vk::Fence fence = context->getDevice().createFence({});
 
     cmd.submit2(queue, fence);
 
-    // 7. µÈ´ý fence ÐÅºÅ
+    // 7. ç­‰å¾… fence ä¿¡å·
     auto result = context->getDevice().waitForFences({fence}, VK_TRUE, UINT64_MAX);
     VK_CHECK(static_cast<VkResult>(result));
     context->getDevice().destroyFence(fence);
 
-    // ¿ÉÑ¡£ºÈç¹û²»²ÉÓÃ CommandPool ÄÚÍ³Ò»ÖØÖÃ£¬Ò²¿ÉÒÔÊÖ¶¯ÊÍ·Åµ±Ç° CommandBuffer
+    // å¯é€‰ï¼šå¦‚æžœä¸é‡‡ç”¨ CommandPool å†…ç»Ÿä¸€é‡ç½®ï¼Œä¹Ÿå¯ä»¥æ‰‹åŠ¨é‡Šæ”¾å½“å‰ CommandBuffer
     context->getDevice().freeCommandBuffers(command_pool->getHandle(), cmd.getHandle());
 }
 }

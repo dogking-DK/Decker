@@ -25,6 +25,7 @@ find_package(fmt CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(magic_enum REQUIRED)
 find_package(tsl-robin-map CONFIG REQUIRED)
+find_package(meshoptimizer CONFIG REQUIRED)
 # find_package(slang REQUIRED)
 
 find_package(SDL3 CONFIG REQUIRED)
@@ -108,6 +109,7 @@ target_link_libraries(${PROJECT_NAME}
     imgui::imgui
     tsl::robin_map
     Eigen3::Eigen
+    meshoptimizer::meshoptimizer
     # SuiteSparse::SuiteSparseConfig
     # SuiteSparse::spqr
     # SuiteSparse::cholmod
@@ -115,7 +117,7 @@ target_link_libraries(${PROJECT_NAME}
     # SuiteSparse::colamd
     # SuiteSparse::camd
     # SuiteSparse::ccolamd
-    third_lib
+    third_lib # 手动管理的三方库
     )
 
 # 链接 third_lib（间接链接 Slang）

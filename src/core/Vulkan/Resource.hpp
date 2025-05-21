@@ -21,6 +21,7 @@ public:
 
     Handle&        getHandle() { return _handle; }
     const Handle&  getHandle() const { return _handle; }
+    VulkanContext* getContext() { return _context; }
     bool           hasDevice() const { return _context != nullptr; }
     bool           hasHandle() const { return _handle != nullptr; }
     void           setDebugName(const std::string& name);

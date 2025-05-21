@@ -5,7 +5,7 @@ namespace dk::vkcore {
     BufferResource::BufferResource(VulkanContext& context, BufferBuilder& builder)
         : Resource(&context, nullptr)
 {
-        _allocation_create_info = builder.getAllocationCreateInfo(); // ´¢´æ·ÖÅäµÄ´´½¨ĞÅÏ¢
+        _allocation_create_info = builder.getAllocationCreateInfo(); // å‚¨å­˜åˆ†é…çš„åˆ›å»ºä¿¡æ¯
 
         VkResult result = vmaCreateBuffer(context.getVmaAllocator(),
             reinterpret_cast<const VkBufferCreateInfo*>(&builder.getCreateInfo()),

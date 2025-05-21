@@ -13,7 +13,7 @@ class ImageViewBuilder;
 }
 
 namespace dk::vkcore {
-// ImageViewResource ·â×°ÁË vk::ImageView£¬²¢ÔÚÎö¹¹Ê±×Ô¶¯Ïú»Ù
+// ImageViewResource å°è£…äº† vk::ImageViewï¼Œå¹¶åœ¨ææ„æ—¶è‡ªåŠ¨é”€æ¯
 class ImageViewResource : Resource<vk::ImageView, vk::ObjectType::eImageView>
 {
 public:

@@ -13,7 +13,7 @@ ImageResource::ImageResource(VulkanContext& context, ImageBuilder& builder)
                                      &_allocation,
                                      nullptr);
     
-    _allocation_create_info = builder.getAllocationCreateInfo(); // ´¢´æ·ÖÅäµÄ´´½¨ĞÅÏ¢
+    _allocation_create_info = builder.getAllocationCreateInfo(); // å‚¨å­˜åˆ†é…çš„åˆ›å»ºä¿¡æ¯
 
     if (result != VK_SUCCESS)
     {

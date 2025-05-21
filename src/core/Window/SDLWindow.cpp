@@ -52,7 +52,7 @@ float SDLWindow::get_content_scale_factor() const
     int scale_x, scale_y;
     int size_x,  size_y;
 
-    // »ñÈ¡´°¿ÚµÄËõ·ÅÒò×Ó
+    // è·å–çª—å£çš„ç¼©æ”¾å› å­
     SDL_GetWindowSizeInPixels(_window, &scale_x, &scale_y);
     SDL_GetWindowSize(_window, &size_x, &size_y);
 
