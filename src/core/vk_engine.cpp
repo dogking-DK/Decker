@@ -240,17 +240,18 @@ void VulkanEngine::init_background_pipelines()
     VK_CHECK(vkCreatePipelineLayout(_context->getDevice(), &computeLayout, nullptr, &_gradientPipelineLayout));
     DebugUtils::getInstance().setDebugName(_context->getDevice(), VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<
                                                uint64_t>(_gradientPipelineLayout), "background layout");
-
     VkShaderModule gradientShader;
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/gradient_color.comp.spv",
-                                    _context->getDevice(),
-                                    &gradientShader))
+    namespace fs = std::filesystem;
+    fs::path    current_dir = fs::current_path(); // 当前目录
+    fs::path    target_file = absolute(current_dir / "../../assets/shaders/spv/gradient_color.comp.spv"); // 矫正分隔符
+    if (!vkutil::load_shader_module(target_file.string(), _context->getDevice(), &gradientShader))
     {
         fmt::print("Error when building the compute shader \n");
     }
 
     VkShaderModule skyShader;
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/sky.comp.spv", _context->getDevice(),
+    target_file = absolute(current_dir / "../../assets/shaders/spv/sky.comp.spv"); // 矫正分隔符
+    if (!vkutil::load_shader_module(target_file.string(), _context->getDevice(),
                                     &skyShader))
     {
         fmt::print("Error when building the compute shader\n");
@@ -340,7 +341,6 @@ void VulkanEngine::init_background_pipelines()
         print(fg(fmt::color::aqua), "back ground release end\n");
     });
 }
-
 
 void VulkanEngine::draw_main(VkCommandBuffer cmd)
 {
@@ -1092,7 +1092,7 @@ void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)
 
 void VulkanEngine::init_vulkan()
 {
-    _context = new vkcore::VulkanContext();
+    _context = new vkcore::VulkanContext(_windowExtent.width, _windowExtent.height);
 }
 
 void VulkanEngine::init_swapchain()
@@ -1301,8 +1301,10 @@ void VulkanEngine::init_imgui()
     ImFontConfig font_cfg;
     font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint;  // 额外的 FreeType 设置
     font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint | ImGuiFreeTypeBuilderFlags_Monochrome;
-    io.Fonts->AddFontFromFileTTF("C:/code/code_file/Decker/assets/font/SourceHanSansCN-Regular.otf", 20.0f,
-                                 &font_cfg, io.Fonts->GetGlyphRangesChineseFull());
+    namespace fs = std::filesystem;
+    fs::path    current_dir = fs::current_path(); // 当前目录
+    fs::path    target_file = absolute(current_dir / "../../assets/font/SourceHanSansCN-Regular.otf"); // 矫正分隔符
+    io.Fonts->AddFontFromFileTTF(target_file.string().c_str(), 20.0f, &font_cfg, io.Fonts->GetGlyphRangesChineseFull());
 
     // this initializes imgui for SDL
     ImGui_ImplSDL3_InitForVulkan(_context->getWindow()->get_window());
@@ -1445,7 +1447,11 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     //layout code
     VkShaderModule meshFragShader;
     //if (!vkutil::load_shader_module(spv_code1, engine->_context->getDevice(), &meshFragShader))
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh_pbr.frag.spv",
+    VkShaderModule gradientShader;
+    namespace fs = std::filesystem;
+    fs::path    current_dir = fs::current_path(); // 当前目录
+    fs::path    target_file = absolute(current_dir / "../../assets/shaders/spv/mesh_pbr.frag.spv"); // 矫正分隔符
+    if (!vkutil::load_shader_module(target_file.string(),
                                     engine->_context->getDevice(),
                                     &meshFragShader))
     {
@@ -1454,7 +1460,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     VkShaderModule meshVertexShader;
     //if (!vkutil::load_shader_module(spv_code1, engine->_context->getDevice(), &meshVertexShader))
-    if (!vkutil::load_shader_module("C:/code/code_file/Decker/assets/shaders/spv/mesh.vert.spv",
+    target_file = absolute(current_dir / "../../assets/shaders/spv/mesh.vert.spv"); // 矫正分隔符
+    if (!vkutil::load_shader_module(target_file.string(),
                                     engine->_context->getDevice(),
                                     &meshVertexShader))
     {

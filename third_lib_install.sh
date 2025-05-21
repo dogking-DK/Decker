@@ -22,6 +22,8 @@ vcpkg install --recurse vk-bootstrap
 vcpkg install --recurse volk
 vcpkg install --recurse robin-hood-hashing
 vcpkg install --recurse nlohmann-json
-vcpkg install --recurse shader-slang
+vcpkg install --recurse meshoptimizer[gltfpack]
+vcpkg install --recurse eigen3
+vcpkg install --recurse robin-map
 echo press any button to continue...
 read -n 1

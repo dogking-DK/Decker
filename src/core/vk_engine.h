@@ -148,7 +148,7 @@ public:
 
     vkcore::VulkanContext* _context;
 
-    VkExtent2D _windowExtent{ 1920, 1080 };
+    VkExtent2D _windowExtent{ 1280, 720 };
 
     AllocatedBuffer _defaultGLTFMaterialData;
 

@@ -7,13 +7,13 @@
 #include "vk_debug_util.h"
 
 namespace dk::vkcore {
-VulkanContext::VulkanContext()
+VulkanContext::VulkanContext(const uint32_t width, const uint32_t height)
 {
-    initVulkan();
+    initVulkan(width, height);
 }
-void VulkanContext::initVulkan()
+void VulkanContext::initVulkan(const uint32_t width, const uint32_t height)
 {
-    _window = new core::SDLWindow({ .title{"Vulkan"}, .extent{1920, 1080}});
+    _window = new core::SDLWindow({ .title{"Vulkan"}, .extent{width, height}});
     initInstance();
     vk::SurfaceKHR surface = _window->create_surface(reinterpret_cast<vk::Instance&>(_instance));
 

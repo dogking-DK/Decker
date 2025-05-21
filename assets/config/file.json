@@ -1,14 +1,14 @@
 {
     "load_file" : 
     {
-        "name" : "girl",
+        "name" : "sasha",
         "comment" : "打开文件对应的名字"
     },
     "file_paths": 
     [
         {
             "name" : "girl",
-            "path" : "C:/code/data/gltf/just_a_girl/scene.gltf"
+            "path" : "E:/code/data/just_a_girl/scene.gltf"
         },
         {
             "name" : "alien",
@@ -27,13 +27,36 @@
             "path" : "C:/code/data/gltf/late_night_office/scene.gltf"
         },
         {
-            "name" : "rainier ak",
+            "name" : "rainier_ak",
             "path" : "C:/code/data/gltf/rainier_ak_-_3d/scene.gltf"
         },
         {
-            "name" : "sponza",
-            "path" : "C:/code/data/glTF-Sample-Models-main/2.0/Sponza/glTF/Sponza.gltf"
+            "name" : "bikini",
+            "path" : "E:/code/data/busty_hentai_anime_woman_in_bikini/scene.gltf"
+        },
+        {
+            "name" : "martin_valour",
+            "path" : "E:/code/data/aston_martin_valour_2024__www.vecarz.com/scene.gltf"
+        },
+        {
+            "name" : "city_nyc",
+            "path" : "E:/code/data/city_nyc_times_square/scene.gltf"
+        },
+        {
+            "name" : "monza_sp1",
+            "path" : "E:/code/data/ferrari_monza_sp1_2019__www.vecarz.com/scene.gltf"
+        },
+        {
+            "name" : "decaying_industrial",
+            "path" : "E:/code/data/ideal_decaying_industrial_building_to_live_in/scene.gltf"
+        },
+        {
+            "name" : "mossy_mud_scene",
+            "path" : "E:/code/data/mossy_mud_realistic_scene/scene.gltf"
+        },
+        {
+            "name" : "sasha",
+            "path" : "E:/code/data/sasha_-_cyberpunk_edgerunners/scene.gltf"
         }
-        
     ]
 }

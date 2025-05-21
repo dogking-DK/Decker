@@ -5,7 +5,7 @@
 
 namespace vkutil {
 
-bool load_shader_module(const char* filePath, VkDevice device, VkShaderModule* outShaderModule)
+bool load_shader_module(const std::string& filePath, VkDevice device, VkShaderModule* outShaderModule)
 {
     // open the file. With cursor at the end
     std::ifstream file(filePath, std::ios::ate | std::ios::binary);

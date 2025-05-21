@@ -20,7 +20,7 @@ enum class VulkanContextType
 class VulkanContext
 {
 public:
-    VulkanContext();
+    VulkanContext(const uint32_t width = 1920, const uint32_t height = 1080);
     ~VulkanContext();
 
     vk::Device               getDevice() const { return _device; }
@@ -62,7 +62,7 @@ private:
     void initInstance();
     void initDevice(vk::SurfaceKHR& surface);
 
-    void initVulkan();
+    void initVulkan(const uint32_t width = 1920, const uint32_t height = 1080);
     void initVma();
 
     void deleteVma();
