@@ -34,7 +34,7 @@ struct fmt::formatter<glm::vec3>
     template <typename Context>
     constexpr auto format(const glm::vec3& foo, Context& ctx) const
     {
-        return format_to(ctx.out(), "[{:10.3f}, {:10.3f}, {:10.3f}]", foo.x, foo.y, foo.z);
+        return format_to(ctx.out(), "[{:7.2f}, {:7.2f}, {:7.2f}]", foo.x, foo.y, foo.z);
     }
 };
 
@@ -93,6 +93,7 @@ void VulkanEngine::init()
     glm::vec3 total_min{FLT_MAX,FLT_MAX,FLT_MAX};
     for (const auto& mesh : loadedScenes["structure"]->meshes)
     {
+        fmt::print("{}: {}\n", mesh.first, mesh.second->name);
         for (const auto& surface : mesh.second->surfaces)
         {
             geom_center += surface.bounds.origin;
@@ -102,16 +103,16 @@ void VulkanEngine::init()
             total_min.x = std::min(total_min.x, surface.bounds.min_edge.x);
             total_min.y = std::min(total_min.y, surface.bounds.min_edge.y);
             total_min.z = std::min(total_min.z, surface.bounds.min_edge.z);
-            fmt::print("min edge: {}, max edge: {}\n", surface.bounds.min_edge, surface.bounds.max_edge);
+            fmt::print("center: {},min: {},max: {}\n", surface.bounds.origin, surface.bounds.min_edge, surface.bounds.max_edge);
             ++count;
         }
         //geom_center += mesh.second->surfaces[0].bounds.sphereRadius* glm::vec3{ 1,0,0 };
     }
-    fmt::print("total min edge: {}, max edge: {}\n", total_min, total_max);
+    fmt::print("total min: {}, max: {}\n", total_min, total_max);
     geom_center /= count;
     mainCamera.position = total_min + total_max;
     mainCamera.position /= 2;
-
+    mainCamera.velocity_coefficient = 6 / (mainCamera.position.x + mainCamera.position.y + mainCamera.position.z);
     mainCamera.pitch = 0;
     mainCamera.yaw   = 0;
 }

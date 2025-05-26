@@ -196,6 +196,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     parent_path = path.parent_path();
     parent_path += "/";
 
+    // 读取到原始数据
     auto type = determineGltfFileType(data.get());
     if (type == fastgltf::GltfType::glTF)
     {
@@ -228,6 +229,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         fmt::print(stderr, "Failed to determine glTF container\n");
         return {};
     }
+
     // we can estimate the descriptors we will need accurately
     std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3},
@@ -237,7 +239,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
     file.descriptorPool.init(engine->_context->getDevice(), gltf.materials.size(), sizes);
 
-    // load samplers
+    // 读取sampler
     for (fastgltf::Sampler& sampler : gltf.samplers)
     {
         VkSamplerCreateInfo sampl = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
@@ -255,14 +257,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         file.samplers.push_back(newSampler);
     }
 
-    // temporal arrays for all the objects to use while creating the GLTF data
+    // 临时数据
     std::vector<std::shared_ptr<MeshAsset>>    meshes;
     std::vector<std::shared_ptr<Node>>         nodes;
     std::vector<AllocatedImage>                images;
     std::vector<TextureID>                     imageIDs;
     std::vector<std::shared_ptr<GLTFMaterial>> materials;
 
-    // load all textures
+    // 读取贴图
     for (fastgltf::Image& image : gltf.images)
     {
         std::optional<AllocatedImage> img = load_image(engine, gltf, image);
@@ -377,6 +379,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     print(fg(fmt::color::azure),
           "--------------------------------start load meshes--------------------------------\n");
 
+    // 读取网格
     for (fastgltf::Mesh& mesh : gltf.meshes)
     {
         auto newmesh = std::make_shared<MeshAsset>();
@@ -548,7 +551,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     {
         if (node->parent.lock() == nullptr)
         {
-            file.topNodes.push_back(node);
+            file.topNodes.push_back(node); 
             node->refreshTransform(glm::mat4{1.f});
         }
     }

@@ -1,14 +1,14 @@
 {
     "load_file" : 
     {
-        "name" : "sasha",
+        "name" : "sponza",
         "comment" : "打开文件对应的名字"
     },
     "file_paths": 
     [
         {
             "name" : "girl",
-            "path" : "E:/code/data/just_a_girl/scene.gltf"
+            "path" : "C:/code/data/gltf/just_a_girl/scene.gltf"
         },
         {
             "name" : "alien",
@@ -29,6 +29,10 @@
         {
             "name" : "rainier_ak",
             "path" : "C:/code/data/gltf/rainier_ak_-_3d/scene.gltf"
+        },
+        {
+            "name" : "sponza",
+            "path" : "C:/code/data/glTF-Sample-Models-main/2.0/Sponza/glTF/Sponza.gltf"
         },
         {
             "name" : "bikini",
