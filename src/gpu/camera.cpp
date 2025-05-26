@@ -100,7 +100,7 @@ void Camera::renderUI()
 {
     if (ImGui::CollapsingHeader("相机设置", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        dk::ui::im_gui_blender_float("相机速度", &velocity_coefficient, 0.1f, 0.1f, 0.f, 100.f, "%.4f");
+        dk::ui::im_gui_blender_float("相机速度", &velocity_coefficient, 0.01f, 0.01f, 0.f, 100.f, "%.4f");
         ui::im_gui_blender_vec3("相机位置", position);
     }
 }

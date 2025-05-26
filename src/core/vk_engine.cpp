@@ -103,18 +103,22 @@ void VulkanEngine::init()
             total_min.x = std::min(total_min.x, surface.bounds.min_edge.x);
             total_min.y = std::min(total_min.y, surface.bounds.min_edge.y);
             total_min.z = std::min(total_min.z, surface.bounds.min_edge.z);
-            fmt::print("center: {},min: {},max: {}\n", surface.bounds.origin, surface.bounds.min_edge, surface.bounds.max_edge);
+            fmt::print("{}: center: {},min: {},max: {}\n", count, surface.bounds.origin, surface.bounds.min_edge, surface.bounds.max_edge);
+
             ++count;
         }
         //geom_center += mesh.second->surfaces[0].bounds.sphereRadius* glm::vec3{ 1,0,0 };
     }
     fmt::print("total min: {}, max: {}\n", total_min, total_max);
     geom_center /= count;
-    mainCamera.position = total_min + total_max;
-    mainCamera.position /= 2;
+    //mainCamera.position = total_max - total_min;
+    //mainCamera.position /= 2;
     mainCamera.velocity_coefficient = 6 / (mainCamera.position.x + mainCamera.position.y + mainCamera.position.z);
+    //mainCamera.position = geom_center;
     mainCamera.pitch = 0;
     mainCamera.yaw   = 0;
+
+    fmt::print("calc center: {}\n", geom_center);
 }
 
 void VulkanEngine::init_default_data()

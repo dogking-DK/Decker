@@ -18,7 +18,17 @@
 #include <nlohmann/json.hpp>
 
 #include "stb_image.h"
+template <>
+struct fmt::formatter<glm::vec3>
+{
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
 
+    template <typename Context>
+    constexpr auto format(const glm::vec3& foo, Context& ctx) const
+    {
+        return format_to(ctx.out(), "[{:7.2f}, {:7.2f}, {:7.2f}]", foo.x, foo.y, foo.z);
+    }
+};
 namespace dk {
 static std::filesystem::path parent_path;
 
@@ -390,14 +400,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         // clearSwapchain the mesh arrays each mesh, we dont want to merge them by error
         indices.clear();
         vertices.clear();
-
+        std::size_t idx = 0;
+        fmt::print("primitive iterating...\n");
         for (auto&& p : mesh.primitives)
         {
             GeoSurface newSurface;
             newSurface.startIndex = static_cast<uint32_t>(indices.size());
             newSurface.count      = static_cast<uint32_t>(gltf.accessors[p.indicesAccessor.value()].count);
-
+            fmt::print("{}: {}\n", idx, magic_enum::enum_name(p.type));
             size_t initial_vtx = vertices.size();
+            size_t initial_idx = indices.size();
 
             // load indexes
             {
@@ -479,17 +491,19 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                 minpos = min(minpos, vertices[i].position);
                 maxpos = max(maxpos, vertices[i].position);
             }
+
             newSurface.bounds.max_edge     = maxpos;
             newSurface.bounds.min_edge     = minpos;
             newSurface.bounds.origin       = (maxpos + minpos) / 2.f;
             newSurface.bounds.extents      = (maxpos - minpos) / 2.f;
             newSurface.bounds.sphereRadius = length(newSurface.bounds.extents);
             newmesh->surfaces.push_back(newSurface);
+            ++idx;
         }
 
         newmesh->meshBuffers = engine->uploadMesh(indices, vertices);
     }
-    //> load_nodes
+
     // load all nodes and their meshes
     for (fastgltf::Node& node : gltf.nodes)
     {
@@ -500,6 +514,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         {
             newNode                                     = std::make_shared<MeshNode>();
             static_cast<MeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
+
         }
         else
         {
@@ -522,23 +537,34 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                                          transform.rotation[2]);
                            glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
 
-                           glm::mat4 tm = translate(glm::mat4(1.f), tl);
-                           glm::mat4 rm = toMat4(rot);
+                           glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
+                           glm::mat4 rm = glm::toMat4(rot);
                            glm::mat4 sm = scale(glm::mat4(1.f), sc);
 
                            newNode->localTransform = tm * rm * sm;
                        }
                    },
                    node.transform);
+
+        // 修改node下方的mesh的相对位置，因为可能有变换矩阵，注意这里只使用了一层，但实际上是树形结构
+        // TODO 后续需要改成遍历树形结构
+        if (node.meshIndex.has_value())
+        {
+            const auto& mesh = meshes[*node.meshIndex];
+            //for (auto& primitive : mesh->surfaces)
+            //{
+            //    primitive.bounds.min_edge = newNode->localTransform * glm::vec4(primitive.bounds.min_edge, 1.0);
+            //    primitive.bounds.max_edge = newNode->localTransform * glm::vec4(primitive.bounds.max_edge, 1.0);
+            //    primitive.bounds.origin = newNode->localTransform * glm::vec4(primitive.bounds.origin, 1.0);
+            //}
+        }
     }
-    //< load_nodes
-    //> load_graph
     // run loop again to setup transform hierarchy
     for (int i = 0; i < gltf.nodes.size(); i++)
     {
         fastgltf::Node&        node      = gltf.nodes[i];
         std::shared_ptr<Node>& sceneNode = nodes[i];
-
+        
         for (auto& c : node.children)
         {
             sceneNode->children.push_back(nodes[c]);

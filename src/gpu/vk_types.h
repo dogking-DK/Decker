@@ -14,6 +14,8 @@
 #include <vulkan/vk_enum_string_helper.h>
 #include <vk_mem_alloc.h>
 
+#include <magic_enum/magic_enum.hpp>
+
 #include <fmt/core.h>
 #include <fmt/color.h>
 
