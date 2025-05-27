@@ -110,11 +110,13 @@ void VulkanEngine::init()
         //geom_center += mesh.second->surfaces[0].bounds.sphereRadius* glm::vec3{ 1,0,0 };
     }
     fmt::print("total min: {}, max: {}\n", total_min, total_max);
+    float total_aabb_length = glm::length(total_max - total_min);
     geom_center /= count;
+
     //mainCamera.position = total_max - total_min;
     //mainCamera.position /= 2;
-    mainCamera.velocity_coefficient = 6 / (mainCamera.position.x + mainCamera.position.y + mainCamera.position.z);
-    //mainCamera.position = geom_center;
+    mainCamera.velocity_coefficient = total_aabb_length / 5000;
+    mainCamera.position = geom_center;
     mainCamera.pitch = 0;
     mainCamera.yaw   = 0;
 

@@ -551,12 +551,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         if (node.meshIndex.has_value())
         {
             const auto& mesh = meshes[*node.meshIndex];
-            //for (auto& primitive : mesh->surfaces)
-            //{
-            //    primitive.bounds.min_edge = newNode->localTransform * glm::vec4(primitive.bounds.min_edge, 1.0);
-            //    primitive.bounds.max_edge = newNode->localTransform * glm::vec4(primitive.bounds.max_edge, 1.0);
-            //    primitive.bounds.origin = newNode->localTransform * glm::vec4(primitive.bounds.origin, 1.0);
-            //}
+            for (auto& primitive : mesh->surfaces)
+            {
+                primitive.bounds.min_edge = newNode->localTransform * glm::vec4(primitive.bounds.min_edge, 1.0);
+                primitive.bounds.max_edge = newNode->localTransform * glm::vec4(primitive.bounds.max_edge, 1.0);
+                primitive.bounds.origin = newNode->localTransform * glm::vec4(primitive.bounds.origin, 1.0);
+            }
         }
     }
     // run loop again to setup transform hierarchy
