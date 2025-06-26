@@ -26,6 +26,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(magic_enum REQUIRED)
 find_package(tsl-robin-map CONFIG REQUIRED)
 find_package(meshoptimizer CONFIG REQUIRED)
+find_package(stduuid CONFIG REQUIRED)
 # find_package(slang REQUIRED)
 
 find_package(SDL3 CONFIG REQUIRED)
@@ -37,6 +38,7 @@ find_package(Freetype REQUIRED)
 # 查找所有源文件 (.cpp 和 .hpp)
 file(GLOB_RECURSE MAIN_SOURCES "main/*.cpp" "main/*.hpp" "main/*.h") # 主入口
 file(GLOB_RECURSE CORE_SOURCES "core/*.cpp" "core/*.hpp" "core/*.h") # 核心
+file(GLOB_RECURSE ASSET_SOURCES "asset/*.cpp" "asset/*.hpp" "asset/*.h") # 核心
 file(GLOB_RECURSE GPU_SOURCES "gpu/*.cpp" "gpu/*.hpp" "gpu/*.h")     # GPU相关
 file(GLOB_RECURSE IO_SOURCES "io/*.cpp" "io/*.hpp" "io/*.h")         # IO相关
 file(GLOB_RECURSE UI_SOURCES "ui/*.cpp" "ui/*.hpp" "ui/*.h")         # UI相关
@@ -45,6 +47,7 @@ file(GLOB_RECURSE UTIL_SOURCES "util/*.cpp" "util/*.hpp" "util/*.h") # 工具类
 # 输出所有的源文件路径
 message(STATUS "Main sources: ${MAIN_SOURCES}")
 message(STATUS "Core sources: ${CORE_SOURCES}")
+message(STATUS "asset sources: ${ASSET_SOURCES}")
 message(STATUS "GPU sources: ${GPU_SOURCES}")
 message(STATUS "IO sources: ${IO_SOURCES}")
 message(STATUS "UI sources: ${UI_SOURCES}")
@@ -54,6 +57,7 @@ message(STATUS "Util sources: ${UTIL_SOURCES}")
 set(ALL_SOURCES
     ${MAIN_SOURCES}
     ${CORE_SOURCES}
+    ${ASSET_SOURCES}
     ${GPU_SOURCES}
     ${IO_SOURCES}
     ${UI_SOURCES}
@@ -70,6 +74,7 @@ add_executable(${PROJECT_NAME} ${ALL_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/main
     ${CMAKE_SOURCE_DIR}/src/core
+    ${CMAKE_SOURCE_DIR}/src/asset
     ${CMAKE_SOURCE_DIR}/src/gpu
     ${CMAKE_SOURCE_DIR}/src/io
     ${CMAKE_SOURCE_DIR}/src/ui
@@ -110,6 +115,8 @@ target_link_libraries(${PROJECT_NAME}
     tsl::robin_map
     Eigen3::Eigen
     meshoptimizer::meshoptimizer
+    stduuid
+    $<IF:$<TARGET_EXISTS:flecs::flecs>,flecs::flecs,flecs::flecs_static>
     # SuiteSparse::SuiteSparseConfig
     # SuiteSparse::spqr
     # SuiteSparse::cholmod
