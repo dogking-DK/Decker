@@ -12,7 +12,9 @@ enum class AssetKind : uint8_t
     Node,
     Mesh,
     Material,
-    Image
+    Image,
+    Primitive,
+
 };
 
 struct AssetNode

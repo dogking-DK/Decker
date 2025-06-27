@@ -16,7 +16,7 @@
 
 #include "Scene/Node.h"
 #include "Vulkan/Context.h"
-
+#include "HierarchyPanel.h"
 namespace fastgltf
 {
     struct Mesh;
@@ -203,6 +203,8 @@ public:
 
     std::vector<ComputeEffect> backgroundEffects;
     int currentBackgroundEffect{ 0 };
+
+    HierarchyPanel hierarchy_panel;
 
     // singleton style getter.multiple engines is not supported
     static VulkanEngine& Get();

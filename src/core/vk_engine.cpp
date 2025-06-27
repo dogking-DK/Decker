@@ -3,6 +3,7 @@
 #include "vk_images.h"
 #include "vk_loader.h"
 #include "vk_descriptors.h"
+#include "importer/GLTF_Importer.h"
 #include <vk_types.h>
 
 #include <SDL3/SDL.h>
@@ -805,7 +806,8 @@ void VulkanEngine::run()
             mainCamera.renderUI();
             ImGui::End();
         }
-
+        // 资源树
+        hierarchy_panel.onGui();
         // 顶部工具栏
         if (ImGui::BeginMainMenuBar())
         {
@@ -1261,6 +1263,9 @@ void VulkanEngine::init_renderables()
     }
     fmt::print(fg(fmt::color::bisque), "model file path: {}\n", structurePath);
     auto structureFile = loadGltf(this, structurePath);
+
+    auto root = ImporterRegistry::instance().import(structurePath);
+    hierarchy_panel.setRoots(root);
 
     assert(structureFile.has_value());
 

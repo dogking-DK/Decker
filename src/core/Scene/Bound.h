@@ -7,27 +7,27 @@
 namespace dk {
 struct Bounds
 {
-    glm::vec3 origin; // °üÎ§ºĞÔ­µã
-    float     sphere_radius; // °üÎ§ºĞÍ¬µÈ°üÎ§Çò°ë¾¶
-    glm::vec3 extents; // ³¤¿í¸ß
-    glm::vec3 max_edge; // ×î´óµã
-    glm::vec3 min_edge; // ×îĞ¡µã
+    glm::vec3 origin; // åŒ…å›´ç›’åŸç‚¹
+    float     sphere_radius; // åŒ…å›´ç›’åŒç­‰åŒ…å›´çƒåŠå¾„
+    glm::vec3 extents; // é•¿å®½é«˜
+    glm::vec3 max_edge; // æœ€å¤§ç‚¹
+    glm::vec3 min_edge; // æœ€å°ç‚¹
 
     Bounds()
     {
-        reset(); // ³õÊ¼»¯Ê±ÖØÖÃ°üÎ§ºĞ
+        reset(); // åˆå§‹åŒ–æ—¶é‡ç½®åŒ…å›´ç›’
     }
 
 
-    bool isValid() const // ÊÇ·ñÓĞĞ§
+    bool isValid() const // æ˜¯å¦æœ‰æ•ˆ
     {
         return sphere_radius > 0 && extents.x > 0 && extents.y > 0 && extents.z > 0;
     }
 
-    void extend(const Bounds& other) // À©Õ¹°üÎ§ºĞ
+    void extend(const Bounds& other) // æ‰©å±•åŒ…å›´ç›’
     {
-        if (!other.isValid()) return; // Èç¹ûÆäËû°üÎ§ºĞÎŞĞ§£¬Ôò²»½øĞĞÀ©Õ¹
-        // À©Õ¹°üÎ§ºĞµ½°üº¬ÁíÒ»¸ö°üÎ§ºĞ
+        if (!other.isValid()) return; // å¦‚æœå…¶ä»–åŒ…å›´ç›’æ— æ•ˆï¼Œåˆ™ä¸è¿›è¡Œæ‰©å±•
+        // æ‰©å±•åŒ…å›´ç›’åˆ°åŒ…å«å¦ä¸€ä¸ªåŒ…å›´ç›’
         min_edge     = min(min_edge, other.min_edge);
         max_edge     = max(max_edge, other.max_edge);
         origin       = (max_edge + min_edge) / 2.f;
@@ -35,7 +35,7 @@ struct Bounds
         sphere_radius = length(extents);
     }
 
-    void reset() // ÖØÖÃ°üÎ§ºĞ
+    void reset() // é‡ç½®åŒ…å›´ç›’
     {
         origin                = {0, 0, 0};
         sphere_radius          = 0;

@@ -7,16 +7,58 @@
 
 #include "AssetNode.hpp"
 
-namespace dk{
+namespace dk {
+class Importer
+{
+public:
+    virtual                    ~Importer() = default;
+    [[nodiscard]] virtual bool supportsExtension(const std::string& ext) const = 0;
+    virtual std::vector<std::shared_ptr<AssetNode>> import(const std::filesystem::path& file) = 0;
+};
 
-    class Importer {
-    public:
-        virtual ~Importer() = default;
-        // �����ļ���Datablock     ����: �ļ����ݵ����ݹ�ϣ
-        virtual std::optional<AssetNode> import(const std::filesystem::path& file);
-    };
+class ImporterRegistry
+{
+public:
+    static ImporterRegistry& instance()
+    {
+        static ImporterRegistry r;
+        return r;
+    }
 
-#define REGISTER_IMPORTER(cls, name) \
-    static bool _reg_##cls = []{ TypeRegistry::registerType(name, [](){return new (cls);}); return true; }();
+    void registerImporter(std::unique_ptr<Importer> impl)
+    {
+        importers.emplace_back(std::move(impl));
+    }
 
+
+    /// 根据文件扩展名选择第一个 supportsExtension() 返回 true 的 importer
+    Importer* findImporter(const std::string& ext) const
+    {
+        for (auto& imp : importers)
+        {
+            if (imp->supportsExtension(ext))
+                return imp.get();
+        }
+        return nullptr;
+    }
+
+    std::vector<std::shared_ptr<AssetNode>> import(const std::filesystem::path& file) const
+    {
+        // 找到第一个支持的 importer 并调用其 import 方法
+        return findImporter(file.extension().string())->import(file); 
+    }
+
+private:
+    std::vector<std::unique_ptr<Importer>> importers;
+};
+
+/// 简化宏：在任意 .cpp 中添加一行，即可自动注册
+#define REGISTER_IMPORTER(CLASS)                                 \
+    namespace {                                                  \
+      const bool _reg_##CLASS = [](){                            \
+        ImporterRegistry::instance()                             \
+            .registerImporter(std::make_unique<CLASS>());        \
+        return true;                                             \
+      }();                                                       \
+    }
 }

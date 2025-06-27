@@ -10,6 +10,7 @@
 #include <functional>
 #include <deque>
 #include <limits>
+#include <memory>
 
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vk_enum_string_helper.h>

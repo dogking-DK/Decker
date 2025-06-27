@@ -2,10 +2,13 @@
 #include "Importer.h"
 
 namespace dk {
-class GltfImporter final : public Importer {
+class GltfImporter final : public Importer
+{
 public:
-    std::optional<AssetNode> import(const std::filesystem::path& file) override;
+    std::vector<std::shared_ptr<AssetNode>> import(const std::filesystem::path& file) override;
+    [[nodiscard]] bool supportsExtension(const std::string& ext) const override;
+    
 };
-REGISTER_IMPORTER(GltfImporter, "gltf");   // Ö§³Ö .gltf .glb
-REGISTER_IMPORTER(GltfImporter, "glb");
+REGISTER_IMPORTER(GltfImporter)
+
 }
