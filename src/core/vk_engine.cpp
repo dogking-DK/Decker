@@ -1265,7 +1265,7 @@ void VulkanEngine::init_renderables()
     auto structureFile = loadGltf(this, structurePath);
 
     auto root = ImporterRegistry::instance().import(structurePath);
-    hierarchy_panel.setRoots(root);
+    hierarchy_panel.setRoots(root.nodes);
 
     assert(structureFile.has_value());
 

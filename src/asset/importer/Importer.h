@@ -5,15 +5,30 @@
 #include <optional>
 #include <vector>
 
+#include "AssetMeta.hpp"
 #include "AssetNode.hpp"
 
 namespace dk {
+struct ImportOptions
+{
+    bool                  only_nodes = true;                    // 仅节点树
+    bool                  write_raw  = false;                   // 写 .raw*
+    bool                  do_hash    = true;                    // 计算内容 hash
+    std::filesystem::path raw_dir    = "cache/raw";
+};
+
+struct ImportResult
+{
+    std::vector<std::shared_ptr<AssetNode>> nodes;   // Hierarchy 用
+    std::vector<AssetMeta>                  metas;   // Build / DB 用
+};
+
 class Importer
 {
 public:
     virtual                    ~Importer() = default;
     [[nodiscard]] virtual bool supportsExtension(const std::string& ext) const = 0;
-    virtual std::vector<std::shared_ptr<AssetNode>> import(const std::filesystem::path& file) = 0;
+    virtual ImportResult       import(const std::filesystem::path& file, const ImportOptions& opts = {}) = 0;
 };
 
 class ImporterRegistry
@@ -42,10 +57,10 @@ public:
         return nullptr;
     }
 
-    std::vector<std::shared_ptr<AssetNode>> import(const std::filesystem::path& file) const
+    ImportResult import(const std::filesystem::path& file) const
     {
         // 找到第一个支持的 importer 并调用其 import 方法
-        return findImporter(file.extension().string())->import(file); 
+        return findImporter(file.extension().string())->import(file);
     }
 
 private:
