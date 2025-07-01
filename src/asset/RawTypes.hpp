@@ -40,7 +40,7 @@ struct AttrDesc
 
 struct RawImage
 {
-    uint32_t             width, height, channels;    // channels = 4 (RGBA8) after importer
+    int32_t             width, height, depth, channels;    // channels = 4 (RGBA8) after importer
     std::vector<uint8_t> pixels;
 };
 

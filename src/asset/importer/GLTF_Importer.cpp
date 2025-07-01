@@ -89,13 +89,13 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     constexpr auto gltf_options = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble |
                                   fastgltf::Options::LoadExternalBuffers;
 
-    auto data = fastgltf::GltfDataBuffer::FromPath(file_path);
+    auto gltf_data = fastgltf::GltfDataBuffer::FromPath(file_path);
 
     /*-------------------------------读取原始数据-------------------------------*/
     Asset gltf;
-    if (const auto type = determineGltfFileType(data.get()); type == fastgltf::GltfType::glTF)
+    if (const auto type = determineGltfFileType(gltf_data.get()); type == fastgltf::GltfType::glTF)
     {
-        auto load = parser.loadGltf(data.get(), file_path.parent_path(), gltf_options);
+        auto load = parser.loadGltf(gltf_data.get(), file_path.parent_path(), gltf_options);
         if (load)
         {
             gltf = std::move(load.get());
@@ -108,7 +108,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     }
     else if (type == fastgltf::GltfType::GLB)
     {
-        auto load = parser.loadGltfBinary(data.get(), file_path.parent_path(), gltf_options);
+        auto load = parser.loadGltfBinary(gltf_data.get(), file_path.parent_path(), gltf_options);
         if (load)
         {
             gltf = std::move(load.get());
@@ -192,7 +192,8 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                         index != prim.attributes.end())
                     {
                         fastgltf::Accessor& accessor = gltf.accessors[index->accessorIndex];
-                        std::vector<float> tmp(accessor.count * getElementByteSize(accessor.type, accessor.componentType));
+                        std::vector<float>  tmp(
+                            accessor.count * getElementByteSize(accessor.type, accessor.componentType));
                         if (accessor.type == fastgltf::AccessorType::Vec2)
                             copyFromAccessor<glm::vec2>(gltf, accessor, tmp.data());
                         else if (accessor.type == fastgltf::AccessorType::Vec3)
@@ -214,7 +215,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                 if (prim.findAttribute(attr) != prim.attributes.end())
                 {
                     fastgltf::Accessor& accessor = gltf.accessors[prim.findAttribute(attr)->accessorIndex];
-                    std::vector<float>  tmp(accessor.count * fastgltf::getElementByteSize(accessor.type, accessor.componentType));
+                    std::vector<float>  tmp(accessor.count * getElementByteSize(accessor.type, accessor.componentType));
                     if (accessor.type == fastgltf::AccessorType::Vec3)
                         copyFromAccessor<glm::vec3>(gltf, accessor, tmp.data());
                     else if (accessor.type == fastgltf::AccessorType::Vec4)
@@ -229,7 +230,8 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             visit_set("JOINTS", jointsN);
             visit_set("WEIGHTS", weightsN);
 
-            uint32_t offset = static_cast<uint32_t>(sizeof(raw_mesh_header) + vertex_attributes.size() * sizeof(AttrDesc));
+            uint32_t offset = static_cast<uint32_t>(
+                sizeof(raw_mesh_header) + vertex_attributes.size() * sizeof(AttrDesc));
             for (auto& d : vertex_attributes)
             {
                 d.offset_bytes = offset;
@@ -266,67 +268,125 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     /* ---------- 3. 导出 RawImage ---------- */
     for (size_t ii = 0; ii < gltf.images.size(); ++ii)
     {
-        auto&    img = gltf.images[ii];
-        //RawImage raw{img.size.width, img.size.height, 4};
-        //raw.pixels.assign(img.data.begin(), img.data.end());
+        auto&    [data, name] = gltf.images[ii];
+        RawImage raw;
 
-        //assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
-        //assert(filePath.uri.isLocalPath()); // We're only capable of loading
+        std::visit(
+            fastgltf::visitor{
+                [&](fastgltf::sources::URI& filePath)
+                {
+                    assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
+                    assert(filePath.uri.isLocalPath()); // We're only capable of loading
 
-        //// 生成绝对路径
-        //auto path(parent_path);
-        //path.append(filePath.uri.path());
-        //if (filePath.uri.isLocalPath()) fmt::print("image path: {}\n", path.generic_string());
+                    // 生成绝对路径
+                    auto path(file_path / "");
+                    path.append(filePath.uri.path());
+                    if (filePath.uri.isLocalPath()) fmt::print("image path: {}\n", path.generic_string());
 
-        //if (image.name.empty())
-        //{
-        //    image.name = filePath.uri.path();
-        //    fmt::print("generate image name({})\n", image.name);
-        //}
+                    if (name.empty())
+                    {
+                        name = filePath.uri.path();
+                        fmt::print("generate image name({})\n", name);
+                    }
 
-        //unsigned char* data = stbi_load(path.generic_string().c_str(), &width, &height, &nrChannels, 4);
+                    unsigned char* image_data = stbi_load(path.generic_string().c_str(), &raw.width, &raw.height,
+                                                          &raw.channels, 4);
+                    if (image_data)
+                    {
+                        raw.pixels.assign(image_data, image_data + raw.width * raw.height * 4);
 
+                        stbi_image_free(image_data);
+                    }
+                },
+                [&](fastgltf::sources::Vector& vector)
+                {
+                    unsigned char* image_data = stbi_load_from_memory(
+                        reinterpret_cast<const stbi_uc*>(vector.bytes.data()),
+                        static_cast<int>(vector.bytes.size()),
+                        &raw.width, &raw.height, &raw.channels, 4);
+                    if (image_data)
+                    {
+                        raw.pixels.assign(image_data, image_data + raw.width * raw.height * 4);
 
-        //core::UUID  uuid  = makeUUID("img", ii);
-        //std::string fname = uuid.to_string() + ".rawimg";
-        //if (opts.writeRaw) helper::write_blob(opts.rawDir / fname, raw.pixels);
+                        stbi_image_free(image_data);
+                    }
+                },
+                [&](fastgltf::sources::BufferView& view)
+                {
+                    auto& bufferView = gltf.bufferViews[view.bufferViewIndex];
+                    auto& buffer     = gltf.buffers[bufferView.bufferIndex];
 
-        //AssetMeta m;
-        //m.uuid     = uuid;
-        //m.importer = "gltf";
-        //m.rawPath  = fname;
-        //if (opts.doHash) m.contentHash = hashBuffer(raw.pixels);
-        //R.metas.push_back(std::move(m));
+                    std::visit(fastgltf::visitor{
+                                   // We only care about VectorWithMime here, because we
+                                   // specify LoadExternalBuffers, meaning all buffers
+                                   // are already loaded into a vector.
+                                   [](auto& arg)
+                                   {
+                                   },
+                                   [&](fastgltf::sources::Vector& vector)
+                                   {
+                                       unsigned char* image_data = stbi_load_from_memory(
+                                           reinterpret_cast<const stbi_uc*>(
+                                               vector.bytes.data() + bufferView.byteOffset),
+                                           static_cast<int>(bufferView.byteLength),
+                                           &raw.width, &raw.height, &raw.channels, 4);
+                                       if (image_data)
+                                       {
+                                           raw.pixels.assign(image_data, image_data + raw.width * raw.height * 4);
+
+                                           stbi_image_free(image_data);
+                                       }
+                                   }
+                               },
+                               buffer.data);
+                },
+                [](auto& arg)
+                {
+                    fmt::print(stderr, "the image data source is not support yet\n");
+                }
+            },
+            data);
+
+        UUID        uuid      = makeUUID("img", ii);
+        std::string file_name = to_string(uuid) + ".rawimg";
+        if (opts.write_raw) helper::write_blob(opts.raw_dir / file_name, std::span(raw.pixels));
+
+        AssetMeta m;
+        m.uuid     = uuid;
+        m.importer = "gltf";
+        m.rawPath  = file_name;
+        if (opts.do_hash) m.contentHash = helper::hash_buffer(raw.pixels);
+        result.metas.push_back(std::move(m));
     }
 
     /* ---------- 4. 导出 RawMaterial ---------- */
-    //for (size_t mi = 0; mi < gltf.materials.size(); ++mi)
-    //{
-    //    auto&       mat = gltf.materials[mi];
-    //    RawMaterial raw{};
-    //    raw.metallicFactor  = mat.pbrData.metallicFactor;
-    //    raw.roughnessFactor = mat.pbrData.roughnessFactor;
-    //    if (mat.pbrData.baseColorTexture)
-    //    {
-    //        raw.baseColorTexture = makeUUID("img", mat.pbrData
-    //                                                  .baseColorTexture->textureIndex);
-    //    }
+    for (size_t mi = 0; mi < gltf.materials.size(); ++mi)
+    {
+        auto&       mat = gltf.materials[mi];
+        RawMaterial raw{};
+        raw.metallicFactor  = mat.pbrData.metallicFactor;
+        raw.roughnessFactor = mat.pbrData.roughnessFactor;
+        if (mat.pbrData.baseColorTexture)
+        {
+            raw.baseColorTexture = makeUUID("img", mat.pbrData.baseColorTexture->textureIndex);
+        }
 
-    //    core::UUID  uuid  = makeUUID("mat", mi);
-    //    std::string fname = uuid.to_string() + ".rawmat";
-    //    if (opts.writeRaw) writePOD(opts.rawDir / fname, raw);
+        UUID        uuid      = makeUUID("mat", mi);
+        std::string file_name = to_string(uuid) + ".rawmat";
+        if (opts.write_raw) helper::write_pod(opts.raw_dir / file_name, raw);
 
-    //    AssetMeta m;
-    //    m.uuid     = uuid;
-    //    m.importer = "gltf";
-    //    m.rawPath  = fname;
-    //    if (mat.pbrData.baseColorTexture)
-    //        m.dependencies = {raw.baseColorTexture};
-    //    if (opts.doHash)
-    //        m.contentHash = hashBuffer(
-    //            std::as_bytes(std::span(&raw, 1)));
-    //    R.metas.push_back(std::move(m));
-    //}
+        AssetMeta m;
+        m.uuid     = uuid;
+        m.importer = "gltf";
+        m.rawPath  = file_name;
+        if (mat.pbrData.baseColorTexture)
+            m.dependencies = {raw.baseColorTexture};
+        if (opts.do_hash)
+        {
+            m.contentHash = helper::hash_buffer(std::as_bytes(std::span(&raw, 1)));
+        }
+        result.metas.push_back(std::move(m));
+    }
     return result;
 }
 
