@@ -12,7 +12,7 @@ namespace dk {
 struct ImportOptions
 {
     bool                  only_nodes = true;                    // 仅节点树
-    bool                  write_raw  = false;                   // 写 .raw*
+    bool                  write_raw  = true;                   // 写 .raw*
     bool                  do_hash    = true;                    // 计算内容 hash
     std::filesystem::path raw_dir    = "cache/raw";
 };

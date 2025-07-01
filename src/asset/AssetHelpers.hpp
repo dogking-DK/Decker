@@ -20,7 +20,7 @@ void write_pod(const std::filesystem::path& f, const POD& v)
 }
 
 template <typename T>
-void write_blob(const std::filesystem::path& f, const std::vector<T>& buf)
+void write_blob(const std::filesystem::path& f, const std::span<T>& buf)
 {
     std::ofstream os(f, std::ios::binary);
     os.write(reinterpret_cast<const char*>(buf.data()),
@@ -28,7 +28,7 @@ void write_blob(const std::filesystem::path& f, const std::vector<T>& buf)
 }
 
 template <typename T>
-void append_blob(const std::filesystem::path& f, std::span<const T> buf)
+void append_blob(const std::filesystem::path& f, const std::span<T>& buf)
 {
     std::ofstream os(f, std::ios::binary | std::ios::app);
     if (!os) throw std::runtime_error("append open fail: " + f.string());
@@ -55,10 +55,74 @@ std::vector<T> read_blob(const std::filesystem::path& f)
     return buf;
 }
 
-inline uint64_t hash_buffer(const std::span<const uint8_t> s)
+// 对任意内存块做 FNV-1a
+inline uint64_t fnv1a_hash(const void* data, const std::size_t len)
 {
-    uint64_t h = 14695981039346656037ULL;
-    for (uint8_t b : s) h = (h ^ b) * 1099511628211ULL;
-    return h;
+    static constexpr uint64_t FNV_OFFSET_BASIS = 14652710'57926649ULL;
+    static constexpr uint64_t FNV_PRIME        = 1099511628211ULL;
+    auto                      ptr              = static_cast<const uint8_t*>(data);
+    uint64_t                  hash             = FNV_OFFSET_BASIS;
+    for (std::size_t i = 0; i < len; ++i)
+    {
+        hash ^= ptr[i];
+        hash *= FNV_PRIME;
+    }
+    return hash;
+}
+
+
+inline uint64_t hash_combine(const uint64_t seed, const uint64_t v)
+{
+    // 来自 boost::hash_combine 的经典写法
+    return seed ^ (v + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2));
+}
+
+template <typename T>
+uint64_t hash_array_elements(const T* arr, const std::size_t count)
+{
+    uint64_t seed = 0xcbf29ce484222325ULL; // 任意非 0 初始值
+    for (std::size_t i = 0; i < count; ++i)
+    {
+        // 先对单个元素用 std::hash<T>
+        const uint64_t h = std::hash<T>{}(arr[i]);
+        seed             = hash_combine(seed, h);
+    }
+    return seed;
+}
+
+template <typename T>
+uint64_t hash_buffer(const T* arr, const std::size_t count)
+{
+    if constexpr (std::is_trivially_copyable_v<T>)
+    {
+        return fnv1a_hash(arr, sizeof(T) * count);
+    }
+    else
+    {
+        uint64_t seed = 0xcbf29ce484222325ULL;
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            seed = hash_combine(seed, static_cast<uint64_t>(std::hash<T>{}(arr[i])));
+        }
+        return seed;
+    }
+}
+
+template <typename T>
+uint64_t hash_buffer(const std::vector<T>& vec)
+{
+    return hash_buffer(vec.data(), vec.size());
+}
+
+template <typename T, std::size_t N>
+uint64_t hash_buffer(const std::array<T, N>& arr)
+{
+    return hash_buffer(arr.data(), arr.size());
+}
+
+template <typename T>
+uint64_t hash_buffer(std::span<const T> s)
+{
+    return hash_buffer(s.data(), s.size());
 }
 } // namespace helpers

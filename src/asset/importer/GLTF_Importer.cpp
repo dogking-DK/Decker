@@ -1,5 +1,7 @@
-﻿#include <fastgltf/types.hpp>
+﻿#include <fastgltf/glm_element_traits.hpp>  // GLM 类型的 ElementTraits 专门化
+#include <fastgltf/types.hpp>
 #include <fastgltf/core.hpp>
+
 #include <span>
 #include <filesystem>
 
@@ -7,10 +9,9 @@
 #include "UUID.hpp"
 #include "GLTF_Importer.h"
 
+#include <stb_image.h>
 #include <fastgltf/tools.hpp>
 #include <fmt/core.h>
-#include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
 
 #include "AssetHelpers.hpp"
 #include "RawTypes.hpp"
@@ -149,7 +150,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         for (size_t pi = 0; pi < gltf.meshes[mi].primitives.size(); ++pi)
         {
             const auto&   prim = gltf.meshes[mi].primitives[pi];
-            RawMeshHeader raw;
+            RawMeshHeader raw_mesh_header;
 
             std::vector<AttrDesc>             vertex_attributes;
             std::vector<std::vector<uint8_t>> blocks;
@@ -158,13 +159,15 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             /*添加索引*/
             if (prim.indicesAccessor)
             {
-                auto& acc       = gltf.accessors[prim.indicesAccessor.value()];
-                raw.index_count = static_cast<uint32_t>(acc.count);
+                auto& acc                   = gltf.accessors[prim.indicesAccessor.value()];
+                raw_mesh_header.index_count = static_cast<uint32_t>(acc.count);
+                indices.resize(raw_mesh_header.index_count);
                 copyFromAccessor<std::uint32_t>(gltf, acc, indices.data());
             }
 
             // 获取顶点数量
-            raw.vertex_count = static_cast<uint32_t>(gltf.accessors[prim.findAttribute("POSITION")->accessorIndex].
+            raw_mesh_header.vertex_count = static_cast<uint32_t>(gltf.accessors[prim.findAttribute("POSITION")->
+                    accessorIndex].
                 count);
 
             /*添加顶点属性*/
@@ -179,6 +182,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                 blocks.emplace_back(reinterpret_cast<uint8_t*>(vec.data()),
                                     reinterpret_cast<uint8_t*>(vec.data()) + vec.size());
             };
+
             // 遍历可能存在多值的属性
             auto visit_set = [&](const char* base, auto sem_of)
             {
@@ -188,9 +192,16 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                         index != prim.attributes.end())
                     {
                         fastgltf::Accessor& accessor = gltf.accessors[index->accessorIndex];
-                        std::vector<float>  tmp(
-                            accessor.count * getElementByteSize(accessor.type, accessor.componentType));
-                        copyFromAccessor<float>(gltf, accessor, tmp.data());
+                        std::vector<float> tmp(accessor.count * getElementByteSize(accessor.type, accessor.componentType));
+                        if (accessor.type == fastgltf::AccessorType::Vec2)
+                            copyFromAccessor<glm::vec2>(gltf, accessor, tmp.data());
+                        else if (accessor.type == fastgltf::AccessorType::Vec3)
+                            copyFromAccessor<glm::vec3>(gltf, accessor, tmp.data());
+                        else if (accessor.type == fastgltf::AccessorType::Vec4)
+                            copyFromAccessor<glm::vec4>(gltf, accessor, tmp.data());
+                        else if (accessor.type == fastgltf::AccessorType::Scalar)
+                            copyFromAccessor<float>(gltf, accessor, tmp.data());
+
                         add(sem_of(set), 0, accessor.type == fastgltf::AccessorType::Vec3 ? 3 : 4, tmp);
                     }
                     else break;
@@ -203,8 +214,12 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                 if (prim.findAttribute(attr) != prim.attributes.end())
                 {
                     fastgltf::Accessor& accessor = gltf.accessors[prim.findAttribute(attr)->accessorIndex];
-                    std::vector<float>  tmp(accessor.count * getElementByteSize(accessor.type, accessor.componentType));
-                    copyFromAccessor<float>(gltf, accessor, tmp.data());
+                    std::vector<float>  tmp(accessor.count * fastgltf::getElementByteSize(accessor.type, accessor.componentType));
+                    if (accessor.type == fastgltf::AccessorType::Vec3)
+                        copyFromAccessor<glm::vec3>(gltf, accessor, tmp.data());
+                    else if (accessor.type == fastgltf::AccessorType::Vec4)
+                        copyFromAccessor<glm::vec4>(gltf, accessor, tmp.data());
+
                     add(make_sem(attr, set), 0, accessor.type == fastgltf::AccessorType::Vec3 ? 3 : 4, tmp);
                 }
             }
@@ -214,7 +229,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             visit_set("JOINTS", jointsN);
             visit_set("WEIGHTS", weightsN);
 
-            uint32_t offset = static_cast<uint32_t>(sizeof(raw) + vertex_attributes.size() * sizeof(AttrDesc));
+            uint32_t offset = static_cast<uint32_t>(sizeof(raw_mesh_header) + vertex_attributes.size() * sizeof(AttrDesc));
             for (auto& d : vertex_attributes)
             {
                 d.offset_bytes = offset;
@@ -222,22 +237,17 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             }
 
             /* 文件 & meta */
-            UUID        uuid  = makeUUID("meshraw", mi * 10 + pi);
+            UUID        uuid      = makeUUID("meshraw", mi * 10 + pi);
             std::string file_name = to_string(uuid) + ".rawmesh";
             if (opts.write_raw)
             {
                 auto path = opts.raw_dir / file_name;
 
-                helper::write_pod(path, raw);                        // truncate & write
-
+                helper::write_pod(path, raw_mesh_header);                        // truncate & write
                 helper::append_blob(path, std::span(vertex_attributes));
-
-                /* 3. 写每个属性块（追加）*/
+                helper::append_blob(path, std::span(indices));
                 for (auto& b : blocks)
                     helper::append_blob(path, std::span(b));
-
-                /* 4. 写 indices（追加）*/
-                helper::append_blob(path, std::span(indices));
             }
             AssetMeta m;
             m.uuid     = uuid;
@@ -245,31 +255,49 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             m.rawPath  = file_name;
             if (opts.do_hash)
             {
-                m.contentHash = hashBuffer(raw.vertices) ^
-                                hashBuffer(std::as_bytes(std::span(raw.indices)));
+                m.contentHash = helper::hash_buffer(indices);
+                for (auto& b : blocks)
+                    m.contentHash ^= helper::hash_buffer(b);
             }
-            R.metas.push_back(std::move(m));
+            result.metas.push_back(std::move(m));
         }
     }
 
     /* ---------- 3. 导出 RawImage ---------- */
-    //for (size_t ii = 0; ii < gltf.images.size(); ++ii)
-    //{
-    //    auto&    img = gltf.images[ii];
-    //    RawImage raw{img.size.width, img.size.height, 4};
-    //    raw.pixels.assign(img.data.begin(), img.data.end());
+    for (size_t ii = 0; ii < gltf.images.size(); ++ii)
+    {
+        auto&    img = gltf.images[ii];
+        //RawImage raw{img.size.width, img.size.height, 4};
+        //raw.pixels.assign(img.data.begin(), img.data.end());
 
-    //    core::UUID  uuid  = makeUUID("img", ii);
-    //    std::string fname = uuid.to_string() + ".rawimg";
-    //    if (opts.writeRaw) helper::write_blob(opts.rawDir / fname, raw.pixels);
+        //assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
+        //assert(filePath.uri.isLocalPath()); // We're only capable of loading
 
-    //    AssetMeta m;
-    //    m.uuid     = uuid;
-    //    m.importer = "gltf";
-    //    m.rawPath  = fname;
-    //    if (opts.doHash) m.contentHash = hashBuffer(raw.pixels);
-    //    R.metas.push_back(std::move(m));
-    //}
+        //// 生成绝对路径
+        //auto path(parent_path);
+        //path.append(filePath.uri.path());
+        //if (filePath.uri.isLocalPath()) fmt::print("image path: {}\n", path.generic_string());
+
+        //if (image.name.empty())
+        //{
+        //    image.name = filePath.uri.path();
+        //    fmt::print("generate image name({})\n", image.name);
+        //}
+
+        //unsigned char* data = stbi_load(path.generic_string().c_str(), &width, &height, &nrChannels, 4);
+
+
+        //core::UUID  uuid  = makeUUID("img", ii);
+        //std::string fname = uuid.to_string() + ".rawimg";
+        //if (opts.writeRaw) helper::write_blob(opts.rawDir / fname, raw.pixels);
+
+        //AssetMeta m;
+        //m.uuid     = uuid;
+        //m.importer = "gltf";
+        //m.rawPath  = fname;
+        //if (opts.doHash) m.contentHash = hashBuffer(raw.pixels);
+        //R.metas.push_back(std::move(m));
+    }
 
     /* ---------- 4. 导出 RawMaterial ---------- */
     //for (size_t mi = 0; mi < gltf.materials.size(); ++mi)
