@@ -31,17 +31,16 @@ struct RawMeshHeader
 
 struct AttrDesc
 {
-    uint16_t        semantic;      // VertexSemantic
-    uint8_t         elem_count;     // 1–4
-    uint8_t         comp_type;      // 0=float32, 1=uint16, 2=uint8_norm …
-    uint32_t        offset_bytes;   // 相对文件起始
-    uint32_t        byte_size;      // 属性数据大小
+    uint16_t semantic;      // VertexSemantic
+    uint8_t  elem_count;     // 1–4
+    uint8_t  comp_type;      // 0=float32, 1=uint16, 2=uint8_norm …
+    uint32_t offset_bytes;   // 相对文件起始
+    uint32_t byte_size;      // 属性数据大小
 };
 
-struct RawImage
+struct RawImageHeader
 {
-    int32_t             width, height, depth, channels;    // channels = 4 (RGBA8) after importer
-    std::vector<uint8_t> pixels;
+    int32_t width, height, depth, channels;    // channels = 4 (RGBA8) after importer
 };
 
 struct RawMaterial

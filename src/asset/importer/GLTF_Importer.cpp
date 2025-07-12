@@ -144,7 +144,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     fmt::print("{}\n", std::filesystem::current_path().string());
     create_directories(opts.raw_dir);
 
-    /* ---------- 2. 导出 RawMesh ---------- */
+    /* ---------- 导出 RawMesh ---------- */
     for (size_t mi = 0; mi < gltf.meshes.size(); ++mi)
     {
         for (size_t pi = 0; pi < gltf.meshes[mi].primitives.size(); ++pi)
@@ -244,12 +244,15 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             if (opts.write_raw)
             {
                 auto path = opts.raw_dir / file_name;
-
-                helper::write_pod(path, raw_mesh_header);                        // truncate & write
+                // 先写入mesh 头
+                helper::write_pod(path, raw_mesh_header);
+                // 再写入属性描述
                 helper::append_blob(path, std::span(vertex_attributes));
-                helper::append_blob(path, std::span(indices));
+                // 写入每个顶点属性
                 for (auto& b : blocks)
                     helper::append_blob(path, std::span(b));
+                // 最后写入索引
+                helper::append_blob(path, std::span(indices));
             }
             AssetMeta m;
             m.uuid     = uuid;
@@ -269,7 +272,8 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     for (size_t ii = 0; ii < gltf.images.size(); ++ii)
     {
         auto&    [data, name] = gltf.images[ii];
-        RawImage raw;
+        RawImageHeader raw;
+        std::vector<uint8_t> pixels;
 
         std::visit(
             fastgltf::visitor{
@@ -293,7 +297,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                                                           &raw.channels, 4);
                     if (image_data)
                     {
-                        raw.pixels.assign(image_data, image_data + raw.width * raw.height * 4);
+                        pixels.assign(image_data, image_data + raw.width * raw.height * 4);
 
                         stbi_image_free(image_data);
                     }
@@ -306,7 +310,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                         &raw.width, &raw.height, &raw.channels, 4);
                     if (image_data)
                     {
-                        raw.pixels.assign(image_data, image_data + raw.width * raw.height * 4);
+                        pixels.assign(image_data, image_data + raw.width * raw.height * 4);
 
                         stbi_image_free(image_data);
                     }
@@ -332,7 +336,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                                            &raw.width, &raw.height, &raw.channels, 4);
                                        if (image_data)
                                        {
-                                           raw.pixels.assign(image_data, image_data + raw.width * raw.height * 4);
+                                           pixels.assign(image_data, image_data + raw.width * raw.height * 4);
 
                                            stbi_image_free(image_data);
                                        }
@@ -349,13 +353,17 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
 
         UUID        uuid      = makeUUID("img", ii);
         std::string file_name = to_string(uuid) + ".rawimg";
-        if (opts.write_raw) helper::write_blob(opts.raw_dir / file_name, std::span(raw.pixels));
+        if (opts.write_raw)
+        {
+            helper::write_pod(opts.raw_dir / file_name, raw);
+            helper::append_blob(opts.raw_dir / file_name, std::span(pixels));
+        }
 
         AssetMeta m;
         m.uuid     = uuid;
         m.importer = "gltf";
         m.rawPath  = file_name;
-        if (opts.do_hash) m.contentHash = helper::hash_buffer(raw.pixels);
+        if (opts.do_hash) m.contentHash = helper::hash_buffer(pixels);
         result.metas.push_back(std::move(m));
     }
 
@@ -392,6 +400,6 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
 
 bool GltfImporter::supportsExtension(const std::string& ext) const
 {
-    return ext == "gltf" || ext == "glb" || ".gltf" || ".glb";
+    return ext == "gltf" || ext == "glb" || ext == ".gltf" || ext == ".glb";
 }
 }

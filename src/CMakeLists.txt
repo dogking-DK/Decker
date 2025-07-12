@@ -27,6 +27,7 @@ find_package(magic_enum REQUIRED)
 find_package(tsl-robin-map CONFIG REQUIRED)
 find_package(meshoptimizer CONFIG REQUIRED)
 find_package(stduuid CONFIG REQUIRED)
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
 # find_package(slang REQUIRED)
 
 find_package(SDL3 CONFIG REQUIRED)
@@ -117,6 +118,7 @@ target_link_libraries(${PROJECT_NAME}
     meshoptimizer::meshoptimizer
     stduuid
     $<IF:$<TARGET_EXISTS:flecs::flecs>,flecs::flecs,flecs::flecs_static>
+    unofficial::sqlite3::sqlite3
     # SuiteSparse::SuiteSparseConfig
     # SuiteSparse::spqr
     # SuiteSparse::cholmod

@@ -36,22 +36,57 @@ void append_blob(const std::filesystem::path& f, const std::span<T>& buf)
 }
 
 template <typename POD>
-POD read_pod(const std::filesystem::path& f)
+POD read_pod(const std::filesystem::path& f, const std::streamoff off = 0)
 {
     std::ifstream is(f, std::ios::binary);
-    POD           v{};
-    is.read(reinterpret_cast<char*>(&v), sizeof(v));
+    if (!is) throw std::runtime_error("open fail: " + f.string());
+    is.seekg(off);
+    POD v{};
+    is.read(reinterpret_cast<char*>(&v), sizeof(POD));
+    if (!is) throw std::runtime_error("read_pod fail: " + f.string());
     return v;
 }
 
+/* ---------- 读定长 Blob ----------
+ * 假设你已知元素个数 elemCount */
 template <typename T>
-std::vector<T> read_blob(const std::filesystem::path& f)
+std::vector<T> read_blob(const std::filesystem::path& f,
+                         const std::streamoff         off,
+                         const size_t                 elem_count)
+{
+    std::ifstream is(f, std::ios::binary);
+    if (!is) throw std::runtime_error("open fail: " + f.string());
+    is.seekg(off);
+
+    std::vector<T> buf(elem_count);
+    is.read(reinterpret_cast<char*>(buf.data()), elem_count * sizeof(T));
+    if (!is) throw std::runtime_error("read_blob(len) fail: " + f.string());
+    return buf;
+}
+
+/* ---------- 读到文件末尾的 Blob ----------
+ * 只给 offset，让函数自动算元素个数 */
+template <typename T>
+std::vector<T> read_blob(const std::filesystem::path& f,
+                         const std::streamoff         off = 0)
 {
     std::ifstream is(f, std::ios::binary | std::ios::ate);
-    const size_t  sz = is.tellg();
-    is.seekg(0);
-    std::vector<T> buf(sz / sizeof(T));
-    is.read(reinterpret_cast<char*>(buf.data()), static_cast<std::streamsize>(sz));
+    if (!is) throw std::runtime_error("open fail: " + f.string());
+
+    std::streamsize fileSize = is.tellg();
+    if (fileSize < off) throw std::runtime_error("offset beyond EOF: " + f.string());
+
+    size_t bytes = static_cast<size_t>(fileSize - off);
+    if (bytes % sizeof(T) != 0)
+        throw std::runtime_error("file size not aligned to T: " + f.string());
+
+    size_t         elemCount = bytes / sizeof(T);
+    std::vector<T> buf(elemCount);
+
+    is.seekg(off);
+    is.read(reinterpret_cast<char*>(buf.data()), bytes);
+
+    if (!is) throw std::runtime_error("read_blob(eof) fail: " + f.string());
     return buf;
 }
 
