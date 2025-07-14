@@ -9,12 +9,12 @@ namespace dk {
 struct MeshDataFlex
 {
     uint32_t               vertexCount, indexCount;
-    std::vector<AttrDesc>  table;     // ÊôĞÔ±í
-    std::vector<std::byte> blob;      // Õû¸öÊôĞÔÇø (pos/norm/¡­)
+    std::vector<AttrDesc>  table;     // å±æ€§è¡¨
+    std::vector<std::byte> blob;      // æ•´ä¸ªå±æ€§åŒº (pos/norm/â€¦)
     std::vector<uint32_t>  indices;
-    /* ±ãÀûÊÓÍ¼ */
+    /* ä¾¿åˆ©è§†å›¾ */
     template <typename T>
-    std::span<const T> get(VertexAttribute sem) const;   // ÏÂÀıÊµÏÖ
+    std::span<const T> get(VertexAttribute sem) const;   // ä¸‹ä¾‹å®ç°
 };
 
 std::shared_ptr<MeshDataFlex> load_raw_mesh_flex(const std::filesystem::path& f);

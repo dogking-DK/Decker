@@ -1,4 +1,4 @@
-﻿#include "vk_engine.h"
+#include "vk_engine.h"
 
 #include "vk_images.h"
 #include "vk_loader.h"

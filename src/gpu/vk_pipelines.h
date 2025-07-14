@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <vk_types.h>
 #include <glslang/Public/ShaderLang.h>

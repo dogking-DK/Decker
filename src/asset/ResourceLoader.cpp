@@ -14,7 +14,7 @@ std::shared_ptr<MeshDataFlex> ResourceLoader::loadMesh(UUID id)
         auto meta = _db.get(id).value();
         auto m    = load_raw_mesh_flex(_dir / meta.rawPath);
 
-        /* ²ÄÖÊÒÀÀµ£¨¿ÉÑ¡£©£ºmeta.dependencies[0] = material uuid */
+        /* æè´¨ä¾èµ–ï¼ˆå¯é€‰ï¼‰ï¼šmeta.dependencies[0] = material uuid */
         //if (!meta.dependencies.empty())
         //m->material = loadMaterial(meta.dependencies[0]);
         return m;

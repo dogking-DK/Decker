@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Buffer.h"
 #include "BaseBuilder.h"
 namespace dk::vkcore {

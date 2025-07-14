@@ -1,5 +1,5 @@
 #pragma once
-//=== 1. ×é¼ş¶¨Òå ==============================================
+//=== 1. ç»„ä»¶å®šä¹‰ ==============================================
 #include <flecs.h>
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
@@ -8,17 +8,17 @@
 
 #include <vulkan/vulkan.hpp>
 
-// °ó¶¨µ½ fastgltf::primitive µÄÒıÓÃ
+// ç»‘å®šåˆ° fastgltf::primitive çš„å¼•ç”¨
 struct GltfPrimitiveRef
 {
     //fastgltf::Primitive const* prim;
     int index;
 };
 
-// CPU ²à¿½±´/ÊÓÍ¼
+// CPU ä¾§æ‹·è´/è§†å›¾
 struct CpuVertexData
 {
-    std::vector<float> positions;  // interleaved »òÕß µ¥¶À¸÷×Ô vector
+    std::vector<float> positions;  // interleaved æˆ–è€… å•ç‹¬å„è‡ª vector
     std::vector<float> normals;
     std::vector<float> uvs;
 };
@@ -28,17 +28,17 @@ struct CpuIndexData
     std::vector<uint32_t> indices;
 };
 
-// ²ÄÖÊ²ÎÊı
+// æè´¨å‚æ•°
 struct CpuMaterialData
 {
-    int       baseColorTextureIndex;    // ÔÚ fastgltf::model.textures ÖĞµÄË÷Òı
+    int       baseColorTextureIndex;    // åœ¨ fastgltf::model.textures ä¸­çš„ç´¢å¼•
     int       metallicRoughnessTextureIndex;
     glm::vec4 baseColorFactor;
     float     metallicFactor, roughnessFactor;
-    // ¡­·¨Ïß¡¢ÕÚµ²¡¢·¢¹âÎÆÀíË÷Òı¡­
+    // â€¦æ³•çº¿ã€é®æŒ¡ã€å‘å…‰çº¹ç†ç´¢å¼•â€¦
 };
 
-// GPU ×ÊÔ´ÒıÓÃ×é¼ş
+// GPU èµ„æºå¼•ç”¨ç»„ä»¶
 struct GpuMesh
 {
     vk::Buffer vertexBuffer;
@@ -48,22 +48,22 @@ struct GpuMesh
 
 struct GpuMaterial
 {
-    vk::DescriptorSet descriptorSet;  // °üº¬ UniformBuffer & ËùÓĞÎÆÀí sampler
+    vk::DescriptorSet descriptorSet;  // åŒ…å« UniformBuffer & æ‰€æœ‰çº¹ç† sampler
 };
 
-//=== 2. µ¼ÈëÏµÍ³£º´Ó fastgltf Model ¹¹½¨ ECS ÊµÌå ==============
+//=== 2. å¯¼å…¥ç³»ç»Ÿï¼šä» fastgltf Model æ„å»º ECS å®ä½“ ==============
 void importPrimitives(flecs::world& ecs, const fastgltf::Asset& model)
 {
     for (const auto& mesh : model.meshes)
     {
         for (const auto& prim : mesh.primitives)
         {
-            // ´´½¨Ò»¸öÊµÌå
+            // åˆ›å»ºä¸€ä¸ªå®ä½“
             auto e = ecs.entity();
-            // 1) ¼ÇÂ¼ primitive ÒıÓÃ£¬·½±ãºóÃæÖ±½Ó·ÃÎÊÔ­Ê¼Êı¾İ
+            // 1) è®°å½• primitive å¼•ç”¨ï¼Œæ–¹ä¾¿åé¢ç›´æ¥è®¿é—®åŸå§‹æ•°æ®
             e.set<GltfPrimitiveRef>({prim.});
 
-            // 2) °Ñ accessor ½â¶Á³öÀ´µÄ CPU Êı¾İ¿½±´µ½×é¼ş
+            // 2) æŠŠ accessor è§£è¯»å‡ºæ¥çš„ CPU æ•°æ®æ‹·è´åˆ°ç»„ä»¶
             CpuVertexData vcpu;
             vcpu.positions = prim.get_positions();
             if (prim.get_normals().size()) vcpu.normals = prim.get_normals();
@@ -74,7 +74,7 @@ void importPrimitives(flecs::world& ecs, const fastgltf::Asset& model)
             icpu.indices = prim.get_indices();
             e.set<CpuIndexData>(std::move(icpu));
             e.child_of()
-            // 3) °Ñ primitive.material ½â¶Áµ½Ò»¸ö CPU ²ÄÖÊ×é¼ş
+            // 3) æŠŠ primitive.material è§£è¯»åˆ°ä¸€ä¸ª CPU æè´¨ç»„ä»¶
             CpuMaterialData mcpu;
             const auto&     mat                = model.materials[prim.material];
             mcpu.baseColorTextureIndex         = mat.pbrMetallicRoughness.baseColorTexture.index;

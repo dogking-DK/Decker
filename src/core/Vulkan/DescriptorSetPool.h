@@ -6,7 +6,7 @@ namespace dk::vkcore {
 class DynamicDescriptorPool
 {
 public:
-    // ¹¹ÔìÊ±´«ÈëÉè±¸¡¢³õÊ¼ PoolSizes ºÍ³õÊ¼×î´ó descriptor set ÊıÁ¿
+    // æ„é€ æ—¶ä¼ å…¥è®¾å¤‡ã€åˆå§‹ PoolSizes å’Œåˆå§‹æœ€å¤§ descriptor set æ•°é‡
     DynamicDescriptorPool(const vk::Device& device,
                           const std::vector<vk::DescriptorPoolSize>& basePoolSizes,
                           uint32_t initialMaxSets = 100,
@@ -16,24 +16,24 @@ public:
           mCurrentMaxSets(initialMaxSets),
           mFlags(flags)
     {
-        // ´´½¨µÚÒ»¸ö DescriptorPool
+        // åˆ›å»ºç¬¬ä¸€ä¸ª DescriptorPool
         createPool(mCurrentMaxSets);
     }
 
     ~DynamicDescriptorPool()
     {
-        // Îö¹¹Ê±Ïú»ÙËùÓĞ DescriptorPool
+        // ææ„æ—¶é”€æ¯æ‰€æœ‰ DescriptorPool
         for (auto pool : mPools)
         {
             mDevice.destroyDescriptorPool(pool);
         }
     }
 
-    // ·â×° descriptor set ·ÖÅäº¯Êı£¬´«Èë vk::DescriptorSetAllocateInfo£¨³ı pool Íâ£©
+    // å°è£… descriptor set åˆ†é…å‡½æ•°ï¼Œä¼ å…¥ vk::DescriptorSetAllocateInfoï¼ˆé™¤ pool å¤–ï¼‰
     vk::DescriptorSet allocateDescriptorSet(const vk::DescriptorSetLayout& layout)
     {
         vk::DescriptorSetAllocateInfo allocInfo{};
-        // Ê¹ÓÃ×îºóÒ»¸ö DescriptorPool ½øĞĞ·ÖÅä
+        // ä½¿ç”¨æœ€åä¸€ä¸ª DescriptorPool è¿›è¡Œåˆ†é…
         allocInfo.descriptorPool     = mPools.back();
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts        = &layout;
@@ -45,9 +45,9 @@ public:
         }
         catch (const vk::SystemError& e)
         {
-            // Èç¹û·ÖÅäÊ§°Ü£¬ÔòÈÏÎª³ØÒÑºÄ¾¡£¬´´½¨ĞÂµÄ³Ø²¢ÖØÊÔ
-            // ÕâÀï¿ÉÒÔ¸ù¾İĞèÒª´òÓ¡µ÷ÊÔĞÅÏ¢
-            // À©Èİ²ßÂÔ£ºÀıÈç½«×î´ó¼¯Êı·­±¶
+            // å¦‚æœåˆ†é…å¤±è´¥ï¼Œåˆ™è®¤ä¸ºæ± å·²è€—å°½ï¼Œåˆ›å»ºæ–°çš„æ± å¹¶é‡è¯•
+            // è¿™é‡Œå¯ä»¥æ ¹æ®éœ€è¦æ‰“å°è°ƒè¯•ä¿¡æ¯
+            // æ‰©å®¹ç­–ç•¥ï¼šä¾‹å¦‚å°†æœ€å¤§é›†æ•°ç¿»å€
             mCurrentMaxSets *= 2;
             createPool(mCurrentMaxSets);
 
@@ -57,7 +57,7 @@ public:
         }
     }
 
-    // ¿ÉÑ¡£º¶ÔËùÓĞ³Ø½øĞĞÖØÖÃ£¨ÀıÈçÃ¿Ö¡ÖØÖÃÒ»´Î£¬ÒÔ±ãÖØÓÃËùÓĞ descriptor set£©
+    // å¯é€‰ï¼šå¯¹æ‰€æœ‰æ± è¿›è¡Œé‡ç½®ï¼ˆä¾‹å¦‚æ¯å¸§é‡ç½®ä¸€æ¬¡ï¼Œä»¥ä¾¿é‡ç”¨æ‰€æœ‰ descriptor setï¼‰
     void resetPools(vk::DescriptorPoolResetFlags flags = {})
     {
         for (auto pool : mPools)
@@ -67,14 +67,14 @@ public:
     }
 
 private:
-    // ÄÚ²¿º¯Êı£º¸ù¾İµ±Ç°ÈİÁ¿´´½¨Ò»¸öĞÂµÄ DescriptorPool
+    // å†…éƒ¨å‡½æ•°ï¼šæ ¹æ®å½“å‰å®¹é‡åˆ›å»ºä¸€ä¸ªæ–°çš„ DescriptorPool
     void createPool(uint32_t maxSets)
     {
-        // °´±ÈÀıÀ©Õ¹¸÷¸ö Descriptor ÀàĞÍµÄÊıÁ¿
+        // æŒ‰æ¯”ä¾‹æ‰©å±•å„ä¸ª Descriptor ç±»å‹çš„æ•°é‡
         std::vector<vk::DescriptorPoolSize> poolSizes;
         for (const auto& baseSize : mBasePoolSizes)
         {
-            // ¼òµ¥²ßÂÔ£º°´ÕÕ×î´ó¼¯Êı³É±ÈÀıÀ©´ó
+            // ç®€å•ç­–ç•¥ï¼šæŒ‰ç…§æœ€å¤§é›†æ•°æˆæ¯”ä¾‹æ‰©å¤§
             poolSizes.emplace_back(vk::DescriptorPoolSize{
                 baseSize.type,
                 baseSize.descriptorCount * maxSets

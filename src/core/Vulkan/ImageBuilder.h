@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Image.h"
 #include "BaseBuilder.h"
 

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <string_view>
 #include <span>
 #include <uuid.h>        // 来自 stduuid

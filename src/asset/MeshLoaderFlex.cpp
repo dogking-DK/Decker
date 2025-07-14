@@ -15,14 +15,14 @@ std::shared_ptr<MeshDataFlex> load_raw_mesh_flex(const std::filesystem::path& f)
     m->indexCount = hdr.index_count;
     offset += sizeof(RawMeshHeader);
 
-    /* 2. AttrDesc Êı×é */
+    /* 2. AttrDesc æ•°ç»„ */
     m->table = read_blob<AttrDesc>(f, offset, hdr.attr_count);
     offset += hdr.attr_count * sizeof(AttrDesc);
 
-    /* 3. ¶ÁÈ¡ËùÓĞÊôĞÔ¿éµ½Ò»¿é´ó buffer£¨°´ÎÄ¼ş´óĞ¡ÍÆ¶Ï£© */
+    /* 3. è¯»å–æ‰€æœ‰å±æ€§å—åˆ°ä¸€å—å¤§ bufferï¼ˆæŒ‰æ–‡ä»¶å¤§å°æ¨æ–­ï¼‰ */
     std::ifstream is(f, std::ios::binary | std::ios::ate);
     size_t        fileSz = is.tellg();
-    size_t        attrBytes = fileSz - offset - hdr.index_count * 4;   // indices ×îºó
+    size_t        attrBytes = fileSz - offset - hdr.index_count * 4;   // indices æœ€å
     m->blob.resize(attrBytes);
     is.seekg(offset);
     is.read(reinterpret_cast<char*>(m->blob.data()), attrBytes);
@@ -33,7 +33,7 @@ std::shared_ptr<MeshDataFlex> load_raw_mesh_flex(const std::filesystem::path& f)
     return m;
 }
 
-/* ±ãÀûº¯Êı£º¸ù¾İ AttrDesc ÕÒ span */
+/* ä¾¿åˆ©å‡½æ•°ï¼šæ ¹æ® AttrDesc æ‰¾ span */
 template <typename T>
 std::span<const T> MeshDataFlex::get(VertexAttribute s) const
 {

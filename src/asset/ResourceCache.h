@@ -11,7 +11,7 @@ public:
     template <class Res>
     std::shared_ptr<Res> resolve(UUID id, std::function<std::shared_ptr<Res>()> loader);
 
-    void invalidate(UUID id); // ÎÄ¼ş±ä¶¯Ê±µ÷ÓÃ
+    void invalidate(UUID id); // æ–‡ä»¶å˜åŠ¨æ—¶è°ƒç”¨
 private:
     std::unordered_map<UUID, std::unordered_map<std::type_index, std::shared_ptr<void>>> _map;
 };
