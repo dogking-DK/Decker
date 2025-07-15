@@ -24,6 +24,9 @@
 
 #define VMA_IMPLEMENTATION
 #define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
+#include "AssetDB.h"
+#include "ResourceCache.h"
+#include "ResourceLoader.h"
 #include "vk_debug_util.h"
 #include "vk_mem_alloc.h"
 
@@ -1265,6 +1268,16 @@ void VulkanEngine::init_renderables()
     auto structureFile = loadGltf(this, structurePath);
 
     auto root = ImporterRegistry::instance().import(structurePath);
+
+    AssetDB::instance().open();
+    for (const auto& meta : root.metas)
+    {
+        AssetDB::instance().upsert(meta);
+    }
+    // 1 假设导入阶段已写入 metas & raw；此处只加载
+    ResourceCache cache;
+    ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
+    auto result = loader.loadMesh(root.metas[0].uuid);
     hierarchy_panel.setRoots(root.nodes);
 
     assert(structureFile.has_value());

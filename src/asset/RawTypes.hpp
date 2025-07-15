@@ -25,7 +25,7 @@ struct RawMeshHeader
 {
     uint32_t vertex_count;
     uint32_t index_count;
-    uint16_t attr_count;
+    uint16_t attr_count = 0;
     uint16_t reserved = 0;
 };
 

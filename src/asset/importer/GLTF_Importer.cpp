@@ -204,6 +204,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                             copyFromAccessor<float>(gltf, accessor, tmp.data());
 
                         add(sem_of(set), 0, accessor.type == fastgltf::AccessorType::Vec3 ? 3 : 4, tmp);
+                        ++raw_mesh_header.attr_count;
                     }
                     else break;
                 }
@@ -222,6 +223,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                         copyFromAccessor<glm::vec4>(gltf, accessor, tmp.data());
 
                     add(make_sem(attr, set), 0, accessor.type == fastgltf::AccessorType::Vec3 ? 3 : 4, tmp);
+                    ++raw_mesh_header.attr_count;
                 }
             }
             // 添加带编号的属性
@@ -230,8 +232,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             visit_set("JOINTS", jointsN);
             visit_set("WEIGHTS", weightsN);
 
-            uint32_t offset = static_cast<uint32_t>(
-                sizeof(raw_mesh_header) + vertex_attributes.size() * sizeof(AttrDesc));
+            uint32_t offset = static_cast<uint32_t>(sizeof(raw_mesh_header) + vertex_attributes.size() * sizeof(AttrDesc));
             for (auto& d : vertex_attributes)
             {
                 d.offset_bytes = offset;
@@ -271,8 +272,8 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     /* ---------- 3. 导出 RawImage ---------- */
     for (size_t ii = 0; ii < gltf.images.size(); ++ii)
     {
-        auto&    [data, name] = gltf.images[ii];
-        RawImageHeader raw;
+        auto&                [data, name] = gltf.images[ii];
+        RawImageHeader       raw;
         std::vector<uint8_t> pixels;
 
         std::visit(

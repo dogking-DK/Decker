@@ -13,7 +13,6 @@ param(
 
 # 目标编码：UTF-8 不带 BOM
 $utf8Bom      = New-Object System.Text.UTF8Encoding($true, $true)
-$utf8NoBom    = New-Object System.Text.UTF8Encoding($false, $true)
 # 严格 UTF-8 解码器：遇非法字节立即抛异常
 $utf8Strict   = New-Object System.Text.UTF8Encoding($false, $true)
 # GBK（CP936）解码器
@@ -44,8 +43,8 @@ Get-ChildItem -Path $RootPath -Recurse -Include $Exts | ForEach-Object {
         }
 
         # 4. 以统一的 UTF-8 带 BOM 重写
-        [System.IO.File]::WriteAllText($file, $text, $utf8NoBom)
-        Write-Host "-> Converted from $srcEnc to UTF-8 No BOM"
+        [System.IO.File]::WriteAllText($file, $text, $utf8Strict)
+        Write-Host "-> Converted from $srcEnc to UTF-8"
 
     } catch {
         # 任何子步骤抛异常，都不要中断脚本，打印错误后继续下一个文件

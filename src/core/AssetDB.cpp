@@ -47,6 +47,7 @@ void AssetDB::upsert(const AssetMeta& m)
 
     bindText(st, 1, as_string(m.uuid));
     bindText(st, 2, m.importer);
+    auto test = m.importOpts.dump();
     bindText(st, 3, m.importOpts.dump());
     std::string deps;
     for (size_t i = 0; i < m.dependencies.size(); ++i)
@@ -67,17 +68,50 @@ void AssetDB::upsert(const AssetMeta& m)
 AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
 {
     AssetMeta m;
-    m.uuid       = uuid_from_string(reinterpret_cast<const char*>(sqlite3_column_text(st, 0)));
-    m.importer   = reinterpret_cast<const char*>(sqlite3_column_text(st, 1));
-    m.importOpts = nlohmann::json::parse(
-        reinterpret_cast<const char*>(sqlite3_column_text(st, 2)));
-    auto deps = nlohmann::json::parse(
-        reinterpret_cast<const char*>(sqlite3_column_text(st, 3)));
-    for (auto& d : deps) m.dependencies.push_back(uuid_from_string(d));
+
+    // 0  uuid
+    if (auto txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 0)))
+        m.uuid   = uuid_from_string(txt);
+
+    // 1  importer
+    if (auto txt   = reinterpret_cast<const char*>(sqlite3_column_text(st, 1)))
+        m.importer = txt;
+
+    /* 2  import_opts  ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤ */
+    if (sqlite3_column_type(st, 2) == SQLITE_NULL)
+        m.importOpts = nlohmann::json::object();          // {}
+    else
+    {
+        auto txt     = reinterpret_cast<const char*>(sqlite3_column_text(st, 2));
+        m.importOpts = nlohmann::json::parse(txt, nullptr, /*throw*/false);
+        if (m.importOpts.is_discarded())          // ½âÎöÊ§°Ü
+            m.importOpts = nlohmann::json::object();
+    }
+
+    /* 3  deps (uuid Êý×é) ©¤©¤©¤©¤©¤©¤©¤©¤©¤ */
+    if (sqlite3_column_type(st, 3) == SQLITE_NULL)
+    {
+        m.dependencies.clear();                   // []
+    }
+    else
+    {
+        auto txt  = reinterpret_cast<const char*>(sqlite3_column_text(st, 3));
+        auto deps = nlohmann::json::parse(txt, nullptr, false);
+        if (deps.is_array())
+            for (auto& d : deps)
+                m.dependencies.push_back(uuid_from_string(d.get<std::string>()));
+    }
+
+    /* 4  content_hash */
     m.contentHash = static_cast<uint64_t>(sqlite3_column_int64(st, 4));
-    m.rawPath     = reinterpret_cast<const char*>(sqlite3_column_text(st, 5));
+
+    /* 5  raw_path */
+    if (auto txt  = reinterpret_cast<const char*>(sqlite3_column_text(st, 5)))
+        m.rawPath = txt;            // NULL ¡ú Áô¿Õ´®
+
     return m;
 }
+
 
 std::optional<AssetMeta> AssetDB::get(UUID id) const
 {
