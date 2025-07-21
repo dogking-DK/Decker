@@ -258,12 +258,13 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             AssetMeta m;
             m.uuid     = uuid;
             m.importer = "gltf";
-            m.rawPath  = file_name;
+            m.raw_path  = file_name;
+            m.dependencies.insert_or_assign("material", makeUUID("mat", prim.materialIndex.value())); // 关联材质
             if (opts.do_hash)
             {
-                m.contentHash = helper::hash_buffer(indices);
+                m.content_hash = helper::hash_buffer(indices);
                 for (auto& b : blocks)
-                    m.contentHash ^= helper::hash_buffer(b);
+                    m.content_hash ^= helper::hash_buffer(b);
             }
             result.metas.push_back(std::move(m));
         }
@@ -363,8 +364,8 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         AssetMeta m;
         m.uuid     = uuid;
         m.importer = "gltf";
-        m.rawPath  = file_name;
-        if (opts.do_hash) m.contentHash = helper::hash_buffer(pixels);
+        m.raw_path  = file_name;
+        if (opts.do_hash) m.content_hash = helper::hash_buffer(pixels);
         result.metas.push_back(std::move(m));
     }
 
@@ -373,26 +374,45 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     {
         auto&       mat = gltf.materials[mi];
         RawMaterial raw{};
-        raw.metallicFactor  = mat.pbrData.metallicFactor;
-        raw.roughnessFactor = mat.pbrData.roughnessFactor;
+        AssetMeta m;
+
+        raw.metallic_factor  = mat.pbrData.metallicFactor;
+        raw.roughness_factor = mat.pbrData.roughnessFactor;
         if (mat.pbrData.baseColorTexture)
         {
-            raw.baseColorTexture = makeUUID("img", mat.pbrData.baseColorTexture->textureIndex);
+            raw.base_color_texture = makeUUID("img", mat.pbrData.baseColorTexture->textureIndex);
+            m.dependencies.insert_or_assign("baseColorTexture", raw.base_color_texture);
         }
-
+        if (mat.pbrData.metallicRoughnessTexture)
+        {
+            raw.metal_rough_texture = makeUUID("img", mat.pbrData.metallicRoughnessTexture->textureIndex);
+            m.dependencies.insert_or_assign("metallicRoughnessTexture",raw.metal_rough_texture);
+        }
+        if (mat.normalTexture)
+        {
+            raw.normal_texture = makeUUID("img", mat.normalTexture->textureIndex);
+            m.dependencies.insert_or_assign("normalTexture",raw.normal_texture);
+        }
+        if (mat.occlusionTexture)
+        {
+            raw.occlusion_texture = makeUUID("img", mat.occlusionTexture->textureIndex);
+            m.dependencies.insert_or_assign("occlusionTexture",raw.occlusion_texture);
+        }
+        if (mat.emissiveTexture)
+        {
+            raw.emissive_texture = makeUUID("img", mat.emissiveTexture->textureIndex);
+            m.dependencies.insert_or_assign("emissiveTexture", raw.emissive_texture);
+        }
         UUID        uuid      = makeUUID("mat", mi);
         std::string file_name = to_string(uuid) + ".rawmat";
         if (opts.write_raw) helper::write_pod(opts.raw_dir / file_name, raw);
 
-        AssetMeta m;
-        m.uuid     = uuid;
+        m.uuid = uuid;
         m.importer = "gltf";
-        m.rawPath  = file_name;
-        if (mat.pbrData.baseColorTexture)
-            m.dependencies = {raw.baseColorTexture};
+        m.raw_path = file_name;
         if (opts.do_hash)
         {
-            m.contentHash = helper::hash_buffer(std::as_bytes(std::span(&raw, 1)));
+            m.content_hash = helper::hash_buffer(std::as_bytes(std::span(&raw, 1)));
         }
         result.metas.push_back(std::move(m));
     }

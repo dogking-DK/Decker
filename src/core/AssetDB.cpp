@@ -1,6 +1,17 @@
 #include "AssetDB.h"
 #include <stdexcept>
 
+namespace {
+    nlohmann::json deps_to_json(
+        const tsl::robin_map<std::string, dk::UUID>& deps)
+    {
+        nlohmann::json j = nlohmann::json::object();
+        for (auto& [k, v] : deps)
+            j[k] = to_string(v);            // UUID â†’ string
+        return j;
+    }
+}
+
 namespace dk {
 AssetDB& AssetDB::instance()
 {
@@ -47,19 +58,25 @@ void AssetDB::upsert(const AssetMeta& m)
 
     bindText(st, 1, as_string(m.uuid));
     bindText(st, 2, m.importer);
-    auto test = m.importOpts.dump();
-    bindText(st, 3, m.importOpts.dump());
-    std::string deps;
-    for (size_t i = 0; i < m.dependencies.size(); ++i)
-    {
-        deps += as_string(m.dependencies[i]);
-        if (i + 1 < m.dependencies.size()) deps += ",";
-    }
-    bindText(st, 4, deps);
+    auto test = m.import_opts.dump();
+    bindText(st, 3, m.import_opts.dump());
+    //std::string deps;
+    //for (auto kv : m.dependencies)
+    //{
+    //    // ä¾èµ–æ˜¯ä¸€ä¸ª mapï¼Œkey æ˜¯å­—ç¬¦ä¸²ï¼Œvalue æ˜¯ UUID
+    //    deps += kv.first + ":" + as_string(kv.second);
+    //    deps += ";"; // åˆ†éš”ç¬¦
+    //}
+    //for (size_t i = 0; i < m.dependencies.size(); ++i)
+    //{
+    //    deps += as_string(m.dependencies.at(i));
+    //    if (i + 1 < m.dependencies.size()) deps += ",";
+    //}
+    bindText(st, 4, deps_to_json(m.dependencies));
     //bindText(st, 4, nlohmann::json(m.dependencies).dump());
 
-    sqlite3_bind_int64(st, 5, static_cast<sqlite3_int64>(m.contentHash));
-    bindText(st, 6, m.rawPath);
+    sqlite3_bind_int64(st, 5, static_cast<sqlite3_int64>(m.content_hash));
+    bindText(st, 6, m.raw_path);
 
     sqlite3_step(st);
     sqlite3_finalize(st);
@@ -77,37 +94,43 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
     if (auto txt   = reinterpret_cast<const char*>(sqlite3_column_text(st, 1)))
         m.importer = txt;
 
-    /* 2  import_opts  ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤ */
+    /* 2  import_opts  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     if (sqlite3_column_type(st, 2) == SQLITE_NULL)
-        m.importOpts = nlohmann::json::object();          // {}
+        m.import_opts = nlohmann::json::object();          // {}
     else
     {
         auto txt     = reinterpret_cast<const char*>(sqlite3_column_text(st, 2));
-        m.importOpts = nlohmann::json::parse(txt, nullptr, /*throw*/false);
-        if (m.importOpts.is_discarded())          // ½âÎöÊ§°Ü
-            m.importOpts = nlohmann::json::object();
+        m.import_opts = nlohmann::json::parse(txt, nullptr, /*throw*/false);
+        if (m.import_opts.is_discarded())          // è§£æå¤±è´¥
+            m.import_opts = nlohmann::json::object();
     }
 
-    /* 3  deps (uuid Êı×é) ©¤©¤©¤©¤©¤©¤©¤©¤©¤ */
-    if (sqlite3_column_type(st, 3) == SQLITE_NULL)
+    /* 3  deps (uuid æ•°ç»„) â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    if (sqlite3_column_type(st, 3) != SQLITE_NULL) 
     {
-        m.dependencies.clear();                   // []
-    }
-    else
-    {
-        auto txt  = reinterpret_cast<const char*>(sqlite3_column_text(st, 3));
-        auto deps = nlohmann::json::parse(txt, nullptr, false);
-        if (deps.is_array())
-            for (auto& d : deps)
-                m.dependencies.push_back(uuid_from_string(d.get<std::string>()));
+        const char* txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 3));
+        auto j = nlohmann::json::parse(txt, nullptr, false);
+
+        /* å…¼å®¹æ—§ç‰ˆ array æ ¼å¼ */
+        if (j.is_array()) {
+            size_t idx = 0;
+            for (auto& v : j)
+                m.dependencies.emplace(std::to_string(idx++),
+                    uuid_from_string(v.get<std::string>()));
+        }
+        /* æ–°ç‰ˆ object æ ¼å¼ */
+        else if (j.is_object()) {
+            for (auto& [k, v] : j.items())
+                m.dependencies.emplace(k, uuid_from_string(v.get<std::string>()));
+        }
     }
 
     /* 4  content_hash */
-    m.contentHash = static_cast<uint64_t>(sqlite3_column_int64(st, 4));
+    m.content_hash = static_cast<uint64_t>(sqlite3_column_int64(st, 4));
 
     /* 5  raw_path */
     if (auto txt  = reinterpret_cast<const char*>(sqlite3_column_text(st, 5)))
-        m.rawPath = txt;            // NULL ¡ú Áô¿Õ´®
+        m.raw_path = txt;            // NULL â†’ ç•™ç©ºä¸²
 
     return m;
 }

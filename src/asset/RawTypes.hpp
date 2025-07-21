@@ -26,7 +26,19 @@ struct RawMeshHeader
     uint32_t vertex_count;
     uint32_t index_count;
     uint16_t attr_count = 0;
-    uint16_t reserved = 0;
+    uint16_t reserved   = 0;
+};
+
+enum class PixelDataType : uint8_t
+{
+    UBYTE,                // unsigned byte
+    BYTE,                 // signed byte
+    USHORT,               // unsigned short (16-bit)
+    SHORT,                // signed short (16-bit)
+    UINT,                 // unsigned int (32-bit)
+    INT,                  // signed int (32-bit)
+    HALF,                 // half-float (16-bit float)
+    FLOAT,                // float (32-bits float)
 };
 
 struct AttrDesc
@@ -40,14 +52,19 @@ struct AttrDesc
 
 struct RawImageHeader
 {
-    int32_t width, height, depth, channels;    // channels = 4 (RGBA8) after importer
+    int32_t       width, height, depth, channels;    // channels = 4 (RGBA8) after importer
+    PixelDataType comp_type;
 };
 
 struct RawMaterial
 {
-    float   metallicFactor  = 0.0f;
-    float   roughnessFactor = 1.0f;
-    uint8_t baseColor[4]    = {255, 255, 255, 255};  // sRGBA
-    UUID    baseColorTexture{};              // 无则 invalid()
+    float                  metallic_factor  = 0.0f;
+    float                  roughness_factor = 1.0f;
+    std::array<uint8_t, 4> base_color       = {255, 255, 255, 255};  // sRGBA
+    UUID                   base_color_texture{};          // 无则 invalid()
+    UUID                   metal_rough_texture{};         // 无则 invalid()
+    UUID                   normal_texture{};              // 无则 invalid()
+    UUID                   occlusion_texture{};           // 无则 invalid()
+    UUID                   emissive_texture{};            // 无则 invalid()
 };
 }

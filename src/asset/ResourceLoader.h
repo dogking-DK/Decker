@@ -1,21 +1,15 @@
 #pragma once
 #include "../core/AssetDB.h"
 #include "ResourceCache.h"
-#include "MeshLoaderFlex.h"          // 读取 rawmesh
+#include "MeshLoader.h"          // 读取 rawmesh
+#include "TextureLoader.h"
+#include "MaterialLoader.h"
 #include "RawTypes.hpp"
 
 namespace dk {
-struct TextureData
-{
-    uint32_t             w, h, d, c;
-    std::vector<uint8_t> pixels;
-};
 
-struct MaterialData
-{
-    float                        metallic, roughness;
-    std::shared_ptr<TextureData> base_color_tex;
-};
+
+
 
 class ResourceLoader
 {
@@ -26,7 +20,7 @@ public:
     {
     }
 
-    std::shared_ptr<MeshDataFlex> loadMesh(UUID);
+    std::shared_ptr<MeshData> loadMesh(UUID);
     std::shared_ptr<TextureData>  loadImage(UUID);
     std::shared_ptr<MaterialData> loadMaterial(UUID);
 

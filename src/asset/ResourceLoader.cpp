@@ -7,16 +7,16 @@ using namespace helper;
 
 
 /* ---- Mesh ---- */
-std::shared_ptr<MeshDataFlex> ResourceLoader::loadMesh(UUID id)
+std::shared_ptr<MeshData> ResourceLoader::loadMesh(UUID id)
 {
-    return _cache.resolve<MeshDataFlex>(id, [&]
+    return _cache.resolve<MeshData>(id, [&]
     {
         auto meta = _db.get(id).value();
-        auto m    = load_raw_mesh_flex(_dir / meta.rawPath);
+        auto m    = load_raw_mesh(_dir / meta.raw_path);
 
         /* 材质依赖（可选）：meta.dependencies[0] = material uuid */
-        //if (!meta.dependencies.empty())
-        //m->material = loadMaterial(meta.dependencies[0]);
+        if (!meta.dependencies.empty())
+        m->material = loadMaterial(meta.dependencies.at("material"));
         return m;
     });
 }
@@ -27,15 +27,15 @@ std::shared_ptr<TextureData> ResourceLoader::loadImage(UUID id)
     return _cache.resolve<TextureData>(id, [&]
     {
         auto meta   = _db.get(id).value();
-        auto raw    = read_pod<RawImageHeader>(_dir / meta.rawPath);             // header
-        auto pixels = read_blob<uint8_t>(_dir / meta.rawPath,
+        auto raw    = read_pod<RawImageHeader>(_dir / meta.raw_path);             // header
+        auto pixels = read_blob<uint8_t>(_dir / meta.raw_path,
                                          sizeof(RawImageHeader), raw.width * raw.height * raw.channels);
         auto t = std::make_shared<TextureData>();
         *t     = {
-            .w = static_cast<uint32_t>(raw.width),
-            .h = static_cast<uint32_t>(raw.height),
-            .d = static_cast<uint32_t>(raw.depth),
-            .c = static_cast<uint32_t>(raw.channels),
+            .width = static_cast<uint32_t>(raw.width),
+            .height = static_cast<uint32_t>(raw.height),
+            .depth = static_cast<uint32_t>(raw.depth),
+            .channels = static_cast<uint32_t>(raw.channels),
             .pixels = std::move(pixels)
         };
         return t;
@@ -48,12 +48,20 @@ std::shared_ptr<MaterialData> ResourceLoader::loadMaterial(UUID id)
     return _cache.resolve<MaterialData>(id, [&]
     {
         auto meta      = _db.get(id).value();
-        auto raw       = read_pod<RawMaterial>(_dir / meta.rawPath);
+        auto raw       = read_pod<RawMaterial>(_dir / meta.raw_path);
         auto mat       = std::make_shared<MaterialData>();
-        mat->metallic  = raw.metallicFactor;
-        mat->roughness = raw.roughnessFactor;
-        if (!raw.baseColorTexture.is_nil())
-            mat->base_color_tex = loadImage(raw.baseColorTexture);
+        mat->metallic  = raw.metallic_factor;
+        mat->roughness = raw.roughness_factor;
+        if (!raw.base_color_texture.is_nil())
+            mat->base_color_tex = loadImage(raw.base_color_texture);
+        if (!raw.metal_rough_texture.is_nil())
+            mat->metal_rough_tex = loadImage(raw.metal_rough_texture);
+        if (!raw.occlusion_texture.is_nil())
+            mat->occlusion_tex = loadImage(raw.occlusion_texture);
+        if (!raw.normal_texture.is_nil())
+            mat->normal_tex = loadImage(raw.normal_texture);
+        if (!raw.emissive_texture.is_nil())
+            mat->emissive_tex = loadImage(raw.emissive_texture);
         return mat;
     });
 }

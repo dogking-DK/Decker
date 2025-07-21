@@ -4,15 +4,15 @@
 
 namespace dk {
 using namespace helper;
-std::shared_ptr<MeshDataFlex> load_raw_mesh_flex(const std::filesystem::path& f)
+std::shared_ptr<MeshData> load_raw_mesh(const std::filesystem::path& f)
 {
-    auto   m = std::make_shared<MeshDataFlex>();
+    auto   m = std::make_shared<MeshData>();
     size_t offset = 0;
 
     /* 1. Header */
     auto hdr = read_pod<RawMeshHeader>(f);
-    m->vertexCount = hdr.vertex_count;
-    m->indexCount = hdr.index_count;
+    m->vertex_count = hdr.vertex_count;
+    m->index_count = hdr.index_count;
     offset += sizeof(RawMeshHeader);
 
     /* 2. AttrDesc 数组 */
@@ -35,7 +35,7 @@ std::shared_ptr<MeshDataFlex> load_raw_mesh_flex(const std::filesystem::path& f)
 
 /* 便利函数：根据 AttrDesc 找 span */
 template <typename T>
-std::span<const T> MeshDataFlex::get(VertexAttribute s) const
+std::span<const T> MeshData::get(VertexAttribute s) const
 {
     for (auto& d : table)
         if (d.semantic == static_cast<uint16_t>(s))
