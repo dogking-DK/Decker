@@ -259,6 +259,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             m.uuid     = uuid;
             m.importer = "gltf";
             m.raw_path  = file_name;
+            //fmt::print("materialIndex: {}\n", prim.materialIndex.value_or(-1));
             m.dependencies.insert_or_assign("material", makeUUID("mat", prim.materialIndex.value())); // 关联材质
             if (opts.do_hash)
             {
@@ -287,12 +288,12 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                     // 生成绝对路径
                     auto path(file_path / "");
                     path.append(filePath.uri.path());
-                    if (filePath.uri.isLocalPath()) fmt::print("image path: {}\n", path.generic_string());
+                    //if (filePath.uri.isLocalPath()) fmt::print("image path: {}\n", path.generic_string());
 
                     if (name.empty())
                     {
                         name = filePath.uri.path();
-                        fmt::print("generate image name({})\n", name);
+                        //fmt::print("generate image name({})\n", name);
                     }
 
                     unsigned char* image_data = stbi_load(path.generic_string().c_str(), &raw.width, &raw.height,
@@ -369,6 +370,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         result.metas.push_back(std::move(m));
     }
 
+    fmt::print("---------------------------\n");
     /* ---------- 4. 导出 RawMaterial ---------- */
     for (size_t mi = 0; mi < gltf.materials.size(); ++mi)
     {
@@ -404,6 +406,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             m.dependencies.insert_or_assign("emissiveTexture", raw.emissive_texture);
         }
         UUID        uuid      = makeUUID("mat", mi);
+        //fmt::print("material {}: {}\n", mi, to_string(uuid));
         std::string file_name = to_string(uuid) + ".rawmat";
         if (opts.write_raw) helper::write_pod(opts.raw_dir / file_name, raw);
 

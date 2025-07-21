@@ -1,4 +1,7 @@
 #include "ResourceLoader.h"
+
+#include <fmt/base.h>
+
 #include "AssetHelpers.hpp"
 #include "RawTypes.hpp"
 
@@ -15,8 +18,11 @@ std::shared_ptr<MeshData> ResourceLoader::loadMesh(UUID id)
         auto m    = load_raw_mesh(_dir / meta.raw_path);
 
         /* 材质依赖（可选）：meta.dependencies[0] = material uuid */
-        if (!meta.dependencies.empty())
-        m->material = loadMaterial(meta.dependencies.at("material"));
+        if (meta.dependencies.contains("material"))
+        {
+            const auto& mat_uuid = meta.dependencies.at("material");
+            m->material = loadMaterial(meta.dependencies.at("material"));
+        }
         return m;
     });
 }
@@ -47,6 +53,11 @@ std::shared_ptr<MaterialData> ResourceLoader::loadMaterial(UUID id)
 {
     return _cache.resolve<MaterialData>(id, [&]
     {
+        if (_db.get(id) == std::nullopt)
+        {
+            fmt::print(stderr, "ResourceLoader: Material {} not found in DB\n", to_string(id));
+            return std::shared_ptr<MaterialData>{};
+        }
         auto meta      = _db.get(id).value();
         auto raw       = read_pod<RawMaterial>(_dir / meta.raw_path);
         auto mat       = std::make_shared<MaterialData>();

@@ -58,7 +58,6 @@ void AssetDB::upsert(const AssetMeta& m)
 
     bindText(st, 1, as_string(m.uuid));
     bindText(st, 2, m.importer);
-    auto test = m.import_opts.dump();
     bindText(st, 3, m.import_opts.dump());
     //std::string deps;
     //for (auto kv : m.dependencies)
@@ -72,8 +71,7 @@ void AssetDB::upsert(const AssetMeta& m)
     //    deps += as_string(m.dependencies.at(i));
     //    if (i + 1 < m.dependencies.size()) deps += ",";
     //}
-    bindText(st, 4, deps_to_json(m.dependencies));
-    //bindText(st, 4, nlohmann::json(m.dependencies).dump());
+    bindText(st, 4, deps_to_json(m.dependencies).dump());
 
     sqlite3_bind_int64(st, 5, static_cast<sqlite3_int64>(m.content_hash));
     bindText(st, 6, m.raw_path);
@@ -115,13 +113,17 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
         if (j.is_array()) {
             size_t idx = 0;
             for (auto& v : j)
-                m.dependencies.emplace(std::to_string(idx++),
-                    uuid_from_string(v.get<std::string>()));
+                m.dependencies.emplace(std::to_string(idx++), UUID::from_string(v.get<std::string>()));
         }
         /* 新版 object 格式 */
         else if (j.is_object()) {
             for (auto& [k, v] : j.items())
-                m.dependencies.emplace(k, uuid_from_string(v.get<std::string>()));
+            {
+                m.dependencies.emplace(k, UUID::from_string(v.get<std::string>()));
+                //auto test = v.get<std::string>();
+                //auto uid = uuid_from_string(test);
+                //auto uid = uuid_from_string(test);
+            }
         }
     }
 
