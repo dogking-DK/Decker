@@ -132,8 +132,8 @@ void VulkanContext::initDevice(vk::SurfaceKHR& surface)
     _compute_queue         = vkbDevice.get_queue(vkb::QueueType::compute).value();
     _transfer_queue        = vkbDevice.get_queue(vkb::QueueType::transfer).value();
     _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
-    _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
-    _graphics_queue_family = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+    _compute_queue_family = vkbDevice.get_queue_index(vkb::QueueType::compute).value();
+    _transfer_queue_family = vkbDevice.get_queue_index(vkb::QueueType::transfer).value();
 }
 
 VulkanContext::~VulkanContext()

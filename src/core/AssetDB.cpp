@@ -2,14 +2,14 @@
 #include <stdexcept>
 
 namespace {
-    nlohmann::json deps_to_json(
-        const tsl::robin_map<std::string, dk::UUID>& deps)
-    {
-        nlohmann::json j = nlohmann::json::object();
-        for (auto& [k, v] : deps)
-            j[k] = to_string(v);            // UUID → string
-        return j;
-    }
+nlohmann::json deps_to_json(
+    const tsl::robin_map<std::string, dk::UUID>& deps)
+{
+    nlohmann::json j = nlohmann::json::object();
+    for (auto& [k, v] : deps)
+        j[k] = to_string(v);            // UUID → string
+    return j;
+}
 }
 
 namespace dk {
@@ -97,29 +97,43 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
         m.import_opts = nlohmann::json::object();          // {}
     else
     {
-        auto txt     = reinterpret_cast<const char*>(sqlite3_column_text(st, 2));
+        auto txt      = reinterpret_cast<const char*>(sqlite3_column_text(st, 2));
         m.import_opts = nlohmann::json::parse(txt, nullptr, /*throw*/false);
         if (m.import_opts.is_discarded())          // 解析失败
             m.import_opts = nlohmann::json::object();
     }
 
     /* 3  deps (uuid 数组) ───────── */
-    if (sqlite3_column_type(st, 3) != SQLITE_NULL) 
+    if (sqlite3_column_type(st, 3) != SQLITE_NULL)
     {
-        const char* txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 3));
-        auto j = nlohmann::json::parse(txt, nullptr, false);
+        auto txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 3));
+        auto j   = nlohmann::json::parse(txt, nullptr, false);
 
         /* 兼容旧版 array 格式 */
-        if (j.is_array()) {
+        if (j.is_array())
+        {
             size_t idx = 0;
             for (auto& v : j)
-                m.dependencies.emplace(std::to_string(idx++), UUID::from_string(v.get<std::string>()));
+            {
+                auto id = UUID::from_string(v.get<std::string>());
+                if (id.has_value())
+                {
+                    UUID cur_id = id.value();
+                    m.dependencies.emplace(std::to_string(idx++), cur_id);
+                }
+            }
         }
         /* 新版 object 格式 */
-        else if (j.is_object()) {
+        else if (j.is_object())
+        {
             for (auto& [k, v] : j.items())
             {
-                m.dependencies.emplace(k, UUID::from_string(v.get<std::string>()));
+                auto id = UUID::from_string(v.get<std::string>());
+                if (id.has_value())
+                {
+                    UUID cur_id = id.value();
+                    m.dependencies.emplace(k, cur_id);
+                }
                 //auto test = v.get<std::string>();
                 //auto uid = uuid_from_string(test);
                 //auto uid = uuid_from_string(test);
@@ -131,7 +145,7 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
     m.content_hash = static_cast<uint64_t>(sqlite3_column_int64(st, 4));
 
     /* 5  raw_path */
-    if (auto txt  = reinterpret_cast<const char*>(sqlite3_column_text(st, 5)))
+    if (auto txt   = reinterpret_cast<const char*>(sqlite3_column_text(st, 5)))
         m.raw_path = txt;            // NULL → 留空串
 
     return m;

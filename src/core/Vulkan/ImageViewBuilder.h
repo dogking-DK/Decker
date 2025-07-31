@@ -19,7 +19,7 @@ public:
                     .setBaseMipLevel(0)
                     .setLevelCount(1)
                     .setBaseArrayLayer(0)
-                    .setLevelCount(1);
+                    .setLayerCount(1);
 
         _create_info.setFormat(vk::Format::eR8G8B8A8Unorm);
         _create_info.setImage(_image->getHandle());

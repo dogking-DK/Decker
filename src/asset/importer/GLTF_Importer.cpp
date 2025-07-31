@@ -232,7 +232,8 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             visit_set("JOINTS", jointsN);
             visit_set("WEIGHTS", weightsN);
 
-            uint32_t offset = static_cast<uint32_t>(sizeof(raw_mesh_header) + vertex_attributes.size() * sizeof(AttrDesc));
+            uint32_t offset = static_cast<uint32_t>(
+                sizeof(raw_mesh_header) + vertex_attributes.size() * sizeof(AttrDesc));
             for (auto& d : vertex_attributes)
             {
                 d.offset_bytes = offset;
@@ -258,7 +259,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             AssetMeta m;
             m.uuid     = uuid;
             m.importer = "gltf";
-            m.raw_path  = file_name;
+            m.raw_path = file_name;
             //fmt::print("materialIndex: {}\n", prim.materialIndex.value_or(-1));
             m.dependencies.insert_or_assign("material", makeUUID("mat", prim.materialIndex.value())); // 关联材质
             if (opts.do_hash)
@@ -286,7 +287,8 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                     assert(filePath.uri.isLocalPath()); // We're only capable of loading
 
                     // 生成绝对路径
-                    auto path(file_path / "");
+                    auto path(file_path.parent_path());
+                    path += "/";
                     path.append(filePath.uri.path());
                     //if (filePath.uri.isLocalPath()) fmt::print("image path: {}\n", path.generic_string());
 
@@ -365,7 +367,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         AssetMeta m;
         m.uuid     = uuid;
         m.importer = "gltf";
-        m.raw_path  = file_name;
+        m.raw_path = file_name;
         if (opts.do_hash) m.content_hash = helper::hash_buffer(pixels);
         result.metas.push_back(std::move(m));
     }
@@ -376,7 +378,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     {
         auto&       mat = gltf.materials[mi];
         RawMaterial raw{};
-        AssetMeta m;
+        AssetMeta   m;
 
         raw.metallic_factor  = mat.pbrData.metallicFactor;
         raw.roughness_factor = mat.pbrData.roughnessFactor;
@@ -388,29 +390,29 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         if (mat.pbrData.metallicRoughnessTexture)
         {
             raw.metal_rough_texture = makeUUID("img", mat.pbrData.metallicRoughnessTexture->textureIndex);
-            m.dependencies.insert_or_assign("metallicRoughnessTexture",raw.metal_rough_texture);
+            m.dependencies.insert_or_assign("metallicRoughnessTexture", raw.metal_rough_texture);
         }
         if (mat.normalTexture)
         {
             raw.normal_texture = makeUUID("img", mat.normalTexture->textureIndex);
-            m.dependencies.insert_or_assign("normalTexture",raw.normal_texture);
+            m.dependencies.insert_or_assign("normalTexture", raw.normal_texture);
         }
         if (mat.occlusionTexture)
         {
             raw.occlusion_texture = makeUUID("img", mat.occlusionTexture->textureIndex);
-            m.dependencies.insert_or_assign("occlusionTexture",raw.occlusion_texture);
+            m.dependencies.insert_or_assign("occlusionTexture", raw.occlusion_texture);
         }
         if (mat.emissiveTexture)
         {
             raw.emissive_texture = makeUUID("img", mat.emissiveTexture->textureIndex);
             m.dependencies.insert_or_assign("emissiveTexture", raw.emissive_texture);
         }
-        UUID        uuid      = makeUUID("mat", mi);
+        UUID uuid = makeUUID("mat", mi);
         //fmt::print("material {}: {}\n", mi, to_string(uuid));
         std::string file_name = to_string(uuid) + ".rawmat";
         if (opts.write_raw) helper::write_pod(opts.raw_dir / file_name, raw);
 
-        m.uuid = uuid;
+        m.uuid     = uuid;
         m.importer = "gltf";
         m.raw_path = file_name;
         if (opts.do_hash)

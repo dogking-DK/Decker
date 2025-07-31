@@ -52,7 +52,7 @@ struct AttrDesc
 
 struct RawImageHeader
 {
-    int32_t       width, height, depth, channels;    // channels = 4 (RGBA8) after importer
+    int32_t       width{ 1 }, height{ 1 }, depth{ 1 }, channels;    // channels = 4 (RGBA8) after importer
     PixelDataType comp_type;
 };
 
