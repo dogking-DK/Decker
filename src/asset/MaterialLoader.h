@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <filesystem>
 #include "../core/UUID.hpp"
 #include <memory>

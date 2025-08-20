@@ -1,4 +1,4 @@
-#include "CommandBuffer.h"
+﻿#include "CommandBuffer.h"
 
 #include "Buffer.h"
 #include "CommandPool.h"
@@ -87,20 +87,23 @@ void CommandBuffer::copyBuffer(const BufferResource& src, const BufferResource& 
     _handle.copyBuffer2(info);
 }
 
-void CommandBuffer::transitionImage(const ImageResource& image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout)
+void CommandBuffer::transitionImage(const ImageResource& image,
+    vk::ImageLayout         current_layout, vk::ImageLayout new_layout,
+    vk::PipelineStageFlags2 src_stage, vk::AccessFlags2     src_access,
+    vk::PipelineStageFlags2 dst_stage, vk::AccessFlags2     dst_access)
 {
     vk::ImageMemoryBarrier2 image_barrier;
     image_barrier.pNext = nullptr;
 
-    image_barrier.srcStageMask  = vk::PipelineStageFlagBits2::eAllCommands;
-    image_barrier.srcAccessMask = vk::AccessFlagBits2::eMemoryWrite;
-    image_barrier.dstStageMask  = vk::PipelineStageFlagBits2::eAllCommands;
-    image_barrier.dstAccessMask = vk::AccessFlagBits2::eMemoryWrite | vk::AccessFlagBits2::eMemoryRead;
+    image_barrier.srcStageMask  = src_stage;
+    image_barrier.srcAccessMask = src_access;
+    image_barrier.dstStageMask  = dst_stage;
+    image_barrier.dstAccessMask = dst_access;
 
-    image_barrier.oldLayout = currentLayout;
-    image_barrier.newLayout = newLayout;
+    image_barrier.oldLayout = current_layout;
+    image_barrier.newLayout = new_layout;
 
-    const vk::ImageAspectFlags aspect_mask = (newLayout == vk::ImageLayout::eDepthAttachmentOptimal)
+    const vk::ImageAspectFlags aspect_mask = (new_layout == vk::ImageLayout::eDepthAttachmentOptimal)
                                                  ? vk::ImageAspectFlagBits::eDepth
                                                  : vk::ImageAspectFlagBits::eColor;
     image_barrier.subresourceRange = vkinit::image_subresource_range(aspect_mask);

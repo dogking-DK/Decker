@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <string>
 #include <vk_mem_alloc.h>
 #include "vk_types.h"
@@ -17,7 +17,7 @@ public:
     BuilderType& withDebugName(const std::string& name);
     BuilderType& withVmaFlags(VmaAllocationCreateFlags flags);
     BuilderType& withVmaPool(VmaPool pool);
-    BuilderType& withVmaFreferredFlags(vk::MemoryPropertyFlags flags);
+    BuilderType& withVmaPreferredFlags(vk::MemoryPropertyFlags flags);
     BuilderType& withVmaRequiredFlags(vk::MemoryPropertyFlags flags);
     BuilderType& withVmaUsage(VmaMemoryUsage usage);
 
@@ -56,7 +56,7 @@ BuilderType& BaseBuilder<BuilderType, CreateInfoType>::withVmaPool(VmaPool pool)
 }
 
 template <typename BuilderType, typename CreateInfoType>
-BuilderType& BaseBuilder<BuilderType, CreateInfoType>::withVmaFreferredFlags(vk::MemoryPropertyFlags flags)
+BuilderType& BaseBuilder<BuilderType, CreateInfoType>::withVmaPreferredFlags(vk::MemoryPropertyFlags flags)
 {
     _alloc_create_info.preferredFlags = static_cast<VkMemoryPropertyFlags>(flags);
     return *static_cast<BuilderType*>(this);

@@ -1,4 +1,4 @@
-#include <fastgltf/glm_element_traits.hpp>  // GLM 类型的 ElementTraits 专门化
+﻿#include <fastgltf/glm_element_traits.hpp>  // GLM 类型的 ElementTraits 专门化
 #include <fastgltf/types.hpp>
 #include <fastgltf/core.hpp>
 

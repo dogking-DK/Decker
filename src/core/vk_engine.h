@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <vk_types.h>
 
@@ -275,6 +275,8 @@ private:
     void init_imgui();
 
     void init_default_data();
+
+    void test_render_point_mesh_shader();
 };
 
 }

@@ -1,9 +1,9 @@
-#pragma once
+﻿#pragma once
 #include "Buffer.h"
 #include "BaseBuilder.h"
 namespace dk::vkcore {
 // BufferResource 的 Builder 类
-class BufferBuilder : BaseBuilder<BufferBuilder, vk::BufferCreateInfo>
+class BufferBuilder : public BaseBuilder<BufferBuilder, vk::BufferCreateInfo>
 {
 public:
     BufferBuilder()

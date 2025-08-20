@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <tsl/robin_set.h>
 #include <tsl/robin_map.h>
 #include "Resource.hpp"

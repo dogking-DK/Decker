@@ -1,7 +1,8 @@
-#include <vulkan/vulkan.hpp>
+﻿#include <vulkan/vulkan.hpp>
 
 #include "CommandPool.h"
 #include "Resource.hpp"
+#include "Buffer.h"
 
 namespace dk::vkcore {
 class ImageResource;
@@ -24,7 +25,7 @@ public:
         : Resource(context), _command_pool(command_pool)
     {
         vk::CommandBufferAllocateInfo allocInfo{command_pool->getHandle(), vk::CommandBufferLevel::ePrimary, 1};
-
+        std::lock_guard<std::mutex>   lock(command_pool->getMutex()); // 加锁
         // 分配命令缓冲区可能会抛出异常（vulkan.hpp 默认采用异常处理模型）
         auto buffers = _context->getDevice().allocateCommandBuffers(allocInfo);
         _handle      = buffers.front();
@@ -33,7 +34,16 @@ public:
     // 注意：在 Vulkan 中，一般不需要对单个 command buffer 调用 destroy，
     // 而是统一由 command pool 负责释放。如果需要手动重置或回收，
     // 则可调用 m_device.freeCommandBuffers(m_commandPool, {_handle});
-    ~CommandBuffer() override = default;
+    ~CommandBuffer() override
+    {
+        // 如果 handle 有效，并且它不是从外部传入的（需要一个标志来判断所有权）
+        // 就将它释放回池中
+        if (_handle && _command_pool)
+        {
+            // 注意：这里假设一个 CommandBuffer 总是从一个池中分配的
+            _context->getDevice().freeCommandBuffers(_command_pool->getHandle(), {_handle});
+        }
+    }
 
     // 开始录制命令，可以指定使用的标志，默认 eOneTimeSubmit
     void begin(const vk::CommandBufferUsageFlags usageFlags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit)
@@ -63,9 +73,17 @@ public:
     }
 
 
-    void transitionImage(const ImageResource& image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout);
+    void transitionImage(const ImageResource&    image,
+                         vk::ImageLayout         current_layout,
+                         vk::ImageLayout         new_layout,
+                         vk::PipelineStageFlags2 src_stage  = vk::PipelineStageFlagBits2::eTransfer,
+                         vk::AccessFlags2        src_access = vk::AccessFlagBits2::eTransferWrite,
+                         vk::PipelineStageFlags2 dst_stage  = vk::PipelineStageFlagBits2::eAllCommands,
+                         vk::AccessFlags2        dst_access =
+                             vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite);
 
-    void copyImageToImage(const ImageResource& source, const ImageResource& destination, vk::Extent2D src_size, vk::Extent2D dst_size);
+    void copyImageToImage(const ImageResource& source, const ImageResource& destination, vk::Extent2D src_size,
+                          vk::Extent2D         dst_size);
 
     void generateMipmaps(const ImageResource& image, vk::Extent2D image_size);
 
@@ -77,7 +95,7 @@ public:
         vk::SubmitInfo submitInfo;
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers    = &_handle;
-        _context->getGraphicsQueue().submit(submitInfo, fence);
+        queue.submit(submitInfo, fence);
     }
 
     void submit2(const vk::Queue& queue,
@@ -100,32 +118,65 @@ private:
     CommandPool* _command_pool;
 };
 
-template <typename Func>
-void executeImmediate(VulkanContext*                                 context,
-                      CommandPool*                                   command_pool,
-                      const vk::Queue&                               queue,
-                      const std::function<void(CommandBuffer& cmd)>& function)
+// C++20 约束（可选）：只有能以 (CommandBuffer&) 调用的才匹配
+template <std::invocable<CommandBuffer&> Func>
+void executeImmediate(VulkanContext*   ctx,
+                      CommandPool*     pool,
+                      const vk::Queue& queue,
+                      Func&&           record)          // ⭐ 转发引用，保留值类别与可变性
 {
-    CommandBuffer cmd(context, command_pool);
+    CommandBuffer cmd(ctx, pool);
     cmd.begin(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
-    // 3. 调用传入的 lambda 录制具体命令（例如：blitImage、copyImage、generateMipMap 等）
-    function(cmd);
+    std::invoke(std::forward<Func>(record), cmd);  // ⭐ 完美转发调用
 
-    // 4. 结束录制
     cmd.end();
 
-    // 6. 创建 fence 同步等待立即提交命令执行完毕
-    vk::Fence fence = context->getDevice().createFence({});
+    vk::UniqueFence fence = ctx->getDevice().createFenceUnique({});
+    cmd.submit2(queue, fence.get());
+    (void)ctx->getDevice().waitForFences({fence.get()}, VK_TRUE, UINT64_MAX);
 
-    cmd.submit2(queue, fence);
+    // 视你的实现可 reset 复用或直接销毁
+    cmd.reset();
+}
 
-    // 7. 等待 fence 信号
-    auto result = context->getDevice().waitForFences({fence}, VK_TRUE, UINT64_MAX);
-    VK_CHECK(static_cast<VkResult>(result));
-    context->getDevice().destroyFence(fence);
+inline void copyBufferImmediate(VulkanContext*                        ctx,
+                                CommandPool*                          pool,
+                                const vk::Queue&                      queue,
+                                const BufferResource&                 src,
+                                const BufferResource&                 dst,
+                                vk::ArrayProxy<const vk::BufferCopy2> regions,
+                                // 可选：把目标准备成 Shader 读
+                                bool                    prepForShaderRead = true,
+                                vk::PipelineStageFlags2 dstStages         = vk::PipelineStageFlagBits2::eAllCommands,
+                                vk::AccessFlags2        dstAccess         = vk::AccessFlagBits2::eShaderStorageRead)
+{
+    executeImmediate(ctx, pool, queue, [&](CommandBuffer& cmd)
+    {
+        // copy2（你已有封装）
+        for (const auto& r : regions)
+        {
+            cmd.copyBuffer(src, dst, r); // 内部用 vk::CopyBufferInfo2 + copyBuffer2 ✅
+        }
 
-    // 可选：如果不采用 CommandPool 内统一重置，也可以手动释放当前 CommandBuffer
-    context->getDevice().freeCommandBuffers(command_pool->getHandle(), cmd.getHandle());
+        if (prepForShaderRead)
+        {
+            vk::BufferMemoryBarrier2 b{};
+            b.srcStageMask  = vk::PipelineStageFlagBits2::eTransfer;
+            b.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
+            b.dstStageMask  = dstStages;   // 例如 eComputeShader / eMeshShaderEXT / eFragmentShader
+            b.dstAccessMask = dstAccess;   // 例如 eShaderStorageRead / eUniformRead
+            b.buffer        = dst.getHandle();
+            b.offset        = 0;
+            b.size          = VK_WHOLE_SIZE;
+
+            vk::DependencyInfo dep{};
+            dep.bufferMemoryBarrierCount = 1;
+            dep.pBufferMemoryBarriers    = &b;
+
+            // 直接在同一 CB 末尾做可见性转换
+            cmd.getHandle().pipelineBarrier2(dep);
+        }
+    });
 }
 }

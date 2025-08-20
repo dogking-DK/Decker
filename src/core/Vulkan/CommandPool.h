@@ -1,5 +1,6 @@
-#pragma once
+﻿#pragma once
 
+#include <mutex>
 #include <vulkan/vulkan.hpp>
 
 #include "Resource.hpp"
@@ -42,5 +43,8 @@ public:
         _context->getDevice().resetCommandPool(_handle, flags);
     }
 
+    std::mutex& getMutex() { return _mutex; }
+private:
+    std::mutex _mutex; // 为分配操作添加互斥锁
 };
 }

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #define bUseValidationLayers true
 #include <vulkan/vulkan_core.h>
 

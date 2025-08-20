@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #define bUseValidationLayers true
 
 #include <vk_types.h>

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <memory>
@@ -21,6 +21,7 @@
 #include <fmt/core.h>
 #include <fmt/color.h>
 
+#include <glm/glm.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 //< intro 

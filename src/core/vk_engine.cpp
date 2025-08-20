@@ -1,4 +1,4 @@
-#include "vk_engine.h"
+﻿#include "vk_engine.h"
 
 #include "vk_images.h"
 #include "vk_loader.h"
@@ -18,6 +18,7 @@
 #include "imgui_freetype.h"
 
 #include <glm/gtx/transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <filesystem>
@@ -29,6 +30,8 @@
 #include "ResourceLoader.h"
 #include "vk_debug_util.h"
 #include "vk_mem_alloc.h"
+#include "Vulkan/BufferBuilder.h"
+#include "Vulkan/CommandBuffer.h"
 
 template <>
 struct fmt::formatter<glm::vec3>
@@ -107,22 +110,23 @@ void VulkanEngine::init()
             total_min.x = std::min(total_min.x, surface.bounds.min_edge.x);
             total_min.y = std::min(total_min.y, surface.bounds.min_edge.y);
             total_min.z = std::min(total_min.z, surface.bounds.min_edge.z);
-            fmt::print("{}: center: {},min: {},max: {}\n", count, surface.bounds.origin, surface.bounds.min_edge, surface.bounds.max_edge);
+            fmt::print("{}: center: {},min: {},max: {}\n", count, surface.bounds.origin, surface.bounds.min_edge,
+                       surface.bounds.max_edge);
 
             ++count;
         }
         //geom_center += mesh.second->surfaces[0].bounds.sphereRadius* glm::vec3{ 1,0,0 };
     }
     fmt::print("total min: {}, max: {}\n", total_min, total_max);
-    float total_aabb_length = glm::length(total_max - total_min);
+    float total_aabb_length = length(total_max - total_min);
     geom_center /= count;
 
     //mainCamera.position = total_max - total_min;
     //mainCamera.position /= 2;
     mainCamera.velocity_coefficient = total_aabb_length / 5000;
-    mainCamera.position = geom_center;
-    mainCamera.pitch = 0;
-    mainCamera.yaw   = 0;
+    mainCamera.position             = geom_center;
+    mainCamera.pitch                = 0;
+    mainCamera.yaw                  = 0;
 
     fmt::print("calc center: {}\n", geom_center);
 }
@@ -207,6 +211,43 @@ void VulkanEngine::init_default_data()
     });
 }
 
+void VulkanEngine::test_render_point_mesh_shader()
+{
+    // --- 生成一些点 ---
+    constexpr uint32_t N = 200000; // 20万点示例
+    std::vector<float> positions;
+    positions.reserve(N * 3);
+    for (uint32_t i = 0; i < N; ++i)
+    {
+        float a = static_cast<float>(i) / 2.f * N * glm::pi<float>();
+        float r = 1.0f + 0.5f * std::sin(13.0f * a);
+        float x = r * std::cos(a), y = r * std::sin(a), z = 0.2f * std::sin(37.0f * a);
+        positions.push_back(x);
+        positions.push_back(y);
+        positions.push_back(z);
+    }
+
+    // staging buffer
+    vkcore::BufferBuilder staging_buffer_builder;
+    staging_buffer_builder.setUsage(vk::BufferUsageFlagBits::eTransferSrc)
+                          .setSize(positions.size() * sizeof(float))
+                          .withVmaUsage(VMA_MEMORY_USAGE_AUTO_PREFER_HOST)
+                          .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+                                        | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+    auto staging_buffer = staging_buffer_builder.build(*_context);
+
+    // point信息buffer
+    vkcore::BufferBuilder gpu_point_buffer_builder;
+    gpu_point_buffer_builder.setSize(positions.size() * sizeof(float))
+                            .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)
+                            .withVmaUsage(VMA_MEMORY_USAGE_CPU_COPY);
+    auto gpu_point_buffer = gpu_point_buffer_builder.build(*_context);
+
+    staging_buffer.write(&positions, positions.size() * sizeof(float), 0);
+
+    //vkcore::executeImmediate(_context, );
+}
+
 void VulkanEngine::cleanup()
 {
     if (_isInitialized)
@@ -253,8 +294,8 @@ void VulkanEngine::init_background_pipelines()
                                                uint64_t>(_gradientPipelineLayout), "background layout");
     VkShaderModule gradientShader;
     namespace fs = std::filesystem;
-    fs::path    current_dir = fs::current_path(); // 当前目录
-    fs::path    target_file = absolute(current_dir / "../../assets/shaders/spv/gradient_color.comp.spv"); // 矫正分隔符
+    fs::path current_dir = fs::current_path(); // 当前目录
+    fs::path target_file = absolute(current_dir / "../../assets/shaders/spv/gradient_color.comp.spv"); // 矫正分隔符
     if (!vkutil::load_shader_module(target_file.string(), _context->getDevice(), &gradientShader))
     {
         fmt::print("Error when building the compute shader \n");
@@ -421,7 +462,7 @@ void VulkanEngine::draw()
     }
     uint32_t swapchainImageIndex = result.second;
     _drawExtent.height = std::min(_context->getSwapchain()->get_extent().height, _drawImage.imageExtent.height) * 1.f;
-    _drawExtent.width  = std::min(_context->getSwapchain()->get_extent().width, _drawImage.imageExtent.width) * 1.f;
+    _drawExtent.width = std::min(_context->getSwapchain()->get_extent().width, _drawImage.imageExtent.width) * 1.f;
 
     VK_CHECK(vkResetFences(_context->getDevice(), 1, &get_current_frame()._renderFence));
 
@@ -743,7 +784,7 @@ void VulkanEngine::run()
         ImGui_ImplSDL3_NewFrame();
 
         ImGui::NewFrame();
-        static float time = 0;
+        static float time                                       = 0;
         backgroundEffects[currentBackgroundEffect].data.data1.x = mainCamera.position.x;
         backgroundEffects[currentBackgroundEffect].data.data1.y = time;
         time += 0.001f;
@@ -959,7 +1000,6 @@ AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat 
     AllocatedImage new_image = create_image(size, format,
                                             usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                                             mipmapped);
-
 
 
     immediate_submit([&](VkCommandBuffer cmd)
@@ -1183,7 +1223,7 @@ void VulkanEngine::resize_swapchain()
     _context->resizeSwapchainAuto();
     _windowExtent.height = _context->getSwapchain()->get_extent().height;
     _windowExtent.width  = _context->getSwapchain()->get_extent().width;
-    resize_requested = false;
+    resize_requested     = false;
 }
 
 void VulkanEngine::init_commands()
@@ -1275,9 +1315,9 @@ void VulkanEngine::init_renderables()
         AssetDB::instance().upsert(meta);
     }
     // 1 假设导入阶段已写入 metas & raw；此处只加载
-    ResourceCache cache;
+    ResourceCache  cache;
     ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
-    auto result = loader.loadMesh(root.metas[0].uuid);
+    auto           result = loader.loadMesh(root.metas[0].uuid);
     hierarchy_panel.setRoots(root.nodes);
 
     assert(structureFile.has_value());
@@ -1327,8 +1367,8 @@ void VulkanEngine::init_imgui()
     font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint;  // 额外的 FreeType 设置
     font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint | ImGuiFreeTypeBuilderFlags_Monochrome;
     namespace fs = std::filesystem;
-    fs::path    current_dir = fs::current_path(); // 当前目录
-    fs::path    target_file = absolute(current_dir / "../../assets/font/SourceHanSansCN-Regular.otf"); // 矫正分隔符
+    fs::path current_dir = fs::current_path(); // 当前目录
+    fs::path target_file = absolute(current_dir / "../../assets/font/SourceHanSansCN-Regular.otf"); // 矫正分隔符
     io.Fonts->AddFontFromFileTTF(target_file.string().c_str(), 20.0f, &font_cfg, io.Fonts->GetGlyphRangesChineseFull());
 
     // this initializes imgui for SDL
@@ -1474,8 +1514,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     //if (!vkutil::load_shader_module(spv_code1, engine->_context->getDevice(), &meshFragShader))
     VkShaderModule gradientShader;
     namespace fs = std::filesystem;
-    fs::path    current_dir = fs::current_path(); // 当前目录
-    fs::path    target_file = absolute(current_dir / "../../assets/shaders/spv/mesh_pbr.frag.spv"); // 矫正分隔符
+    fs::path current_dir = fs::current_path(); // 当前目录
+    fs::path target_file = absolute(current_dir / "../../assets/shaders/spv/mesh_pbr.frag.spv"); // 矫正分隔符
     if (!vkutil::load_shader_module(target_file.string(),
                                     engine->_context->getDevice(),
                                     &meshFragShader))

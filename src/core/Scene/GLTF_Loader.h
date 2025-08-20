@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 //=== 1. 组件定义 ==============================================
 #include <flecs.h>
 #include <fastgltf/core.hpp>

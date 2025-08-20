@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <SDL3/SDL_video.h>
 
 #include "Window.h"

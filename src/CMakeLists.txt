@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11)
+﻿cmake_minimum_required(VERSION 3.11)
 
 add_compile_definitions(VULKAN_NO_PROTOTYPE)
 
@@ -44,6 +44,7 @@ file(GLOB_RECURSE GPU_SOURCES "gpu/*.cpp" "gpu/*.hpp" "gpu/*.h")     # GPU相关
 file(GLOB_RECURSE IO_SOURCES "io/*.cpp" "io/*.hpp" "io/*.h")         # IO相关
 file(GLOB_RECURSE UI_SOURCES "ui/*.cpp" "ui/*.hpp" "ui/*.h")         # UI相关
 file(GLOB_RECURSE UTIL_SOURCES "util/*.cpp" "util/*.hpp" "util/*.h") # 工具类
+file(GLOB_RECURSE PHYSIC_SOURCES "physics/*.cpp" "physics/*.hpp" "physics/*.h") # 工具类
 
 # 输出所有的源文件路径
 message(STATUS "Main sources: ${MAIN_SOURCES}")
@@ -63,6 +64,7 @@ set(ALL_SOURCES
     ${IO_SOURCES}
     ${UI_SOURCES}
     ${UTIL_SOURCES}
+    ${PHYSIC_SOURCES}
 )
 
 # 设置source_group保持文件夹结构

@@ -1,4 +1,4 @@
-#include "AssetDB.h"
+﻿#include "AssetDB.h"
 #include <stdexcept>
 
 namespace {

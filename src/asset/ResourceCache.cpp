@@ -1,4 +1,4 @@
-// runtime/ResourceCache.cpp
+﻿// runtime/ResourceCache.cpp
 #include "ResourceCache.h"
 
 namespace dk {
