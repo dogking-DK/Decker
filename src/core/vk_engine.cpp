@@ -250,7 +250,7 @@ void VulkanEngine::test_render_point_mesh_shader()
     auto gpu_point_buffer = gpuSSBO.build(*_context);
 
     // 4) CPU → staging
-    stagingBuf.write(positions.data(), bytes, 0);  // ← 关键修正
+    stagingBuf.update(positions.data(), bytes, 0);  // ← 关键修正
 
     // 5) staging → device（可优先选择 transfer 队列）
     vk::BufferCopy2 region{0, 0, bytes};
@@ -528,7 +528,7 @@ void VulkanEngine::draw()
 
     VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-    // transition our main draw image into general layout so we can write into it
+    // transition our main draw image into general layout so we can update into it
     // we will overwrite it all so we dont care about what was the older layout
     vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
     vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -673,7 +673,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
         destroy_buffer(gpuSceneDataBuffer);
     });
 
-    //write the buffer
+    //update the buffer
     auto sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
     *sceneUniformData     = sceneData;
 

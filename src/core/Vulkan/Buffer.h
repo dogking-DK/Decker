@@ -63,7 +63,7 @@ public:
     void* data() const { return _data; }
 
     // CPU→GPU 写入（会自动 flush 非 coherent）
-    void write(const void* src_data, vk::DeviceSize size, vk::DeviceSize offset = 0);
+    void update(const void* src_data, vk::DeviceSize size, vk::DeviceSize offset = 0);
 
     // GPU→CPU 读前的 invalidate 同步GPU的修改
     void invalidate(VkDeviceSize size, VkDeviceSize offset = 0)

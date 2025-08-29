@@ -31,7 +31,7 @@ BufferResource::BufferResource(VulkanContext& context, BufferBuilder& builder)
     }
 }
 
-void BufferResource::write(const void* src_data, vk::DeviceSize size, vk::DeviceSize offset)
+void BufferResource::update(const void* src_data, vk::DeviceSize size, vk::DeviceSize offset)
 {
     uint8_t* dst = static_cast<uint8_t*>(map()) + offset;
     std::memcpy(dst, src_data, size);
