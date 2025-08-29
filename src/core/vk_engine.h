@@ -17,6 +17,8 @@
 #include "Scene/Node.h"
 #include "Vulkan/Context.h"
 #include "HierarchyPanel.h"
+#include "Vulkan/CommandPool.h"
+
 namespace fastgltf
 {
     struct Mesh;
@@ -71,7 +73,8 @@ struct FrameData
 
     DescriptorAllocatorGrowable _frameDescriptors;
     DeletionQueue _deletionQueue;
-
+    vkcore::CommandPool* _command_pool_graphic{ nullptr };
+    vkcore::CommandPool* _command_pool_transfer{nullptr};
     VkCommandPool _commandPool;
     VkCommandBuffer _mainCommandBuffer;
 };

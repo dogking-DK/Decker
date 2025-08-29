@@ -12,6 +12,7 @@ class BufferResource : public Resource<vk::Buffer, vk::ObjectType::eBuffer>
 {
 public:
     BufferResource(VulkanContext& context, BufferBuilder& builder);
+    BufferResource() = default;
 
     ~BufferResource() override
     {
@@ -74,7 +75,10 @@ public:
             vmaInvalidateAllocation(_context->getVmaAllocator(), _allocation, start, end - start);
         }
     }
-
+    vk::DescriptorBufferInfo getDescriptorInfo(uint64_t offset = 0) const
+    {
+        return vk::DescriptorBufferInfo{ _handle, offset, VK_WHOLE_SIZE };
+    }
 private:
     VmaAllocation _allocation{};
 

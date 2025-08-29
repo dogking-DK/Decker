@@ -28,8 +28,8 @@ public:
     vk::ObjectType getObjectType() { return Type; }
 
 protected:
-    VulkanContext* _context;
-    Handle         _handle;
+    VulkanContext* _context = nullptr;
+    Handle         _handle = VK_NULL_HANDLE;
 };
 
 template <typename Handle, vk::ObjectType Type>

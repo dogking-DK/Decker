@@ -28,7 +28,7 @@ find_package(tsl-robin-map CONFIG REQUIRED)
 find_package(meshoptimizer CONFIG REQUIRED)
 find_package(stduuid CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
-# find_package(slang REQUIRED)
+find_package(slang CONFIG REQUIRED)
 
 find_package(SDL3 CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
@@ -128,7 +128,11 @@ target_link_libraries(${PROJECT_NAME}
     # SuiteSparse::colamd
     # SuiteSparse::camd
     # SuiteSparse::ccolamd
-    third_lib # 手动管理的三方库
+    # slang::gfx 
+    slang::slang
+    # slang::slang-llvm
+    # slang::slang-glslang
+    # third_lib # 手动管理的三方库
     )
 
 # 链接 third_lib（间接链接 Slang）

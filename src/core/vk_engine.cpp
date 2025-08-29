@@ -32,6 +32,9 @@
 #include "vk_mem_alloc.h"
 #include "Vulkan/BufferBuilder.h"
 #include "Vulkan/CommandBuffer.h"
+#include <Vulkan/DescriptorSetLayout.h>
+#include <Vulkan/DescriptorSetPool.h>
+#include <Vulkan/DescriptorWriter.h>
 
 template <>
 struct fmt::formatter<glm::vec3>
@@ -213,13 +216,14 @@ void VulkanEngine::init_default_data()
 
 void VulkanEngine::test_render_point_mesh_shader()
 {
+    using namespace vkcore;
     // --- 生成一些点 ---
-    constexpr uint32_t N = 200000; // 20万点示例
+    constexpr uint32_t N = 200000;
     std::vector<float> positions;
     positions.reserve(N * 3);
     for (uint32_t i = 0; i < N; ++i)
     {
-        float a = static_cast<float>(i) / 2.f * N * glm::pi<float>();
+        float a = (static_cast<float>(i) / (2.f * N)) * glm::pi<float>();
         float r = 1.0f + 0.5f * std::sin(13.0f * a);
         float x = r * std::cos(a), y = r * std::sin(a), z = 0.2f * std::sin(37.0f * a);
         positions.push_back(x);
@@ -227,25 +231,71 @@ void VulkanEngine::test_render_point_mesh_shader()
         positions.push_back(z);
     }
 
-    // staging buffer
-    vkcore::BufferBuilder staging_buffer_builder;
-    staging_buffer_builder.setUsage(vk::BufferUsageFlagBits::eTransferSrc)
-                          .setSize(positions.size() * sizeof(float))
-                          .withVmaUsage(VMA_MEMORY_USAGE_AUTO_PREFER_HOST)
-                          .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
-                                        | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-    auto staging_buffer = staging_buffer_builder.build(*_context);
+    VkDeviceSize bytes = positions.size() * sizeof(float);
 
-    // point信息buffer
-    vkcore::BufferBuilder gpu_point_buffer_builder;
-    gpu_point_buffer_builder.setSize(positions.size() * sizeof(float))
-                            .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)
-                            .withVmaUsage(VMA_MEMORY_USAGE_CPU_COPY);
-    auto gpu_point_buffer = gpu_point_buffer_builder.build(*_context);
+    // 2) staging（Host 可见 + 持久映射）
+    BufferBuilder staging;
+    staging.setUsage(vk::BufferUsageFlagBits::eTransferSrc)
+           .setSize(bytes)
+           .withVmaUsage(VMA_MEMORY_USAGE_AUTO) // 让 VMA 选 Host 内存
+           .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+                         | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+    auto stagingBuf = staging.build(*_context);
 
-    staging_buffer.write(&positions, positions.size() * sizeof(float), 0);
+    // 3) 目标 SSBO（设备本地 + 作为拷贝目标 & 着色器读）
+    BufferBuilder gpuSSBO;
+    gpuSSBO.setSize(bytes)
+           .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)
+           .withVmaUsage(VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+    auto gpu_point_buffer = gpuSSBO.build(*_context);
 
-    //vkcore::executeImmediate(_context, );
+    // 4) CPU → staging
+    stagingBuf.write(positions.data(), bytes, 0);  // ← 关键修正
+
+    // 5) staging → device（可优先选择 transfer 队列）
+    vk::BufferCopy2 region{0, 0, bytes};
+    copyBufferImmediate(_context,
+                        get_current_frame()._command_pool_transfer,
+                        _context->getTransferQueue(),  // 伪代码：优先 transfer，没有就 graphics
+                        stagingBuf,
+        gpu_point_buffer,
+                        {region});
+
+
+    //auto dsl  = DescriptorSetLayoutBuilder{}
+    //           .addBuffer(/*binding*/0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eAll) // 或 Mesh/Vertex/Fragment
+    //           //.addImage(/*binding*/1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
+    //           .build(*_context);
+
+    //// 2) Pipeline Layout
+    //vk::PipelineLayoutCreateInfo plCI({}, 1, &(dsl.get()));
+    //vk::PipelineLayout           pipelineLayout = _context->getDevice().createPipelineLayout(plCI);
+
+    //// 3) 池（估算好数目）
+    //DescriptorPoolDesc poolDesc{};
+    //poolDesc.maxSets = /*frames*/ 3;
+    //poolDesc.sizes   = {
+    //    {vk::DescriptorType::eStorageBuffer, 3},
+    //    {vk::DescriptorType::eCombinedImageSampler, 3}
+    //};
+    //DescriptorPool pool(*_context, poolDesc);
+
+    //// 4) 分配每帧一套 set
+    //std::vector<vk::DescriptorSetLayout> layouts(poolDesc.maxSets, dsl.get());
+    //vk::DescriptorSetAllocateInfo        ai(pool.get(), static_cast<uint32_t>(layouts.size()), layouts.data());
+    //auto                                 sets = _context->getDevice().allocateDescriptorSets(ai);
+
+    //// 5) 写入
+    //DescriptorSetWriter writer;
+    //for (uint32_t i = 0; i < poolDesc.maxSets; ++i)
+    //{
+    //    vk::DescriptorBufferInfo dbi{gpu_point_buffer.getHandle(), 0, VK_WHOLE_SIZE};
+    //    //vk::DescriptorImageInfo  ii{sampler, imageView, vk::ImageLayout::eShaderReadOnlyOptimal};
+
+    //    writer.writeBuffer(0, vk::DescriptorType::eStorageBuffer, dbi)
+    //          //.writeImage(1, vk::DescriptorType::eCombinedImageSampler, ii)
+    //          .update(*_context, sets[i]);
+    //}
 }
 
 void VulkanEngine::cleanup()
@@ -1236,6 +1286,9 @@ void VulkanEngine::init_commands()
     for (int i = 0; i < FRAME_OVERLAP; i++)
     {
         VK_CHECK(vkCreateCommandPool(_context->getDevice(), &commandPoolInfo, nullptr, &_frames[i]._commandPool));
+
+        _frames[i]._command_pool_graphic  = new vkcore::CommandPool(_context, _context->getGraphicsQueueIndex());
+        _frames[i]._command_pool_transfer = new vkcore::CommandPool(_context, _context->getTransferQueueIndex());
 
         // allocate the default command buffer that we will use for rendering
         VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i]._commandPool, 1);
