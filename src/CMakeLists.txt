@@ -148,3 +148,21 @@ target_link_libraries(${PROJECT_NAME}
 
 # 链接三方头文件
 target_include_directories(${PROJECT_NAME} PRIVATE ${Stb_INCLUDE_DIR})
+
+
+# === 放在 src/CMakeLists.txt 末尾（add_executable/target_link_libraries 之后）===
+if(UNIX AND NOT APPLE)
+  # Linux 等：用符号链接，避免每次拷贝
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove -f "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+            "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+    COMMENT "Link assets -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets")
+else()
+  # Windows / macOS：复制目录（也可改成 create_symlink 按需使用）
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+    COMMENT "Copy assets -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets")
+endif()

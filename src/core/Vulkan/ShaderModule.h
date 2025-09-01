@@ -32,14 +32,10 @@ inline std::vector<uint32_t> loadSpirvFromFile(const std::filesystem::path& file
     //    向量的大小是字节数除以 4
     std::vector<uint32_t> spirvCode(fileSize / sizeof(uint32_t));
 
-    // 6. 将文件指针移回文件开头
     file.seekg(0);
 
-    // 7. 读取整个文件的内容到向量中
-    //    需要将向量的数据指针 reinterpret_cast 为 char* 以匹配 read 函数的签名
     file.read(reinterpret_cast<char*>(spirvCode.data()), fileSize);
 
-    // 8. 关闭文件
     file.close();
 
     return spirvCode;

@@ -39,11 +39,23 @@ void PointCloudRenderer::createBuffers()
     _point_count           = 0;
     VkDeviceSize ssbo_size = sizeof(PointData) * _max_point_count;
 
-    _point_cloud_ssbo = std::make_unique<dk::vkcore::BufferResource>(_context);
-    _point_cloud_ssbo->create(ssbo_size, vk::BufferUsageFlagBits::eStorageBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    auto ssbo_builder = dk::vkcore::BufferBuilder();
+    _point_cloud_ssbo = ssbo_builder.setSize(ssbo_size)
+                                    .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
+                                    .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)
+                                    .withVmaUsage(VMA_MEMORY_USAGE_CPU_TO_GPU)
+                                    .buildUnique(*_context);
+    //_point_cloud_ssbo = std::make_unique<dk::vkcore::BufferResource>(_context);
+    //_point_cloud_ssbo->create(ssbo_size, vk::BufferUsageFlagBits::eStorageBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-    _camera_ubo = std::make_unique<dk::vkcore::BufferResource>(_context);
-    _camera_ubo->create(sizeof(CameraData), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    auto ubo_builder = dk::vkcore::BufferBuilder();
+    _camera_ubo      = ssbo_builder.setSize(sizeof(CameraData))
+                              .setUsage(vk::BufferUsageFlagBits::eUniformBuffer)
+                              .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)
+                              .withVmaUsage(VMA_MEMORY_USAGE_CPU_TO_GPU)
+                              .buildUnique(*_context);
+    //_camera_ubo = std::make_unique<dk::vkcore::BufferResource>(_context);
+    //_camera_ubo->create(sizeof(CameraData), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
 }
 
 void PointCloudRenderer::createDescriptors()
@@ -130,11 +142,14 @@ void PointCloudRenderer::draw(dk::vkcore::CommandBuffer& cmd, const CameraData& 
     _camera_ubo->update(&camera_data, sizeof(CameraData));
     _frame_allocator->reset();
 
-    vk::DescriptorSet            frame_set = _frame_allocator->allocate(*_layout);
-    dk::vkcore::DescriptorWriter writer;
-    writer.bindBuffer(0, _camera_ubo->getDescriptorInfo(), vk::DescriptorType::eUniformBuffer)
-          .bindBuffer(1, _point_cloud_ssbo->getDescriptorInfo(), vk::DescriptorType::eStorageBuffer);
-    writer.update(_context->getDevice(), frame_set);
+    vk::DescriptorSet               frame_set = _frame_allocator->allocate(*_layout);
+    dk::vkcore::DescriptorSetWriter writer;
+    //writer.bindBuffer(0, _camera_ubo->getDescriptorInfo(), vk::DescriptorType::eUniformBuffer)
+    //.bindBuffer(1, _point_cloud_ssbo->getDescriptorInfo(), vk::DescriptorType::eStorageBuffer);
+    //writer.update(_context->getDevice(), frame_set);
+    writer.writeBuffer(0, vk::DescriptorType::eUniformBuffer, _camera_ubo->getDescriptorInfo())
+          .writeBuffer(1, vk::DescriptorType::eStorageBuffer, _point_cloud_ssbo->getDescriptorInfo())
+          .update(*_context, frame_set);
 
     cmd.getHandle().bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->getHandle());
     cmd.getHandle().bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline_layout->getHandle(), 0, {frame_set},

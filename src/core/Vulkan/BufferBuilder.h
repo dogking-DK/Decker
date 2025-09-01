@@ -32,7 +32,10 @@ public:
     {
         return { context, *this };
     }
-
+    std::unique_ptr<BufferResource> buildUnique(VulkanContext& context)
+    {
+        return std::make_unique<BufferResource>(context, *this);
+    }
 private:
     friend BufferResource;
 };

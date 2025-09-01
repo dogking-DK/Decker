@@ -46,55 +46,55 @@ ShaderModule::~ShaderModule()
 
 void ShaderModule::findShaderStage(const std::vector<uint32_t>& spirv_code)
 {
-    // 使用 spirv-cross 编译器进行反射
-    const spirv_cross::Compiler comp(spirv_code);
+    //// 使用 spirv-cross 编译器进行反射
+    //const spirv_cross::Compiler comp(spirv_code);
 
-    // 获取 SPIR-V 中的所有入口点和它们对应的阶段
-    auto entry_points = comp.get_entry_points_and_stages();
+    //// 获取 SPIR-V 中的所有入口点和它们对应的阶段
+    //auto entry_points = comp.get_entry_points_and_stages();
 
-    if (entry_points.empty())
-    {
-        throw std::runtime_error("SPIR-V has no entry points.");
-    }
+    //if (entry_points.empty())
+    //{
+    //    throw std::runtime_error("SPIR-V has no entry points.");
+    //}
 
-    // 为简单起见，我们假设每个 ShaderModule 只有一个入口点
-    // 这是一个非常常见的实践
+    //// 为简单起见，我们假设每个 ShaderModule 只有一个入口点
+    //// 这是一个非常常见的实践
 
-    // 将 SPIR-V 的执行模型映射到 Vulkan 的着色器阶段标志
-    switch (entry_points[0].execution_model)
-    {
-    case spv::ExecutionModel::ExecutionModelVertex:
-        _stage = vk::ShaderStageFlagBits::eVertex;
-        break;
-    case spv::ExecutionModel::ExecutionModelFragment:
-        _stage = vk::ShaderStageFlagBits::eFragment;
-        break;
-    case spv::ExecutionModel::ExecutionModelGLCompute:
-        _stage = vk::ShaderStageFlagBits::eCompute;
-        break;
-    case spv::ExecutionModel::ExecutionModelTaskEXT:
-        _stage = vk::ShaderStageFlagBits::eTaskEXT;
-        break;
-    case spv::ExecutionModel::ExecutionModelMeshEXT:
-        _stage = vk::ShaderStageFlagBits::eMeshEXT;
-        break;
-    case spv::ExecutionModel::ExecutionModelRayGenerationKHR:
-        _stage = vk::ShaderStageFlagBits::eRaygenKHR;
-        break;
-    case spv::ExecutionModel::ExecutionModelAnyHitKHR:
-        _stage = vk::ShaderStageFlagBits::eAnyHitKHR;
-        break;
-    case spv::ExecutionModel::ExecutionModelClosestHitKHR:
-        _stage = vk::ShaderStageFlagBits::eClosestHitKHR;
-        break;
-    case spv::ExecutionModel::ExecutionModelMissKHR:
-        _stage = vk::ShaderStageFlagBits::eMissKHR;
-        break;
-    case spv::ExecutionModel::ExecutionModelIntersectionKHR:
-        _stage = vk::ShaderStageFlagBits::eIntersectionKHR;
-        break;
-    default:
-        throw std::runtime_error("Unsupported execution model / shader stage in SPIR-V.");
-    }
+    //// 将 SPIR-V 的执行模型映射到 Vulkan 的着色器阶段标志
+    //switch (entry_points[0].execution_model)
+    //{
+    //case spv::ExecutionModel::ExecutionModelVertex:
+    //    _stage = vk::ShaderStageFlagBits::eVertex;
+    //    break;
+    //case spv::ExecutionModel::ExecutionModelFragment:
+    //    _stage = vk::ShaderStageFlagBits::eFragment;
+    //    break;
+    //case spv::ExecutionModel::ExecutionModelGLCompute:
+    //    _stage = vk::ShaderStageFlagBits::eCompute;
+    //    break;
+    //case spv::ExecutionModel::ExecutionModelTaskEXT:
+    //    _stage = vk::ShaderStageFlagBits::eTaskEXT;
+    //    break;
+    //case spv::ExecutionModel::ExecutionModelMeshEXT:
+    //    _stage = vk::ShaderStageFlagBits::eMeshEXT;
+    //    break;
+    //case spv::ExecutionModel::ExecutionModelRayGenerationKHR:
+    //    _stage = vk::ShaderStageFlagBits::eRaygenKHR;
+    //    break;
+    //case spv::ExecutionModel::ExecutionModelAnyHitKHR:
+    //    _stage = vk::ShaderStageFlagBits::eAnyHitKHR;
+    //    break;
+    //case spv::ExecutionModel::ExecutionModelClosestHitKHR:
+    //    _stage = vk::ShaderStageFlagBits::eClosestHitKHR;
+    //    break;
+    //case spv::ExecutionModel::ExecutionModelMissKHR:
+    //    _stage = vk::ShaderStageFlagBits::eMissKHR;
+    //    break;
+    //case spv::ExecutionModel::ExecutionModelIntersectionKHR:
+    //    _stage = vk::ShaderStageFlagBits::eIntersectionKHR;
+    //    break;
+    //default:
+    //    throw std::runtime_error("Unsupported execution model / shader stage in SPIR-V.");
+    //}
 }
 } // namespace dk::vkcore

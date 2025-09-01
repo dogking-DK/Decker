@@ -1,54 +1,76 @@
+# compile_shaders.py
 import os
 import subprocess
+from pathlib import Path
 
-def compile_shaders(shader_dir, output_dir, glslang_validator_path="glslangValidator"):
-    """
-    Compiles all .vert and .frag files in the shader_dir to SPIR-V using glslangValidator.
-    
-    Args:
-        shader_dir (str): Directory containing shader files.
-        output_dir (str): Directory to save compiled .spv files.
-        glslang_validator_path (str): Path to the glslangValidator executable.
-    """
-    # Ensure output directory exists
-    os.makedirs(output_dir, exist_ok=True)
+# 扩展名 -> 阶段
+EXT_TO_STAGE = {
+    ".vert": "vert",
+    ".frag": "frag",
+    ".comp": "comp",
+    ".geom": "geom",
+    ".tesc": "tesc",
+    ".tese": "tese",
+    ".mesh": "mesh",   # 需要显式 -S mesh
+    ".task": "task",   # 需要显式 -S task
+}
 
-    # Traverse the shader directory
+def compile_shaders(shader_dir, output_dir,
+                    glslang_validator="glslangValidator",
+                    target_env="vulkan1.3",
+                    target_spv="1.6",
+                    with_debug=True):
+    """
+    遍历 shader_dir，把支持的着色器编译为 SPIR-V，输出到 output_dir。
+    - 对 .mesh/.task 会自动加上 `-S mesh/-S task`
+    - 默认目标环境 Vulkan 1.3 / SPIR-V 1.6（可按需调整）
+    - with_debug=True 时使用 -gVS，便于 RenderDoc 显示源码
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     for root, _, files in os.walk(shader_dir):
-        for file in files:
-            # Check if the file is a .vert or .frag file
-            if file.endswith(".vert") or file.endswith(".frag") or file.endswith(".comp"):
-                shader_path = os.path.join(root, file)
-                spv_filename = f"{file}.spv"
-                spv_path = os.path.join(output_dir, spv_filename)
+        for fname in files:
+            ext = Path(fname).suffix.lower()
+            if ext not in EXT_TO_STAGE:
+                continue
 
-                try:
-                    # Compile the shader using glslangValidator
-                    subprocess.run(
-                        [glslang_validator_path, "-V", shader_path, "-o", spv_path],
-                        check=True,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                    )
-                    print(f"Compiled: {shader_path} -> {spv_path}")
-                except subprocess.CalledProcessError as e:
-                    print(f"Failed to compile {shader_path}: {e.stderr.decode('utf-8')}")
-                except FileNotFoundError:
-                    print(f"Error: glslangValidator not found at {glslang_validator_path}")
-                    return
+            stage = EXT_TO_STAGE[ext]
+            src_path = Path(root) / fname
+            # 输出文件名：保持源文件名，加 .spv
+            spv_path = output_dir / f"{fname}.spv"
+
+            cmd = [
+                glslang_validator,
+                "-V",                          # Vulkan 语义
+                "-S", stage,                   # ★ 显式指定阶段（mesh/task 必须）
+                "--target-env", target_env,    # 例如 vulkan1.2 / vulkan1.3
+                "--target-spv", target_spv,    # 例如 1.5 / 1.6
+                "-o", str(spv_path),
+                str(src_path)
+            ]
+            if with_debug:
+                # -gVS: 保留调试信息和源码（RenderDoc 能展示原始 HLSL/GLSL）
+                cmd.insert(1, "-gVS")
+
+            try:
+                r = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print(f"[OK] {src_path} -> {spv_path}")
+                if r.stderr.strip():
+                    print(r.stderr)
+            except subprocess.CalledProcessError as e:
+                print(f"[FAIL] {src_path}")
+                print("Command:", " ".join(cmd))
+                print(e.stdout)
+                print(e.stderr)
 
 if __name__ == "__main__":
-    # Directory containing your shader files
-    shader_directory = "./"
-
-    # Directory where the compiled .spv files will be saved
-    output_directory = "./spv/"
-
-    # Path to glslangValidator executable (adjust if necessary)
-    glslang_validator_exe = "glslangValidator"
-
-    # Compile shaders
-    compile_shaders(shader_directory, output_directory, glslang_validator_exe)
-
-    # Prevent the command window from closing immediately..
+    compile_shaders(
+        shader_dir = "./",
+        output_dir = "./spv",
+        glslang_validator = "glslangValidator",
+        target_env = "vulkan1.3",
+        target_spv = "1.6",
+        with_debug = True,
+    )
     input("Press Enter to exit...")
