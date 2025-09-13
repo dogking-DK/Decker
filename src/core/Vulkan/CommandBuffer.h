@@ -1,4 +1,6 @@
-﻿#include <vulkan/vulkan.hpp>
+﻿#pragma once
+
+#include <vulkan/vulkan.hpp>
 
 #include "CommandPool.h"
 #include "Resource.hpp"

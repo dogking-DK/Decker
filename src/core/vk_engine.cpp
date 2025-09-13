@@ -35,7 +35,7 @@
 #include <Vulkan/DescriptorSetLayout.h>
 #include <Vulkan/DescriptorSetPool.h>
 #include <Vulkan/DescriptorWriter.h>
-
+#include "render/PointCloudRender.h"
 template <>
 struct fmt::formatter<glm::vec3>
 {
@@ -88,6 +88,9 @@ void VulkanEngine::init()
     init_default_data();
 
     init_renderables();
+
+    point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
+    point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
 
     init_imgui();
 
@@ -472,7 +475,6 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     vkCmdBeginRendering(cmd, &renderInfo);
     auto start = std::chrono::system_clock::now();
     draw_geometry(cmd);
-
     auto end     = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
@@ -535,6 +537,8 @@ void VulkanEngine::draw()
                              VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     draw_main(cmd);
+
+    point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj });
 
     //transtion the draw image and the swapchain image into their correct transfer layouts
     vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -1289,6 +1293,10 @@ void VulkanEngine::init_commands()
 
         _frames[i]._command_pool_graphic  = new vkcore::CommandPool(_context, _context->getGraphicsQueueIndex());
         _frames[i]._command_pool_transfer = new vkcore::CommandPool(_context, _context->getTransferQueueIndex());
+
+        //_frames[i].command_buffer_graphic = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
+        _frames[i].command_buffer_graphic = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
+        _frames[i].command_buffer_transfer = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_transfer);
 
         // allocate the default command buffer that we will use for rendering
         VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i]._commandPool, 1);

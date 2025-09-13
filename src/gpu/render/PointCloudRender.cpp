@@ -1,6 +1,9 @@
 ﻿#include "PointCloudRender.h"
 #include <stdexcept>
 
+namespace dk {
+
+
 // 构造函数和 updatePoints 方法与之前的版本完全相同
 PointCloudRenderer::PointCloudRenderer(dk::vkcore::VulkanContext* context)
     : _context(context)
@@ -105,8 +108,22 @@ void PointCloudRenderer::createPipeline(vk::Format color_format, vk::Format dept
     std::unique_ptr<dk::vkcore::ShaderModule> frag_module;
     try
     {
-        auto mesh_spirv = dk::vkcore::loadSpirvFromFile("shaders/bin/pointcloud.mesh.spv");
-        auto frag_spirv = dk::vkcore::loadSpirvFromFile("shaders/bin/pointcloud.frag.spv");
+        namespace fs = std::filesystem;
+        fs::path current_dir = fs::current_path(); // 当前目录
+        fs::path target_file_mesh = fs::absolute(current_dir / "../../assets/shaders/spv/fluid/pointcloud.mesh.spv"); // 矫正分隔符
+        fs::path target_file_mesh_test = fs::absolute("C:/code/code_file/Decker/assets/shaders/spv/fluid/pointcloud.mesh.spv"); // 矫正分隔符
+        fs::path target_file_frag = fs::absolute(current_dir / "../../assets/shaders/spv/fluid/pointcloud.frag.spv"); // 矫正分隔符
+
+        std::error_code ec;
+        bool ok = fs::exists(target_file_mesh, ec);            // 是否存在（不会抛异常）
+        auto st = fs::status(target_file_mesh, ec);            // 文件类型、权限
+        bool ok1 = fs::exists(target_file_mesh_test, ec);            // 是否存在（不会抛异常）
+        auto st1 = fs::status(target_file_mesh_test, ec);            // 文件类型、权限
+        bool ok2 = fs::exists(target_file_frag, ec);            // 是否存在（不会抛异常）
+        auto st2 = fs::status(target_file_frag, ec);            // 文件类型、权限
+
+        auto mesh_spirv = dk::vkcore::loadSpirvFromFile(target_file_mesh);
+        auto frag_spirv = dk::vkcore::loadSpirvFromFile(target_file_frag);
 
         mesh_module = std::make_unique<dk::vkcore::ShaderModule>(_context, mesh_spirv);
         frag_module = std::make_unique<dk::vkcore::ShaderModule>(_context, frag_spirv);
@@ -114,8 +131,7 @@ void PointCloudRenderer::createPipeline(vk::Format color_format, vk::Format dept
     catch (const std::runtime_error& e)
     {
         // 提供更明确的错误信息
-        throw std::runtime_error(
-            "Failed to load precompiled shaders. Did you run the compile script? Error: " + std::string(e.what()));
+        throw std::runtime_error("Failed to load precompiled shaders. Error: " + std::string(e.what()));
     }
 
     // =================================================================
@@ -178,4 +194,6 @@ void PointCloudRenderer::cleanup()
     _frame_allocator.reset();
     _camera_ubo.reset();
     _point_cloud_ssbo.reset();
+}
+
 }

@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <memory>
 
 #include <camera.h>
 #include <vk_descriptors.h>
@@ -17,7 +18,9 @@
 #include "Scene/Node.h"
 #include "Vulkan/Context.h"
 #include "HierarchyPanel.h"
+//#include "render/PointCloudRender.h"
 #include "Vulkan/CommandPool.h"
+#include "Vulkan/CommandBuffer.h"
 
 namespace fastgltf
 {
@@ -25,6 +28,8 @@ namespace fastgltf
 }
 
 namespace dk {
+
+class PointCloudRenderer;   // ← 前置声明（不需要包含头）
 struct DeletionQueue
 {
     std::deque<std::function<void()>> deletors;
@@ -75,6 +80,8 @@ struct FrameData
     DeletionQueue _deletionQueue;
     vkcore::CommandPool* _command_pool_graphic{ nullptr };
     vkcore::CommandPool* _command_pool_transfer{nullptr};
+    vkcore::CommandBuffer* command_buffer_graphic;
+    vkcore::CommandBuffer* command_buffer_transfer;
     VkCommandPool _commandPool;
     VkCommandBuffer _mainCommandBuffer;
 };
@@ -208,6 +215,8 @@ public:
     int currentBackgroundEffect{ 0 };
 
     HierarchyPanel hierarchy_panel;
+
+    std::shared_ptr<PointCloudRenderer> point_cloud_renderer;
 
     // singleton style getter.multiple engines is not supported
     static VulkanEngine& Get();

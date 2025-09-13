@@ -19,6 +19,9 @@
 #include "Vulkan/PipelineLayout.h"
 #include "Vulkan/ShaderModule.h"
 
+namespace dk {
+
+
 // --- GLSL/C++ 共享数据结构 (必须与 Slang 中的定义匹配) ---
 struct PointData
 {
@@ -79,3 +82,4 @@ private:
     std::unique_ptr<dk::vkcore::PipelineLayout> _pipeline_layout;
     std::unique_ptr<dk::vkcore::Pipeline>       _pipeline;
 };
+}
