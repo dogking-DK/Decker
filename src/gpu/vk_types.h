@@ -12,9 +12,14 @@
 #include <limits>
 #include <memory>
 
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vk_enum_string_helper.h>
 #include <vk_mem_alloc.h>
+
+
+
 
 #include <magic_enum/magic_enum.hpp>
 

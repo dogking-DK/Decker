@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include <mutex>
-#include <vulkan/vulkan.hpp>
+#include "vk_types.h"
 
 #include "Resource.hpp"
 

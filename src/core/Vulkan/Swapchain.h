@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include <SDL3/SDL_video.h>
 #include <set>
-#include <vulkan/vulkan.hpp>
+#include "vk_types.h"
 
 #include "Macros.h"
 

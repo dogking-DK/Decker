@@ -1,0 +1,509 @@
+; SPIR-V
+; Version: 1.6
+; Generator: Khronos Glslang Reference Front End; 11
+; Bound: 288
+; Schema: 0
+               OpCapability MeshShadingEXT
+               OpExtension "SPV_EXT_mesh_shader"
+               OpExtension "SPV_KHR_non_semantic_info"
+          %1 = OpExtInstImport "NonSemantic.Shader.DebugInfo.100"
+          %3 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint MeshEXT %main "main" %gl_GlobalInvocationID %pointCloud %gl_LocalInvocationIndex %pushData %gl_MeshVerticesEXT %camera %outData %gl_PrimitivePointIndicesEXT %gl_WorkGroupID
+               OpExecutionModeId %main LocalSizeId %uint_64 %uint_1 %uint_1
+               OpExecutionMode %main OutputVertices 64
+               OpExecutionMode %main OutputPrimitivesEXT 64
+               OpExecutionMode %main OutputPoints
+          %2 = OpString "C:\\Users\\Issac\\AppData\\Local\\Temp\\shader_utf8_bom_hosjr_vh\\fluid\\pointcloud.mesh"
+          %8 = OpString "uint"
+         %18 = OpString "main"
+         %21 = OpString "#version 460
+// 启用 Mesh Shader 扩展，这是必需的
+#extension GL_EXT_mesh_shader : require
+
+// =================================================================
+// 1. 工作组配置 (Input)
+// =================================================================
+// 定义每个工作组的大小。我们将让每个工作组处理 64 个点。
+// 这意味着 GPU 会以 64 个线程为一批来执行这个着色器。
+// 这个值 (64) 必须与 C++ 代码中计算 group_count 时使用的 workgroup_size 匹配。
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+
+// =================================================================
+// 2. 输出配置 (Output)
+// =================================================================
+// 定义这个 Mesh Shader 输出的图元类型。我们正在绘制点云，所以是 'points'。
+layout(points) out;
+
+// 声明每个工作组最大可能输出的顶点和图元数量。
+// 因为我们最多处理 64 个点，所以每个工作组最多输出 64 个顶点和 64 个点图元。
+layout(max_vertices = 64, max_primitives = 64) out;
+
+
+// =================================================================
+// 3. 资源绑定 (Resource Bindings)
+// =================================================================
+// 这些绑定必须与 C++ 中 `DescriptorSetLayout::Builder` 的定义严格匹配。
+
+// --- Set 0, Binding 0: Uniform Buffer Object (UBO) for Camera ---
+// 包含了每帧更新一次的、所有线程共享的数据。
+layout(set = 0, binding = 0) uniform CameraData {
+    mat4 viewProj; // 视图 * 投影 矩阵
+} camera;
+
+
+// --- Set 0, Binding 1: Shader Storage Buffer Object (SSBO) for Point Data ---
+// 包含了点云的位置和颜色数据。SSBO 适合存储大量数据。
+// 'readonly' 关键字是一个优化提示，告诉驱动我们只会读取这个缓冲区。
+struct Point {
+    vec4 position; // 点的局部空间位置 (x, y, z, 1.0)
+    vec4 color;    // 点的颜色 (r, g, b, a)
+};
+
+layout(set = 0, binding = 1) readonly buffer PointCloudBuffer {
+    Point points[]; // 一个动态大小的数组，包含所有点
+} pointCloud;
+
+
+// --- Push Constants ---
+// 用于推送小块、频繁更新的数据（例如每个绘制调用都可能不同）。
+layout(push_constant) uniform PushConstants {
+    mat4 modelMatrix; // 模型矩阵，用于将点从局部空间变换到世界空间
+    float pointSize;  // 渲染出的点的大小（像素单位）
+} pushData;
+
+
+// =================================================================
+// 4. 输出到片元着色器 (Interpolants / Varyings)
+// =================================================================
+// 定义一个接口块，用于将数据（这里是颜色）传递给片元着色器。
+// 'outData' 也是一个数组，大小与输出的顶点数相同。
+layout(location = 0) out PerVertexData {
+    vec4 color;
+} outData[];
+
+
+// =================================================================
+// 5. 主函数 (Main Execution)
+// =================================================================
+void main() {
+    // gl_GlobalInvocationID.x 是当前线程在所有工作组中的全局唯一ID。
+    // 这也是我们要处理的点在 SSBO 中的索引。
+    uint index = gl_GlobalInvocationID.x;
+    uint pointCount = pointCloud.points.length(); // 获取 SSBO 中点的总数
+
+    // 边界检查：如果点的总数不是 64 的整数倍，最后几个工作组中的某些线程
+    // 可能会被分配一个超出范围的索引。我们必须检查并让这些线程提前退出。
+    if (index >= pointCount) {
+        return;
+    }
+
+    // gl_LocalInvocationIndex 是当前线程在它自己工作组内的索引 (范围 0-63)。
+    // 我们用这个索引来写入输出数组。
+    uint localIndex = gl_LocalInvocationIndex;
+
+    // --- 顶点处理 ---
+    // 1. 从 SSBO 读取当前点的数据
+    Point currentPoint = pointCloud.points[index];
+
+    // 2. 模型-视图-投影 (MVP) 变换
+    //    局部空间 -> 世界空间 -> 裁剪空间
+    vec4 worldPos = pushData.modelMatrix * currentPoint.position;
+    gl_MeshVerticesEXT[localIndex].gl_Position = camera.viewProj * worldPos;
+
+    // 3. 设置点的大小
+    //    这个内置变量控制了光栅化后点的大小（像素）。
+    gl_MeshVerticesEXT[localIndex].gl_PointSize = pushData.pointSize;
+
+    // 4. 传递颜色给片元着色器
+    outData[localIndex].color = currentPoint.color;
+
+    // --- 图元处理 ---
+    // 定义图元。对于点来说，一个图元只包含一个顶点。
+    // `gl_PrimitivePointIndicesEXT` 是一个新引入的数组，用于存储点的顶点索引。
+    gl_PrimitivePointIndicesEXT[localIndex] = localIndex;
+
+    // --- 工作组输出 ---
+    // 这个函数必须被调用，以告诉硬件这个工作组最终要输出多少顶点和图元。
+    // 为了避免 64 个线程都调用它，我们通常只让工作组的第一个线程 (localIndex == 0) 来调用。
+    if (localIndex == 0) {
+        // 再次进行边界检查，计算这个工作组实际有效的点数。
+        // 例如，如果有 130 个点，第一个工作组 (处理 0-63) 输出 64 个，
+        // 第二个工作组 (处理 64-127) 输出 64 个，
+        // 第三个工作组 (处理 128-191) 只应输出 2 个 (索引 128, 129)。
+        uint numPointsInWorkgroup = min(gl_WorkGroupSize.x, pointCount - gl_WorkGroupID.x * gl_WorkGroupSize.x);
+        SetMeshOutputsEXT(numPointsInWorkgroup, numPointsInWorkgroup);
+    }
+}"
+         %34 = OpString "index"
+         %45 = OpString "gl_GlobalInvocationID"
+         %53 = OpString "pointCount"
+         %58 = OpString "float"
+         %64 = OpString "color"
+         %69 = OpString "Point"
+         %74 = OpString "points"
+         %78 = OpString "PointCloudBuffer"
+         %84 = OpString "pointCloud"
+         %87 = OpString "int"
+         %96 = OpString "bool"
+        %109 = OpString "localIndex"
+        %116 = OpString "gl_LocalInvocationIndex"
+        %127 = OpString "currentPoint"
+        %141 = OpString "worldPos"
+        %150 = OpString "modelMatrix"
+        %153 = OpString "pointSize"
+        %156 = OpString "PushConstants"
+        %161 = OpString "pushData"
+        %173 = OpString "gl_Position"
+        %176 = OpString "gl_PointSize"
+        %179 = OpString "gl_CullDistance"
+        %183 = OpString "gl_MeshPerVertexEXT"
+        %191 = OpString "gl_MeshVerticesEXT"
+        %196 = OpString "viewProj"
+        %199 = OpString "CameraData"
+        %204 = OpString "camera"
+        %228 = OpString "PerVertexData"
+        %236 = OpString "outData"
+        %248 = OpString "gl_PrimitivePointIndicesEXT"
+        %267 = OpString "numPointsInWorkgroup"
+        %274 = OpString "gl_WorkGroupID"
+               OpSourceExtension "GL_EXT_mesh_shader"
+               OpName %main "main"
+               OpName %index "index"
+               OpName %gl_GlobalInvocationID "gl_GlobalInvocationID"
+               OpName %pointCount "pointCount"
+               OpName %Point "Point"
+               OpMemberName %Point 0 "position"
+               OpMemberName %Point 1 "color"
+               OpName %PointCloudBuffer "PointCloudBuffer"
+               OpMemberName %PointCloudBuffer 0 "points"
+               OpName %pointCloud "pointCloud"
+               OpName %localIndex "localIndex"
+               OpName %gl_LocalInvocationIndex "gl_LocalInvocationIndex"
+               OpName %Point_0 "Point"
+               OpMemberName %Point_0 0 "position"
+               OpMemberName %Point_0 1 "color"
+               OpName %currentPoint "currentPoint"
+               OpName %worldPos "worldPos"
+               OpName %PushConstants "PushConstants"
+               OpMemberName %PushConstants 0 "modelMatrix"
+               OpMemberName %PushConstants 1 "pointSize"
+               OpName %pushData "pushData"
+               OpName %gl_MeshPerVertexEXT "gl_MeshPerVertexEXT"
+               OpMemberName %gl_MeshPerVertexEXT 0 "gl_Position"
+               OpMemberName %gl_MeshPerVertexEXT 1 "gl_PointSize"
+               OpMemberName %gl_MeshPerVertexEXT 2 "gl_ClipDistance"
+               OpMemberName %gl_MeshPerVertexEXT 3 "gl_CullDistance"
+               OpName %gl_MeshVerticesEXT "gl_MeshVerticesEXT"
+               OpName %CameraData "CameraData"
+               OpMemberName %CameraData 0 "viewProj"
+               OpName %camera "camera"
+               OpName %PerVertexData "PerVertexData"
+               OpMemberName %PerVertexData 0 "color"
+               OpName %outData "outData"
+               OpName %gl_PrimitivePointIndicesEXT "gl_PrimitivePointIndicesEXT"
+               OpName %numPointsInWorkgroup "numPointsInWorkgroup"
+               OpName %gl_WorkGroupID "gl_WorkGroupID"
+               OpModuleProcessed "client vulkan100"
+               OpModuleProcessed "target-env spirv1.6"
+               OpModuleProcessed "target-env vulkan1.3"
+               OpModuleProcessed "entry-point main"
+               OpDecorate %gl_GlobalInvocationID BuiltIn GlobalInvocationId
+               OpMemberDecorate %Point 0 Offset 0
+               OpMemberDecorate %Point 1 Offset 16
+               OpDecorate %_runtimearr_Point ArrayStride 32
+               OpDecorate %PointCloudBuffer Block
+               OpMemberDecorate %PointCloudBuffer 0 NonWritable
+               OpMemberDecorate %PointCloudBuffer 0 Offset 0
+               OpDecorate %pointCloud NonWritable
+               OpDecorate %pointCloud Binding 1
+               OpDecorate %pointCloud DescriptorSet 0
+               OpDecorate %gl_LocalInvocationIndex BuiltIn LocalInvocationIndex
+               OpDecorate %PushConstants Block
+               OpMemberDecorate %PushConstants 0 ColMajor
+               OpMemberDecorate %PushConstants 0 MatrixStride 16
+               OpMemberDecorate %PushConstants 0 Offset 0
+               OpMemberDecorate %PushConstants 1 Offset 64
+               OpDecorate %gl_MeshPerVertexEXT Block
+               OpMemberDecorate %gl_MeshPerVertexEXT 0 BuiltIn Position
+               OpMemberDecorate %gl_MeshPerVertexEXT 1 BuiltIn PointSize
+               OpMemberDecorate %gl_MeshPerVertexEXT 2 BuiltIn ClipDistance
+               OpMemberDecorate %gl_MeshPerVertexEXT 3 BuiltIn CullDistance
+               OpDecorate %CameraData Block
+               OpMemberDecorate %CameraData 0 ColMajor
+               OpMemberDecorate %CameraData 0 MatrixStride 16
+               OpMemberDecorate %CameraData 0 Offset 0
+               OpDecorate %camera Binding 0
+               OpDecorate %camera DescriptorSet 0
+               OpDecorate %PerVertexData Block
+               OpDecorate %outData Location 0
+               OpDecorate %gl_PrimitivePointIndicesEXT BuiltIn PrimitivePointIndicesEXT
+               OpDecorate %gl_WorkGroupID BuiltIn WorkgroupId
+       %void = OpTypeVoid
+          %5 = OpTypeFunction %void
+       %uint = OpTypeInt 32 0
+    %uint_32 = OpConstant %uint 32
+     %uint_6 = OpConstant %uint 6
+     %uint_0 = OpConstant %uint 0
+          %9 = OpExtInst %void %1 DebugTypeBasic %8 %uint_32 %uint_6 %uint_0
+     %uint_3 = OpConstant %uint 3
+          %6 = OpExtInst %void %1 DebugTypeFunction %uint_3 %void
+    %uint_64 = OpConstant %uint 64
+     %uint_1 = OpConstant %uint 1
+         %20 = OpExtInst %void %1 DebugSource %2 %21
+    %uint_71 = OpConstant %uint 71
+     %uint_4 = OpConstant %uint 4
+     %uint_2 = OpConstant %uint 2
+         %23 = OpExtInst %void %1 DebugCompilationUnit %uint_1 %uint_4 %20 %uint_2
+         %19 = OpExtInst %void %1 DebugFunction %18 %6 %20 %uint_71 %uint_0 %23 %18 %uint_3 %uint_71
+%_ptr_Function_uint = OpTypePointer Function %uint
+     %uint_7 = OpConstant %uint 7
+         %31 = OpExtInst %void %1 DebugTypePointer %9 %uint_7 %uint_0
+    %uint_74 = OpConstant %uint 74
+         %33 = OpExtInst %void %1 DebugLocalVariable %34 %9 %20 %uint_74 %uint_0 %19 %uint_4
+         %37 = OpExtInst %void %1 DebugExpression
+     %v3uint = OpTypeVector %uint 3
+         %40 = OpExtInst %void %1 DebugTypeVector %9 %uint_3
+%_ptr_Input_v3uint = OpTypePointer Input %v3uint
+         %42 = OpExtInst %void %1 DebugTypePointer %40 %uint_1 %uint_0
+%gl_GlobalInvocationID = OpVariable %_ptr_Input_v3uint Input
+     %uint_8 = OpConstant %uint 8
+         %44 = OpExtInst %void %1 DebugGlobalVariable %45 %40 %20 %uint_74 %uint_0 %23 %45 %gl_GlobalInvocationID %uint_8
+%_ptr_Input_uint = OpTypePointer Input %uint
+         %48 = OpExtInst %void %1 DebugTypePointer %9 %uint_1 %uint_0
+    %uint_75 = OpConstant %uint 75
+         %52 = OpExtInst %void %1 DebugLocalVariable %53 %9 %20 %uint_75 %uint_0 %19 %uint_4
+      %float = OpTypeFloat 32
+         %59 = OpExtInst %void %1 DebugTypeBasic %58 %uint_32 %uint_3 %uint_0
+    %v4float = OpTypeVector %float 4
+         %61 = OpExtInst %void %1 DebugTypeVector %59 %uint_4
+      %Point = OpTypeStruct %v4float %v4float
+    %uint_42 = OpConstant %uint 42
+    %uint_10 = OpConstant %uint 10
+         %63 = OpExtInst %void %1 DebugTypeMember %64 %61 %20 %uint_42 %uint_10 %uint_0 %uint_0 %uint_3
+         %67 = OpExtInst %void %1 DebugTypeMember %64 %61 %20 %uint_42 %uint_10 %uint_0 %uint_0 %uint_3
+         %68 = OpExtInst %void %1 DebugTypeComposite %69 %uint_1 %20 %uint_75 %uint_0 %23 %69 %uint_0 %uint_3 %63 %67
+%_runtimearr_Point = OpTypeRuntimeArray %Point
+         %71 = OpExtInst %void %1 DebugTypeArray %68 %uint_0
+%PointCloudBuffer = OpTypeStruct %_runtimearr_Point
+    %uint_46 = OpConstant %uint 46
+    %uint_11 = OpConstant %uint 11
+         %73 = OpExtInst %void %1 DebugTypeMember %74 %71 %20 %uint_46 %uint_11 %uint_0 %uint_0 %uint_3
+         %77 = OpExtInst %void %1 DebugTypeComposite %78 %uint_1 %20 %uint_75 %uint_0 %23 %78 %uint_0 %uint_3 %73
+%_ptr_StorageBuffer_PointCloudBuffer = OpTypePointer StorageBuffer %PointCloudBuffer
+    %uint_12 = OpConstant %uint 12
+         %81 = OpExtInst %void %1 DebugTypePointer %77 %uint_12 %uint_0
+ %pointCloud = OpVariable %_ptr_StorageBuffer_PointCloudBuffer StorageBuffer
+         %83 = OpExtInst %void %1 DebugGlobalVariable %84 %77 %20 %uint_75 %uint_0 %23 %84 %pointCloud %uint_8
+        %int = OpTypeInt 32 1
+         %88 = OpExtInst %void %1 DebugTypeBasic %87 %uint_32 %uint_4 %uint_0
+    %uint_79 = OpConstant %uint 79
+       %bool = OpTypeBool
+         %97 = OpExtInst %void %1 DebugTypeBasic %96 %uint_32 %uint_2 %uint_0
+    %uint_80 = OpConstant %uint 80
+     %uint_9 = OpConstant %uint 9
+        %101 = OpExtInst %void %1 DebugLexicalBlock %20 %uint_80 %uint_9 %19
+    %uint_85 = OpConstant %uint 85
+        %108 = OpExtInst %void %1 DebugLocalVariable %109 %9 %20 %uint_85 %uint_0 %19 %uint_4
+%gl_LocalInvocationIndex = OpVariable %_ptr_Input_uint Input
+        %115 = OpExtInst %void %1 DebugGlobalVariable %116 %9 %20 %uint_85 %uint_0 %23 %116 %gl_LocalInvocationIndex %uint_8
+    %Point_0 = OpTypeStruct %v4float %v4float
+        %119 = OpExtInst %void %1 DebugTypeMember %64 %61 %20 %uint_42 %uint_10 %uint_0 %uint_0 %uint_3
+        %120 = OpExtInst %void %1 DebugTypeMember %64 %61 %20 %uint_42 %uint_10 %uint_0 %uint_0 %uint_3
+    %uint_89 = OpConstant %uint 89
+        %121 = OpExtInst %void %1 DebugTypeComposite %69 %uint_1 %20 %uint_89 %uint_0 %23 %69 %uint_0 %uint_3 %119 %120
+%_ptr_Function_Point_0 = OpTypePointer Function %Point_0
+        %124 = OpExtInst %void %1 DebugTypePointer %121 %uint_7 %uint_0
+        %126 = OpExtInst %void %1 DebugLocalVariable %127 %121 %20 %uint_89 %uint_0 %19 %uint_4
+      %int_0 = OpConstant %int 0
+%_ptr_StorageBuffer_Point = OpTypePointer StorageBuffer %Point
+        %133 = OpExtInst %void %1 DebugTypePointer %68 %uint_12 %uint_0
+%_ptr_Function_v4float = OpTypePointer Function %v4float
+        %138 = OpExtInst %void %1 DebugTypePointer %61 %uint_7 %uint_0
+    %uint_93 = OpConstant %uint 93
+        %140 = OpExtInst %void %1 DebugLocalVariable %141 %61 %20 %uint_93 %uint_0 %19 %uint_4
+%mat4v4float = OpTypeMatrix %v4float 4
+       %true = OpConstantTrue %bool
+        %146 = OpExtInst %void %1 DebugTypeMatrix %61 %uint_4 %true
+%PushConstants = OpTypeStruct %mat4v4float %float
+    %uint_53 = OpConstant %uint 53
+        %149 = OpExtInst %void %1 DebugTypeMember %150 %146 %20 %uint_53 %uint_10 %uint_0 %uint_0 %uint_3
+    %uint_54 = OpConstant %uint 54
+        %152 = OpExtInst %void %1 DebugTypeMember %153 %59 %20 %uint_54 %uint_11 %uint_0 %uint_0 %uint_3
+        %155 = OpExtInst %void %1 DebugTypeComposite %156 %uint_1 %20 %uint_93 %uint_0 %23 %156 %uint_0 %uint_3 %149 %152
+%_ptr_PushConstant_PushConstants = OpTypePointer PushConstant %PushConstants
+        %158 = OpExtInst %void %1 DebugTypePointer %155 %uint_9 %uint_0
+   %pushData = OpVariable %_ptr_PushConstant_PushConstants PushConstant
+        %160 = OpExtInst %void %1 DebugGlobalVariable %161 %155 %20 %uint_93 %uint_0 %23 %161 %pushData %uint_8
+%_ptr_PushConstant_mat4v4float = OpTypePointer PushConstant %mat4v4float
+        %163 = OpExtInst %void %1 DebugTypePointer %146 %uint_9 %uint_0
+%_arr_float_uint_1 = OpTypeArray %float %uint_1
+        %170 = OpExtInst %void %1 DebugTypeArray %59 %uint_1
+%gl_MeshPerVertexEXT = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
+    %uint_31 = OpConstant %uint 31
+        %172 = OpExtInst %void %1 DebugTypeMember %173 %61 %20 %uint_7 %uint_31 %uint_0 %uint_0 %uint_3
+    %uint_49 = OpConstant %uint 49
+        %175 = OpExtInst %void %1 DebugTypeMember %176 %59 %20 %uint_7 %uint_49 %uint_0 %uint_0 %uint_3
+    %uint_92 = OpConstant %uint 92
+        %178 = OpExtInst %void %1 DebugTypeMember %179 %170 %20 %uint_7 %uint_92 %uint_0 %uint_0 %uint_3
+        %181 = OpExtInst %void %1 DebugTypeMember %179 %170 %20 %uint_7 %uint_92 %uint_0 %uint_0 %uint_3
+    %uint_94 = OpConstant %uint 94
+        %182 = OpExtInst %void %1 DebugTypeComposite %183 %uint_1 %20 %uint_94 %uint_0 %23 %183 %uint_0 %uint_3 %172 %175 %178 %181
+%_arr_gl_MeshPerVertexEXT_uint_64 = OpTypeArray %gl_MeshPerVertexEXT %uint_64
+        %186 = OpExtInst %void %1 DebugTypeArray %182 %uint_64
+%_ptr_Output__arr_gl_MeshPerVertexEXT_uint_64 = OpTypePointer Output %_arr_gl_MeshPerVertexEXT_uint_64
+        %188 = OpExtInst %void %1 DebugTypePointer %186 %uint_3 %uint_0
+%gl_MeshVerticesEXT = OpVariable %_ptr_Output__arr_gl_MeshPerVertexEXT_uint_64 Output
+        %190 = OpExtInst %void %1 DebugGlobalVariable %191 %186 %20 %uint_94 %uint_0 %23 %191 %gl_MeshVerticesEXT %uint_8
+ %CameraData = OpTypeStruct %mat4v4float
+    %uint_33 = OpConstant %uint 33
+        %195 = OpExtInst %void %1 DebugTypeMember %196 %146 %20 %uint_33 %uint_10 %uint_0 %uint_0 %uint_3
+        %198 = OpExtInst %void %1 DebugTypeComposite %199 %uint_1 %20 %uint_94 %uint_0 %23 %199 %uint_0 %uint_3 %195
+%_ptr_Uniform_CameraData = OpTypePointer Uniform %CameraData
+        %201 = OpExtInst %void %1 DebugTypePointer %198 %uint_2 %uint_0
+     %camera = OpVariable %_ptr_Uniform_CameraData Uniform
+        %203 = OpExtInst %void %1 DebugGlobalVariable %204 %198 %20 %uint_94 %uint_0 %23 %204 %camera %uint_8
+%_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
+        %206 = OpExtInst %void %1 DebugTypePointer %146 %uint_2 %uint_0
+%_ptr_Output_v4float = OpTypePointer Output %v4float
+        %212 = OpExtInst %void %1 DebugTypePointer %61 %uint_3 %uint_0
+    %uint_98 = OpConstant %uint 98
+      %int_1 = OpConstant %int 1
+%_ptr_PushConstant_float = OpTypePointer PushConstant %float
+        %219 = OpExtInst %void %1 DebugTypePointer %59 %uint_9 %uint_0
+%_ptr_Output_float = OpTypePointer Output %float
+        %223 = OpExtInst %void %1 DebugTypePointer %59 %uint_3 %uint_0
+%PerVertexData = OpTypeStruct %v4float
+        %226 = OpExtInst %void %1 DebugTypeMember %64 %61 %20 %uint_64 %uint_10 %uint_0 %uint_0 %uint_3
+   %uint_101 = OpConstant %uint 101
+        %227 = OpExtInst %void %1 DebugTypeComposite %228 %uint_1 %20 %uint_101 %uint_0 %23 %228 %uint_0 %uint_3 %226
+%_arr_PerVertexData_uint_64 = OpTypeArray %PerVertexData %uint_64
+        %231 = OpExtInst %void %1 DebugTypeArray %227 %uint_64
+%_ptr_Output__arr_PerVertexData_uint_64 = OpTypePointer Output %_arr_PerVertexData_uint_64
+        %233 = OpExtInst %void %1 DebugTypePointer %231 %uint_3 %uint_0
+    %outData = OpVariable %_ptr_Output__arr_PerVertexData_uint_64 Output
+        %235 = OpExtInst %void %1 DebugGlobalVariable %236 %231 %20 %uint_101 %uint_0 %23 %236 %outData %uint_8
+%_arr_uint_uint_64 = OpTypeArray %uint %uint_64
+        %243 = OpExtInst %void %1 DebugTypeArray %9 %uint_64
+%_ptr_Output__arr_uint_uint_64 = OpTypePointer Output %_arr_uint_uint_64
+        %245 = OpExtInst %void %1 DebugTypePointer %243 %uint_3 %uint_0
+%gl_PrimitivePointIndicesEXT = OpVariable %_ptr_Output__arr_uint_uint_64 Output
+   %uint_106 = OpConstant %uint 106
+        %247 = OpExtInst %void %1 DebugGlobalVariable %248 %243 %20 %uint_106 %uint_0 %23 %248 %gl_PrimitivePointIndicesEXT %uint_8
+%_ptr_Output_uint = OpTypePointer Output %uint
+        %254 = OpExtInst %void %1 DebugTypePointer %9 %uint_3 %uint_0
+   %uint_111 = OpConstant %uint 111
+   %uint_116 = OpConstant %uint 116
+    %uint_35 = OpConstant %uint 35
+        %262 = OpExtInst %void %1 DebugLexicalBlock %20 %uint_116 %uint_35 %19
+        %266 = OpExtInst %void %1 DebugLocalVariable %267 %9 %20 %uint_116 %uint_0 %262 %uint_4
+%gl_WorkGroupID = OpVariable %_ptr_Input_v3uint Input
+        %273 = OpExtInst %void %1 DebugGlobalVariable %274 %40 %20 %uint_116 %uint_0 %23 %274 %gl_WorkGroupID %uint_8
+   %uint_117 = OpConstant %uint 117
+   %uint_119 = OpConstant %uint 119
+        %287 = OpConstantComposite %v3uint %uint_64 %uint_1 %uint_1
+       %main = OpFunction %void None %5
+         %15 = OpLabel
+      %index = OpVariable %_ptr_Function_uint Function
+ %pointCount = OpVariable %_ptr_Function_uint Function
+ %localIndex = OpVariable %_ptr_Function_uint Function
+%currentPoint = OpVariable %_ptr_Function_Point_0 Function
+   %worldPos = OpVariable %_ptr_Function_v4float Function
+%numPointsInWorkgroup = OpVariable %_ptr_Function_uint Function
+         %27 = OpExtInst %void %1 DebugScope %19
+         %28 = OpExtInst %void %1 DebugLine %20 %uint_71 %uint_71 %uint_0 %uint_0
+         %26 = OpExtInst %void %1 DebugFunctionDefinition %19 %main
+         %38 = OpExtInst %void %1 DebugLine %20 %uint_74 %uint_74 %uint_0 %uint_0
+         %36 = OpExtInst %void %1 DebugDeclare %33 %index %37
+         %49 = OpAccessChain %_ptr_Input_uint %gl_GlobalInvocationID %uint_0
+         %50 = OpLoad %uint %49
+               OpStore %index %50
+         %56 = OpExtInst %void %1 DebugLine %20 %uint_75 %uint_75 %uint_0 %uint_0
+         %55 = OpExtInst %void %1 DebugDeclare %52 %pointCount %37
+         %85 = OpArrayLength %uint %pointCloud 0
+         %89 = OpBitcast %int %85
+         %90 = OpBitcast %uint %89
+               OpStore %pointCount %90
+         %92 = OpExtInst %void %1 DebugLine %20 %uint_79 %uint_79 %uint_0 %uint_0
+         %91 = OpLoad %uint %index
+         %94 = OpLoad %uint %pointCount
+         %98 = OpUGreaterThanEqual %bool %91 %94
+               OpSelectionMerge %100 None
+               OpBranchConditional %98 %99 %100
+         %99 = OpLabel
+        %104 = OpExtInst %void %1 DebugScope %101
+        %105 = OpExtInst %void %1 DebugLine %20 %uint_80 %uint_80 %uint_0 %uint_0
+               OpReturn
+        %100 = OpLabel
+        %112 = OpExtInst %void %1 DebugScope %19
+        %113 = OpExtInst %void %1 DebugLine %20 %uint_85 %uint_85 %uint_0 %uint_0
+        %111 = OpExtInst %void %1 DebugDeclare %108 %localIndex %37
+        %117 = OpLoad %uint %gl_LocalInvocationIndex
+               OpStore %localIndex %117
+        %129 = OpExtInst %void %1 DebugLine %20 %uint_89 %uint_89 %uint_0 %uint_0
+        %128 = OpExtInst %void %1 DebugDeclare %126 %currentPoint %37
+        %131 = OpLoad %uint %index
+        %134 = OpAccessChain %_ptr_StorageBuffer_Point %pointCloud %int_0 %131
+        %135 = OpLoad %Point %134
+        %136 = OpCopyLogical %Point_0 %135
+               OpStore %currentPoint %136
+        %144 = OpExtInst %void %1 DebugLine %20 %uint_93 %uint_93 %uint_0 %uint_0
+        %143 = OpExtInst %void %1 DebugDeclare %140 %worldPos %37
+        %164 = OpAccessChain %_ptr_PushConstant_mat4v4float %pushData %int_0
+        %165 = OpLoad %mat4v4float %164
+        %166 = OpAccessChain %_ptr_Function_v4float %currentPoint %int_0
+        %167 = OpLoad %v4float %166
+        %168 = OpMatrixTimesVector %v4float %165 %167
+               OpStore %worldPos %168
+        %193 = OpExtInst %void %1 DebugLine %20 %uint_94 %uint_94 %uint_0 %uint_0
+        %192 = OpLoad %uint %localIndex
+        %207 = OpAccessChain %_ptr_Uniform_mat4v4float %camera %int_0
+        %208 = OpLoad %mat4v4float %207
+        %209 = OpLoad %v4float %worldPos
+        %210 = OpMatrixTimesVector %v4float %208 %209
+        %213 = OpAccessChain %_ptr_Output_v4float %gl_MeshVerticesEXT %192 %int_0
+               OpStore %213 %210
+        %215 = OpExtInst %void %1 DebugLine %20 %uint_98 %uint_98 %uint_0 %uint_0
+        %214 = OpLoad %uint %localIndex
+        %220 = OpAccessChain %_ptr_PushConstant_float %pushData %int_1
+        %221 = OpLoad %float %220
+        %224 = OpAccessChain %_ptr_Output_float %gl_MeshVerticesEXT %214 %int_1
+               OpStore %224 %221
+        %238 = OpExtInst %void %1 DebugLine %20 %uint_101 %uint_101 %uint_0 %uint_0
+        %237 = OpLoad %uint %localIndex
+        %239 = OpAccessChain %_ptr_Function_v4float %currentPoint %int_1
+        %240 = OpLoad %v4float %239
+        %241 = OpAccessChain %_ptr_Output_v4float %outData %237 %int_0
+               OpStore %241 %240
+        %251 = OpExtInst %void %1 DebugLine %20 %uint_106 %uint_106 %uint_0 %uint_0
+        %250 = OpLoad %uint %localIndex
+        %252 = OpLoad %uint %localIndex
+        %255 = OpAccessChain %_ptr_Output_uint %gl_PrimitivePointIndicesEXT %250
+               OpStore %255 %252
+        %257 = OpExtInst %void %1 DebugLine %20 %uint_111 %uint_111 %uint_0 %uint_0
+        %256 = OpLoad %uint %localIndex
+        %259 = OpIEqual %bool %256 %uint_0
+               OpSelectionMerge %261 None
+               OpBranchConditional %259 %260 %261
+        %260 = OpLabel
+        %269 = OpExtInst %void %1 DebugScope %262
+        %270 = OpExtInst %void %1 DebugLine %20 %uint_116 %uint_116 %uint_0 %uint_0
+        %268 = OpExtInst %void %1 DebugDeclare %266 %numPointsInWorkgroup %37
+        %271 = OpLoad %uint %pointCount
+        %275 = OpAccessChain %_ptr_Input_uint %gl_WorkGroupID %uint_0
+        %276 = OpLoad %uint %275
+        %277 = OpIMul %uint %276 %uint_64
+        %278 = OpISub %uint %271 %277
+        %279 = OpExtInst %uint %3 UMin %uint_64 %278
+               OpStore %numPointsInWorkgroup %279
+        %281 = OpExtInst %void %1 DebugLine %20 %uint_117 %uint_117 %uint_0 %uint_0
+        %280 = OpLoad %uint %numPointsInWorkgroup
+        %283 = OpLoad %uint %numPointsInWorkgroup
+               OpSetMeshOutputsEXT %280 %283
+               OpBranch %261
+        %261 = OpLabel
+        %284 = OpExtInst %void %1 DebugScope %19
+        %285 = OpExtInst %void %1 DebugLine %20 %uint_119 %uint_119 %uint_0 %uint_0
+               OpReturn
+               OpFunctionEnd

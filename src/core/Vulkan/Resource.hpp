@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include <vulkan/vulkan.hpp>
+#include "vk_types.h"
 #include "vk_mem_alloc.h"
 #include <stdexcept>
 #include <memory>

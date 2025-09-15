@@ -111,16 +111,7 @@ void PointCloudRenderer::createPipeline(vk::Format color_format, vk::Format dept
         namespace fs = std::filesystem;
         fs::path current_dir = fs::current_path(); // 当前目录
         fs::path target_file_mesh = fs::absolute(current_dir / "../../assets/shaders/spv/fluid/pointcloud.mesh.spv"); // 矫正分隔符
-        fs::path target_file_mesh_test = fs::absolute("C:/code/code_file/Decker/assets/shaders/spv/fluid/pointcloud.mesh.spv"); // 矫正分隔符
         fs::path target_file_frag = fs::absolute(current_dir / "../../assets/shaders/spv/fluid/pointcloud.frag.spv"); // 矫正分隔符
-
-        std::error_code ec;
-        bool ok = fs::exists(target_file_mesh, ec);            // 是否存在（不会抛异常）
-        auto st = fs::status(target_file_mesh, ec);            // 文件类型、权限
-        bool ok1 = fs::exists(target_file_mesh_test, ec);            // 是否存在（不会抛异常）
-        auto st1 = fs::status(target_file_mesh_test, ec);            // 文件类型、权限
-        bool ok2 = fs::exists(target_file_frag, ec);            // 是否存在（不会抛异常）
-        auto st2 = fs::status(target_file_frag, ec);            // 文件类型、权限
 
         auto mesh_spirv = dk::vkcore::loadSpirvFromFile(target_file_mesh);
         auto frag_spirv = dk::vkcore::loadSpirvFromFile(target_file_frag);
@@ -150,7 +141,7 @@ void PointCloudRenderer::createPipeline(vk::Format color_format, vk::Format dept
     // ShaderModule 的 unique_ptr 在此离开作用域，自动销毁 vk::ShaderModule
 }
 
-void PointCloudRenderer::draw(dk::vkcore::CommandBuffer& cmd, const CameraData& camera_data)
+void PointCloudRenderer::draw(dk::vkcore::CommandBuffer& cmd, const CameraData& camera_data, VkRenderingInfo& render_info)
 {
     // 这个函数与之前的版本完全相同，因为底层的绑定逻辑没有改变
     if (_point_count == 0) return;
@@ -163,14 +154,15 @@ void PointCloudRenderer::draw(dk::vkcore::CommandBuffer& cmd, const CameraData& 
     //writer.bindBuffer(0, _camera_ubo->getDescriptorInfo(), vk::DescriptorType::eUniformBuffer)
     //.bindBuffer(1, _point_cloud_ssbo->getDescriptorInfo(), vk::DescriptorType::eStorageBuffer);
     //writer.update(_context->getDevice(), frame_set);
-    writer.writeBuffer(0, vk::DescriptorType::eUniformBuffer, _camera_ubo->getDescriptorInfo())
-          .writeBuffer(1, vk::DescriptorType::eStorageBuffer, _point_cloud_ssbo->getDescriptorInfo())
-          .update(*_context, frame_set);
-
+    writer.writeBuffer(0, vk::DescriptorType::eUniformBuffer, _camera_ubo->getDescriptorInfo());
+    writer.writeBuffer(1, vk::DescriptorType::eStorageBuffer, _point_cloud_ssbo->getDescriptorInfo());
+    writer.update(*_context, frame_set);
+    cmd.beginRendering(render_info);
+    cmd.setViewportAndScissor(render_info.renderArea.extent.width, render_info.renderArea.extent.height);
     cmd.getHandle().bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->getHandle());
     cmd.getHandle().bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline_layout->getHandle(), 0, {frame_set},
                                        {});
-
+    
     PushConstantData push_data;
     push_data.modelMatrix = glm::mat4(1.0f);
     push_data.pointSize   = 3.0f;
@@ -183,6 +175,8 @@ void PointCloudRenderer::draw(dk::vkcore::CommandBuffer& cmd, const CameraData& 
     constexpr uint32_t workgroup_size = 64;
     uint32_t           group_count    = (_point_count + workgroup_size - 1) / workgroup_size;
     cmd.getHandle().drawMeshTasksEXT(group_count, 1, 1);
+
+    cmd.endRendering();
 }
 
 void PointCloudRenderer::cleanup()

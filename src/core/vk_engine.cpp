@@ -25,6 +25,10 @@
 
 #define VMA_IMPLEMENTATION
 #define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
+
+// 定义全局默认分发器的存储（只在一个 TU 里写！）
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
 #include "AssetDB.h"
 #include "ResourceCache.h"
 #include "ResourceLoader.h"
@@ -89,8 +93,11 @@ void VulkanEngine::init()
 
     init_renderables();
 
+    auto point_data = makeRandomPointCloudSphere(100000, { 0,0,0 }, 100, false);
+
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
+    point_cloud_renderer->updatePoints(point_data);
 
     init_imgui();
 
@@ -481,6 +488,9 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     stats.mesh_draw_time = elapsed.count() / 1000.f;
 
     vkCmdEndRendering(cmd);
+
+    point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj }, renderInfo);
+
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
@@ -519,26 +529,28 @@ void VulkanEngine::draw()
     VK_CHECK(vkResetFences(_context->getDevice(), 1, &get_current_frame()._renderFence));
 
     //now that we are sure that the commands finished executing, we can safely reset the command buffer to begin recording again.
-    VK_CHECK(vkResetCommandBuffer(get_current_frame()._mainCommandBuffer, 0));
+    //VK_CHECK(vkResetCommandBuffer(get_current_frame()._mainCommandBuffer, 0));
+    get_current_frame().command_buffer_graphic->reset();
 
     //naming it cmd for shorter writing
     VkCommandBuffer cmd = get_current_frame()._mainCommandBuffer;
+    cmd = get_current_frame().command_buffer_graphic->getHandle();
 
     //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
-    VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    //VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    //VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+    get_current_frame().command_buffer_graphic->begin();
 
     // transition our main draw image into general layout so we can update into it
     // we will overwrite it all so we dont care about what was the older layout
+    //get_current_frame().command_buffer_graphic->transitionImage(_drawImage.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
     vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
     vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
                              VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     draw_main(cmd);
 
-    point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj });
 
     //transtion the draw image and the swapchain image into their correct transfer layouts
     vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -568,26 +580,34 @@ void VulkanEngine::draw()
     vkutil::transition_image(cmd, _context->getSwapchain()->get_images()[swapchainImageIndex],
                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                              VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    if (false) // 旧的手动结束并提交命令缓冲区的代码
+    {
+        //finalize the command buffer (we can no longer add commands, but it can now be executed)
+        VK_CHECK(vkEndCommandBuffer(cmd));
 
-    //finalize the command buffer (we can no longer add commands, but it can now be executed)
-    VK_CHECK(vkEndCommandBuffer(cmd));
+        //prepare the submission to the queue. 
+        //we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
+        //we will signal the _renderSemaphore, to signal that rendering has finished
+        VkCommandBufferSubmitInfo cmdinfo = vkinit::command_buffer_submit_info(cmd);
 
-    //prepare the submission to the queue. 
-    //we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
-    //we will signal the _renderSemaphore, to signal that rendering has finished
+        VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
+            get_current_frame()._swapchainSemaphore);
+        VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
+            get_current_frame()._renderSemaphore);
 
-    VkCommandBufferSubmitInfo cmdinfo = vkinit::command_buffer_submit_info(cmd);
+        VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, &signalInfo, &waitInfo);
 
-    VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
-                                                                   get_current_frame()._swapchainSemaphore);
-    VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
-                                                                     get_current_frame()._renderSemaphore);
+        //submit command buffer to the queue and execute it.
+        // _renderFence will now block until the graphic commands finish execution
+        VK_CHECK(vkQueueSubmit2(_context->getGraphicsQueue(), 1, &submit, get_current_frame()._renderFence));
+    }
 
-    VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, &signalInfo, &waitInfo);
+    get_current_frame().command_buffer_graphic->end();
 
-    //submit command buffer to the queue and execute it.
-    // _renderFence will now block until the graphic commands finish execution
-    VK_CHECK(vkQueueSubmit2(_context->getGraphicsQueue(), 1, &submit, get_current_frame()._renderFence));
+    auto wait_info = vkcore::makeWait(get_current_frame()._swapchainSemaphore, vk::PipelineStageFlagBits2::eColorAttachmentOutput);
+    auto signal_info = vkcore::makeSignal(get_current_frame()._renderSemaphore, vk::PipelineStageFlagBits2::eAllGraphics);
+
+    get_current_frame().command_buffer_graphic->submit2(_context->getGraphicsQueue(), get_current_frame()._renderFence, {wait_info}, {signal_info});
 
     //prepare present
     // this will put the image we just rendered to into the visible window.
@@ -1368,18 +1388,18 @@ void VulkanEngine::init_renderables()
     fmt::print(fg(fmt::color::bisque), "model file path: {}\n", structurePath);
     auto structureFile = loadGltf(this, structurePath);
 
-    auto root = ImporterRegistry::instance().import(structurePath);
+    //auto root = ImporterRegistry::instance().import(structurePath);
 
-    AssetDB::instance().open();
-    for (const auto& meta : root.metas)
-    {
-        AssetDB::instance().upsert(meta);
-    }
-    // 1 假设导入阶段已写入 metas & raw；此处只加载
-    ResourceCache  cache;
-    ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
-    auto           result = loader.loadMesh(root.metas[0].uuid);
-    hierarchy_panel.setRoots(root.nodes);
+    //AssetDB::instance().open();
+    //for (const auto& meta : root.metas)
+    //{
+    //    AssetDB::instance().upsert(meta);
+    //}
+    //// 1 假设导入阶段已写入 metas & raw；此处只加载
+    //ResourceCache  cache;
+    //ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
+    //auto           result = loader.loadMesh(root.metas[0].uuid);
+    //hierarchy_panel.setRoots(root.nodes);
 
     assert(structureFile.has_value());
 

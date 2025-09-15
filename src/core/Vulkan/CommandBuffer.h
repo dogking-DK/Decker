@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include <vulkan/vulkan.hpp>
+#include "vk_types.h"
 
 #include "CommandPool.h"
 #include "Resource.hpp"
@@ -12,6 +12,27 @@ class ImageResource;
 
 namespace dk::vkcore {
 class BufferResource;
+
+
+// 等待某个信号量（binary: value=0；timeline: value=目标值）
+// stage = 本次提交里“首次用到该资源”的阶段
+inline vk::SemaphoreSubmitInfo makeWait(vk::Semaphore           sem,
+                                        vk::PipelineStageFlags2 stage,
+                                        uint64_t                value       = 0,
+                                        uint32_t                deviceIndex = 0)
+{
+    return vk::SemaphoreSubmitInfo{sem, value, stage, deviceIndex};
+}
+
+// 在本次提交“完成到某阶段”后发出信号
+inline vk::SemaphoreSubmitInfo makeSignal(vk::Semaphore           sem,
+                                          vk::PipelineStageFlags2 stage,
+                                          uint64_t                value       = 0,
+                                          uint32_t                deviceIndex = 0)
+{
+    return vk::SemaphoreSubmitInfo{sem, value, stage, deviceIndex};
+}
+
 
 class CommandBuffer : public Resource<vk::CommandBuffer, vk::ObjectType::eCommandBuffer>
 {
@@ -75,11 +96,80 @@ public:
     }
 
 
+    // --- Dynamic Rendering ---
+    void beginRendering(const vk::RenderingInfo& info)
+    {
+        _handle.beginRendering(info);
+    }
+
+    void endRendering()
+    {
+        _handle.endRendering();
+    }
+
+    // 便捷版：只给一个 color attachment（可选深度）
+    void beginRenderingColor(
+        const vk::Rect2D&                  renderArea,
+        const vk::RenderingAttachmentInfo& colorAttachment,
+        const vk::RenderingAttachmentInfo* depthAttachment   = nullptr,
+        const vk::RenderingAttachmentInfo* stencilAttachment = nullptr,
+        uint32_t                           layerCount        = 1,
+        uint32_t                           viewMask          = 0)
+    {
+        vk::RenderingInfo ri{};
+        ri.renderArea           = renderArea;
+        ri.layerCount           = layerCount;
+        ri.viewMask             = viewMask;
+        ri.colorAttachmentCount = 1;
+        ri.pColorAttachments    = &colorAttachment;
+        ri.pDepthAttachment     = depthAttachment;
+        ri.pStencilAttachment   = stencilAttachment;
+        _handle.beginRendering(ri);
+    }
+
+    // --- Dynamic states: viewport & scissor ---
+    void setViewport(const vk::Viewport& vp)
+    {
+        _handle.setViewport(0, 1, &vp);
+    }
+
+    void setViewport(float x, float y, float w, float h, float minDepth = 0.f, float maxDepth = 1.f)
+    {
+        // 注意 Vulkan 的 viewport y 轴是向下的，所以 height 取负值
+        vk::Viewport vp{x, y, w, h, minDepth, maxDepth};
+        _handle.setViewport(0, 1, &vp);
+    }
+
+    // 支持多 viewport（如果用到）
+    void setViewports(uint32_t first, vk::ArrayProxy<const vk::Viewport> vps)
+    {
+        _handle.setViewport(first, vps.size(), vps.data());
+    }
+
+    void setScissor(const vk::Rect2D& rc)
+    {
+        _handle.setScissor(0, 1, &rc);
+    }
+
+    void setScissor(int32_t x, int32_t y, uint32_t w, uint32_t h)
+    {
+        vk::Rect2D rc{{x, y}, {w, h}};
+        _handle.setScissor(0, 1, &rc);
+    }
+
+    // 常用便捷：用整帧大小一次性设置 viewport+scissor
+    void setViewportAndScissor(uint32_t width, uint32_t height)
+    {
+        setViewport(0.f, static_cast<float>(height), static_cast<float>(width), -static_cast<float>(height));
+        setScissor(0, 0, width, height);
+    }
+
+
     void transitionImage(const ImageResource&    image,
                          vk::ImageLayout         current_layout,
                          vk::ImageLayout         new_layout,
-                         vk::PipelineStageFlags2 src_stage  = vk::PipelineStageFlagBits2::eTransfer,
-                         vk::AccessFlags2        src_access = vk::AccessFlagBits2::eTransferWrite,
+                         vk::PipelineStageFlags2 src_stage  = vk::PipelineStageFlagBits2::eAllCommands,
+                         vk::AccessFlags2        src_access = vk::AccessFlagBits2::eMemoryWrite,
                          vk::PipelineStageFlags2 dst_stage  = vk::PipelineStageFlagBits2::eAllCommands,
                          vk::AccessFlags2        dst_access =
                              vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite);
@@ -100,20 +190,26 @@ public:
         queue.submit(submitInfo, fence);
     }
 
-    void submit2(const vk::Queue& queue,
-                 const vk::Fence& fence = nullptr)
+    // 单个 CommandBuffer 的封装方法
+    void submit2(const vk::Queue&                              queue,
+                 vk::Fence                                     fence   = {},
+                 vk::ArrayProxy<const vk::SemaphoreSubmitInfo> waits   = {},
+                 vk::ArrayProxy<const vk::SemaphoreSubmitInfo> signals = {}) const
     {
-        // 构造 vk::CommandBufferSubmitInfo 封装底层命令缓冲区
-        vk::CommandBufferSubmitInfo cmdBufInfo{};
-        cmdBufInfo.commandBuffer = _handle;
+        // 本方法封装的是“只有这一个 _handle”的提交
+        vk::CommandBufferSubmitInfo cmdBufInfo{_handle};
 
-        vk::SubmitInfo2 submitInfo2;
-        submitInfo2.commandBufferInfoCount = 1;
-        submitInfo2.pCommandBufferInfos    = &cmdBufInfo;
-        // 若需要设置信号量或等待信号量信息，可填充对应的 wait/semaphore 信息结构
+        vk::SubmitInfo2 si{};
+        si.waitSemaphoreInfoCount   = waits.size();
+        si.pWaitSemaphoreInfos      = waits.data();
+        si.commandBufferInfoCount   = 1;
+        si.pCommandBufferInfos      = &cmdBufInfo;
+        si.signalSemaphoreInfoCount = signals.size();
+        si.pSignalSemaphoreInfos    = signals.data();
 
-        // 提交到队列（注意：需要支持 VK_KHR_synchronization2）
-        queue.submit2({submitInfo2}, fence);
+        // Vulkan 1.3 同步2：queue.submit2(...)
+        // 如果你走扩展而非 1.3，请改为 queue.submit2KHR(si, fence);
+        queue.submit2(si, fence);
     }
 
 private:

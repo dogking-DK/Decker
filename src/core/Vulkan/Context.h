@@ -40,7 +40,7 @@ public:
     void resizeSwapchainAuto();
 
 private:
-    VkInstance               _instance;
+    vk::Instance             _instance;
     VkDebugUtilsMessengerEXT _debug_messenger;
     vk::Device               _device;
     vk::PhysicalDevice       _physical_device;
@@ -64,6 +64,8 @@ private:
 
     void initVulkan(const uint32_t width = 1920, const uint32_t height = 1080);
     void initVma();
+
+    void initVkhppDispatchers(vk::Instance& instance, vk::Device& device);
 
     void deleteVma();
 
