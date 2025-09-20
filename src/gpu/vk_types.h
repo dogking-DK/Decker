@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #define GLM_ENABLE_EXPERIMENTAL
+
 #include <memory>
 #include <optional>
 #include <string>
@@ -22,6 +23,8 @@
 
 
 #include <magic_enum/magic_enum.hpp>
+
+#include <tracy/Tracy.hpp>
 
 #include <fmt/core.h>
 #include <fmt/color.h>

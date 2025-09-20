@@ -93,11 +93,12 @@ void VulkanEngine::init()
 
     init_renderables();
 
-    auto point_data = makeRandomPointCloudSphere(100000, { 0,0,0 }, 100, false);
 
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
-    point_cloud_renderer->updatePoints(point_data);
+
+    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(100000, { 0,0,0 }, 100, false);
+    point_cloud_renderer->updatePoints();
 
     init_imgui();
 
@@ -136,7 +137,7 @@ void VulkanEngine::init()
 
     //mainCamera.position = total_max - total_min;
     //mainCamera.position /= 2;
-    mainCamera.velocity_coefficient = total_aabb_length / 5000;
+    mainCamera.velocity_coefficient = total_aabb_length / 1000;
     mainCamera.position             = geom_center;
     mainCamera.pitch                = 0;
     mainCamera.yaw                  = 0;
@@ -488,6 +489,10 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     stats.mesh_draw_time = elapsed.count() / 1000.f;
 
     vkCmdEndRendering(cmd);
+
+    //auto point_data = makeRandomPointCloudSphere(100000, { 0,0,0 }, 100, false);
+    translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
+    point_cloud_renderer->updatePoints();
 
     point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj }, renderInfo);
 
@@ -917,6 +922,7 @@ void VulkanEngine::run()
             if (ImGui::CollapsingHeader("渲染设置", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::Text("frametime %f ms", stats.frametime);
+                ImGui::Text("fps: %i", static_cast<int>(1000.0f / stats.frametime));
                 ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
                 ImGui::Text("triangles %i", stats.triangle_count);
                 ImGui::Text("draws %i", stats.drawcall_count);
@@ -967,6 +973,8 @@ void VulkanEngine::run()
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
         stats.frametime = elapsed.count() / 1000.f;
+
+        FrameMark;
     }
 }
 

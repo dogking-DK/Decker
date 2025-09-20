@@ -10,17 +10,17 @@ PointCloudRenderer::PointCloudRenderer(dk::vkcore::VulkanContext* context)
 {
 }
 
-void PointCloudRenderer::updatePoints(const std::vector<PointData>& new_point_data)
+void PointCloudRenderer::updatePoints()
 {
-    if (new_point_data.size() > _max_point_count)
+    if (_point_data.size() > _max_point_count)
     {
         throw std::runtime_error("Exceeded maximum point cloud capacity.");
     }
-    _point_count = static_cast<uint32_t>(new_point_data.size());
+    _point_count = static_cast<uint32_t>(_point_data.size());
 
     if (_point_count > 0)
     {
-        _point_cloud_ssbo->update(new_point_data.data(), sizeof(PointData) * _point_count);
+        _point_cloud_ssbo->update(_point_data.data(), sizeof(PointData) * _point_count);
     }
 }
 
@@ -38,7 +38,7 @@ void PointCloudRenderer::init(vk::Format color_format, vk::Format depth_format)
 void PointCloudRenderer::createBuffers()
 {
     // 这个函数与之前的版本完全相同 (创建主机可见的 SSBO 和 UBO)
-    _max_point_count       = 500000;
+    _max_point_count       = 1000000;
     _point_count           = 0;
     VkDeviceSize ssbo_size = sizeof(PointData) * _max_point_count;
 

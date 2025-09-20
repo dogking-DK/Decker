@@ -2,9 +2,9 @@
 
 #include <vector>
 #include <memory>
+#include <execution>
 #include "glm/glm.hpp"
 
-// --- 包含我们封装的头文件 ---
 #include "vk_engine.h"
 #include "Vulkan/Context.h"
 #include "Vulkan/Buffer.h" // 假设有 BufferResource 类
@@ -38,8 +38,16 @@ struct PushConstantData
 {
     glm::mat4 modelMatrix;
     float     pointSize;
-};
+};  
 
+inline void translate_points(std::vector<PointData>& points, const glm::vec4 d)
+{
+    ZoneScopedN("point cloud translate");
+    std::for_each(std::execution::par_unseq, points.begin(), points.end(), [d](PointData& p)
+    {
+        p.position += d;
+    });
+}
 
 // 立方体/长方体内均匀分布
 inline std::vector<PointData>
@@ -79,6 +87,7 @@ inline std::vector<PointData>
 makeRandomPointCloudSphere(size_t count, glm::vec3 center = {0, 0, 0}, float radius = 1.f, bool shell = false,
                            std::optional<uint32_t> seed = std::nullopt)
 {
+    ZoneScopedN("point cloud radom generate");
     std::mt19937                          gen(seed ? *seed : std::random_device{}());
     std::normal_distribution<float>       gauss(0.f, 1.f);
     std::uniform_real_distribution<float> u01(0.f, 1.f);
@@ -119,10 +128,12 @@ public:
     void init(vk::Format color_format, vk::Format depth_format);
 
     // 每帧更新点云数据
-    void updatePoints(const std::vector<PointData>& new_point_data);
+    void updatePoints();
 
     // 在命令缓冲区中录制绘制命令
     void draw(vkcore::CommandBuffer& cmd, const CameraData& camera_data, VkRenderingInfo& render_info);
+
+    std::vector<PointData>& getPointData() { return _point_data; }
 
     // 清理所有资源
     void cleanup();
@@ -136,6 +147,8 @@ private:
     vkcore::VulkanContext* _context;
     uint32_t               _point_count     = 0;
     uint32_t               _max_point_count = 0; // 缓冲区的最大容量
+
+    std::vector<PointData> _point_data; // CPU 端的点云数据
 
     // 资源
     std::unique_ptr<vkcore::BufferResource> _point_cloud_ssbo;

@@ -25,40 +25,10 @@ public:
 
 
     // 映射内存，返回 CPU 可访问的指针
-    void* map()
-    {
-        if (!_host_visible) throw std::runtime_error("Allocation is not HOST_VISIBLE");
-        if (_data) return _data;
-
-        // 已映射直接拿
-        VmaAllocationInfo info{};
-        vmaGetAllocationInfo(_context->getVmaAllocator(), _allocation, &info);
-        if (info.pMappedData)
-        {
-            _data         = info.pMappedData;
-            _owns_mapping = false;
-            return _data;
-        }
-        // 否则我们来映射
-        void*    p = nullptr;
-        VkResult r = vmaMapMemory(_context->getVmaAllocator(), _allocation, &p);
-        if (r != VK_SUCCESS) throw std::runtime_error("vmaMapMemory failed");
-        _data         = p;
-        _owns_mapping = true;
-        return _data;
-    }
+    void* map();
 
     // 取消映射
-    void unmap()
-    {
-        if (!_data) return;
-        if (_owns_mapping)
-        {
-            vmaUnmapMemory(_context->getVmaAllocator(), _allocation);
-        }
-        _data         = nullptr;
-        _owns_mapping = false;
-    }
+    void unmap();
 
     void* data() const { return _data; }
 
