@@ -97,9 +97,8 @@ void VulkanEngine::init()
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
 
-    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(100000, { 0,0,0 }, 100, false);
+    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, { 0,0,0 }, 100, false);
     point_cloud_renderer->updatePoints();
-
     init_imgui();
 
     // everything went fine
@@ -489,9 +488,9 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     stats.mesh_draw_time = elapsed.count() / 1000.f;
 
     vkCmdEndRendering(cmd);
-
-    //auto point_data = makeRandomPointCloudSphere(100000, { 0,0,0 }, 100, false);
-    translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
+    srand(time(0));
+    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, { 0,0,0 }, 100, true, rand());
+    //translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
     point_cloud_renderer->updatePoints();
 
     point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj }, renderInfo);

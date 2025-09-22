@@ -1,51 +1,42 @@
-// MassSpringSystem.h
 #pragma once
-#include <vector>
-#include <cmath>
+#include "Base.h"
+#include "World.h"
 
-// 包含GLM主头文件
-#include <glm/glm.hpp>
+namespace dk {
+struct MSParticle
+{
+    glm::vec3 x{0}, v{0};
+    float     inv_mass{1.f};
+};
 
-class MassSpringSystem
+struct MSSpring
+{
+    u32   i,        j;
+    float rest_len, k, damping;
+};
+
+
+class MassSpringSystem final : public ISystem
 {
 public:
-    // Particle结构现在使用 glm::vec2
-    struct Particle
-    {
-        glm::vec2 position;    // 位置
-        glm::vec2 velocity;    // 速度
-        glm::vec2 force;       // 力
-        float     mass;        //质量
-        bool      is_pinned = false; // 是否固定
-    };
+    void setParticles(std::vector<MSParticle> p) { p_ = std::move(p); }
+    void setSprings(std::vector<MSSpring> s) { s_ = std::move(s); }
+    void setGravity(glm::vec3 g) { g_ = g; }
+    void setGlobalDamping(float c) { global_damping_ = c; }
+    void setFloor(float y) { floor_y_ = y; }
 
-    struct Spring
-    {
-        int   p1_idx;       // 连接的粒子索引
-        int   p2_idx;       // 连接的粒子索引   
-        float rest_length;  // 自然长度
-        float stiffness;    // 刚度
-    };
 
-    // 构造函数的参数也更新为 glm::vec2
-    MassSpringSystem(glm::vec2 gravity = glm::vec2(0.0f, -9.8f), float damping = 0.1f);
+    const std::vector<MSParticle>& particles() const { return p_; }
+    std::vector<MSParticle>&       particles() { return p_; }
 
-    // 接口使用 glm::vec2
-    int  addParticle(float mass, glm::vec2 position, bool is_pinned = false);
-    void addSpring(int p1_idx, int p2_idx, float stiffness);
 
-    void update(float dt);
-
-    const std::vector<Particle>& getParticles() const { return _particles; }
-    const std::vector<Spring>&   getSprings() const { return _springs; }
+    void step(float dt) override;
 
 private:
-    void computeForces();
-    void integrate(float dt);
-    void handleCollisions();
-
-    std::vector<Particle> _particles;
-    std::vector<Spring>   _springs;
-    glm::vec2             _gravity;              // 重力向量
-    float                 _damping_coefficient;  // 阻尼系数
+    std::vector<MSParticle> p_;
+    std::vector<MSSpring>   s_;
+    glm::vec3               g_{0.f, -9.81f, 0.f};
+    float                   global_damping_{0.01f};
+    float                   floor_y_{-std::numeric_limits<float>::infinity()};
 };
+} // namespace dk
