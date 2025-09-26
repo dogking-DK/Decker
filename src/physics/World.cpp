@@ -1,6 +1,8 @@
 #include "Base.h"
 #include "World.h"
 
+#include <ranges>
+
 
 namespace dk {
 World::World(const WorldSettings& s): settings_(s)
@@ -16,7 +18,7 @@ void World::tick(float real_dt)
     {
         for (int s = 0; s < settings_.substeps; ++s)
         {
-            for (auto& sys : systems_) sys->step(h / static_cast<float>(settings_.substeps));
+            for (const auto& val : systems_ | std::views::values) val->step(h / static_cast<float>(settings_.substeps));
         }
         acc_ -= h;
     }

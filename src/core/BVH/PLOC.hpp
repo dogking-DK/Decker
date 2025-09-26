@@ -7,7 +7,7 @@
 #include <glm/glm.hpp>
 #include "AABB.hpp"
 
-// ¼ò»¯µÄ Morton ±àÂë¼ÆËã (½öÓÃÓÚÑİÊ¾)
+// ç®€åŒ–çš„ Morton ç¼–ç è®¡ç®— (ä»…ç”¨äºæ¼”ç¤º)
 uint32_t expandBits(uint32_t v)
 {
     v = (v * 0x00010001u) & 0xFF0000FFu;
@@ -26,7 +26,7 @@ uint32_t morton3D(glm::vec3 pos)
     return x | (y << 1) | (z << 2);
 }
 
-// ¼ÆËã AABB µÄ±íÃæ»ı
+// è®¡ç®— AABB çš„è¡¨é¢ç§¯
 float surface_area(const AABB& aabb)
 {
     glm::vec3 d = aabb.max - aabb.min;
@@ -34,10 +34,10 @@ float surface_area(const AABB& aabb)
 }
 
 
-// Ö÷¹¹½¨º¯Êı
+// ä¸»æ„å»ºå‡½æ•°
 std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, const std::vector<int>& indices)
 {
-    // === 1. Í¼ÔªÌáÈ¡ÓëÔ¤´¦Àí ===
+    // === 1. å›¾å…ƒæå–ä¸é¢„å¤„ç† ===
     std::vector<AABB>      triangle_aabbs;
     std::vector<glm::vec3> triangle_centroids;
     preprocess_triangles(vertices, indices, triangle_aabbs, triangle_centroids);
@@ -45,7 +45,7 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
     int num_triangles = triangle_aabbs.size();
     if (num_triangles == 0) return {};
 
-    // ¼ÆËãÕû¸ö³¡¾°µÄ°üÎ§ºĞ£¬ÓÃÓÚ Morton ±àÂëµÄ¹éÒ»»¯
+    // è®¡ç®—æ•´ä¸ªåœºæ™¯çš„åŒ…å›´ç›’ï¼Œç”¨äº Morton ç¼–ç çš„å½’ä¸€åŒ–
     AABB scene_aabb;
     for (const auto& aabb : triangle_aabbs)
     {
@@ -53,7 +53,7 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
     }
     glm::vec3 scene_extent = scene_aabb.max - scene_aabb.min;
 
-    // === 2. Morton ±àÂëÓëÅÅĞò ===
+    // === 2. Morton ç¼–ç ä¸æ’åº ===
     std::vector<uint32_t> morton_codes(num_triangles);
     for (int i = 0; i < num_triangles; ++i)
     {
@@ -69,9 +69,9 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
         return morton_codes[a] < morton_codes[b];
     });
 
-    // === 3. ³õÊ¼»¯¾ÛÀà (Ò¶×Ó½Úµã) ===
+    // === 3. åˆå§‹åŒ–èšç±» (å¶å­èŠ‚ç‚¹) ===
     std::vector<BVHNode> bvh_nodes;
-    bvh_nodes.resize(num_triangles * 2 - 1); // Ô¤·ÖÅäËùÓĞ¿ÉÄÜµÄ½Úµã
+    bvh_nodes.resize(num_triangles * 2 - 1); // é¢„åˆ†é…æ‰€æœ‰å¯èƒ½çš„èŠ‚ç‚¹
     int node_count = num_triangles;
 
     std::vector<Cluster> clusters(num_triangles);
@@ -81,7 +81,7 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
 
         bvh_nodes[i].aabb    = triangle_aabbs[original_idx];
         bvh_nodes[i].is_leaf = true;
-        // ÔÚÒ¶×Ó½ÚµãÖĞ´æ´¢Ô­Ê¼Èı½ÇĞÎË÷Òı
+        // åœ¨å¶å­èŠ‚ç‚¹ä¸­å­˜å‚¨åŸå§‹ä¸‰è§’å½¢ç´¢å¼•
         bvh_nodes[i].left_child_index = original_idx;
 
         clusters[i] = {i, true};
@@ -89,13 +89,13 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
 
     int active_cluster_count = num_triangles;
 
-    // === 4. µü´úºÏ²¢ ===
+    // === 4. è¿­ä»£åˆå¹¶ ===
     while (active_cluster_count > 1)
     {
         std::vector<int> nearest_neighbors(active_cluster_count, -1);
 
-        // --- ²¢ĞĞÑ°ÕÒ×î½üÁÚ ---
-        // ×¢Òâ£ºÕâÊÇÒ»¸ö¼ò»¯µÄ O(N*K) ËÑË÷£¬KÊÇËÑË÷·¶Î§¡£ÕæÊµÊµÏÖ»á¸üÓÅ»¯¡£
+        // --- å¹¶è¡Œå¯»æ‰¾æœ€è¿‘é‚» ---
+        // æ³¨æ„ï¼šè¿™æ˜¯ä¸€ä¸ªç®€åŒ–çš„ O(N*K) æœç´¢ï¼ŒKæ˜¯æœç´¢èŒƒå›´ã€‚çœŸå®å®ç°ä¼šæ›´ä¼˜åŒ–ã€‚
         constexpr int search_range = 16;
         std::for_each(std::execution::par, clusters.begin(), clusters.end(), [&](Cluster& cluster)
         {
@@ -104,13 +104,13 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
             float min_sa            = std::numeric_limits<float>::max();
             int   best_neighbor_idx = -1;
 
-            // ÎªÁË¼ò»¯£¬ÎÒÃÇÖ±½ÓÔÚ clusters Êı×éÉÏµü´ú
-            // ÕÒµ½µ±Ç° cluster ÔÚÊı×éÖĞµÄÎ»ÖÃ
+            // ä¸ºäº†ç®€åŒ–ï¼Œæˆ‘ä»¬ç›´æ¥åœ¨ clusters æ•°ç»„ä¸Šè¿­ä»£
+            // æ‰¾åˆ°å½“å‰ cluster åœ¨æ•°ç»„ä¸­çš„ä½ç½®
             int current_idx = &cluster - &clusters[0];
 
             for (int i = 1; i < search_range; ++i)
             {
-                // Ïò×óºÍÏòÓÒËÑË÷
+                // å‘å·¦å’Œå‘å³æœç´¢
                 int neighbor_indices[2] = {current_idx - i, current_idx + i};
                 for (int neighbor_idx : neighbor_indices)
                 {
@@ -133,7 +133,7 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
             }
         });
 
-        // --- ºÏ²¢»¥Îª×î½üÁÚµÄ¶Ô ---
+        // --- åˆå¹¶äº’ä¸ºæœ€è¿‘é‚»çš„å¯¹ ---
         std::vector<int>  new_parent_node_indices;
         std::vector<bool> merged(active_cluster_count, false);
 
@@ -144,7 +144,7 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
             int neighbor_idx = nearest_neighbors[i];
             if (neighbor_idx != -1 && nearest_neighbors[neighbor_idx] == i)
             {
-                // È·±£Ö»ºÏ²¢Ò»´Î (i, neighbor_idx) ¶Ô
+                // ç¡®ä¿åªåˆå¹¶ä¸€æ¬¡ (i, neighbor_idx) å¯¹
                 if (i > neighbor_idx) continue;
 
                 int left_node_idx  = clusters[i].node_index;
@@ -162,7 +162,7 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
 
                 new_parent_node_indices.push_back(parent_node_idx);
 
-                // ±ê¼Ç¾É¾ÛÀàÎª·Ç»î¶¯
+                // æ ‡è®°æ—§èšç±»ä¸ºéæ´»åŠ¨
                 clusters[i].is_active            = false;
                 clusters[neighbor_idx].is_active = false;
                 merged[i]                        = true;
@@ -170,8 +170,8 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
             }
         }
 
-        // --- Ñ¹Ëõ¾ÛÀàÁĞ±í ---
-        // (ÕâÊÇ¼ò»¯µÄ´®ĞĞÑ¹Ëõ£¬GPUÉÏ»áÓÃ²¢ĞĞÇ°×ººÍ)
+        // --- å‹ç¼©èšç±»åˆ—è¡¨ ---
+        // (è¿™æ˜¯ç®€åŒ–çš„ä¸²è¡Œå‹ç¼©ï¼ŒGPUä¸Šä¼šç”¨å¹¶è¡Œå‰ç¼€å’Œ)
         std::vector<Cluster> next_clusters;
         for (const auto& cluster : clusters)
         {
@@ -189,12 +189,12 @@ std::vector<BVHNode> build_ploc_bvh(const std::vector<glm::vec3>& vertices, cons
         active_cluster_count = clusters.size();
     }
 
-    // ÉèÖÃ¸ù½Úµã
+    // è®¾ç½®æ ¹èŠ‚ç‚¹
     if (!bvh_nodes.empty())
     {
-        bvh_nodes.back().parent_index = -1; // ×îºóÒ»¸ö´´½¨µÄ½ÚµãÊÇ¸ù
+        bvh_nodes.back().parent_index = -1; // æœ€åä¸€ä¸ªåˆ›å»ºçš„èŠ‚ç‚¹æ˜¯æ ¹
     }
 
-    bvh_nodes.resize(node_count); // È¥³ı¶àÓàµÄÔ¤·ÖÅä¿Õ¼ä
+    bvh_nodes.resize(node_count); // å»é™¤å¤šä½™çš„é¢„åˆ†é…ç©ºé—´
     return bvh_nodes;
 }

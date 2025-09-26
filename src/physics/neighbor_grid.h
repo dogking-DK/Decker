@@ -23,7 +23,7 @@ struct HashGrid
 
     glm::ivec3 cellCoord(const glm::vec3& x) const
     {
-        return glm::ivec3(floor(x.x / cell), floor(x.y / cell), floor(x.z / cell));
+        return {floor(x.x / cell), floor(x.y / cell), floor(x.z / cell)};
     }
 
 

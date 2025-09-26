@@ -4,33 +4,33 @@
 #include <vector>
 #include <cstdint>
 
-// Öá¶ÔÆë°üÎ§ºĞ (AABB)
+// è½´å¯¹é½åŒ…å›´ç›’ (AABB)
 struct AABB
 {
     glm::vec3 min = glm::vec3(std::numeric_limits<float>::max());
     glm::vec3 max = glm::vec3(std::numeric_limits<float>::lowest());
 };
 
-// BVH ½Úµã
-// Ê¹ÓÃÒ»¸ö´óµÄ vector À´´æ´¢ËùÓĞ½Úµã£¬Í¨¹ıË÷ÒıÀ´ÒıÓÃ
+// BVH èŠ‚ç‚¹
+// ä½¿ç”¨ä¸€ä¸ªå¤§çš„ vector æ¥å­˜å‚¨æ‰€æœ‰èŠ‚ç‚¹ï¼Œé€šè¿‡ç´¢å¼•æ¥å¼•ç”¨
 struct BVHNode
 {
     AABB aabb;
     int  parent_index      = -1;
-    int  left_child_index  = -1; // ¶ÔÓÚÒ¶×Ó½Úµã£¬ÕâÀï¿ÉÒÔ´æ´¢Í¼ÔªË÷Òı
+    int  left_child_index  = -1; // å¯¹äºå¶å­èŠ‚ç‚¹ï¼Œè¿™é‡Œå¯ä»¥å­˜å‚¨å›¾å…ƒç´¢å¼•
     int  right_child_index = -1;
     bool is_leaf           = false;
 };
 
-// ¹¹½¨¹ı³ÌÖĞÊ¹ÓÃµÄÁÙÊ±¾ÛÀàĞÅÏ¢
+// æ„å»ºè¿‡ç¨‹ä¸­ä½¿ç”¨çš„ä¸´æ—¶èšç±»ä¿¡æ¯
 struct Cluster
 {
-    int  node_index;  // Ö¸Ïò BVHNode ´æ´¢ÖĞµÄË÷Òı
+    int  node_index;  // æŒ‡å‘ BVHNode å­˜å‚¨ä¸­çš„ç´¢å¼•
     bool is_active = true;
 };
 
 
-// ¸¨Öúº¯Êı£ººÏ²¢Á½¸ö AABB
+// è¾…åŠ©å‡½æ•°ï¼šåˆå¹¶ä¸¤ä¸ª AABB
 AABB merge_aabbs(const AABB& a, const AABB& b)
 {
     AABB merged;
@@ -39,7 +39,7 @@ AABB merge_aabbs(const AABB& a, const AABB& b)
     return merged;
 }
 
-// Ô¤´¦Àí²½Öè£ºÎªÃ¿¸öÈı½ÇĞÎ¼ÆËã AABB ºÍÖĞĞÄµã
+// é¢„å¤„ç†æ­¥éª¤ï¼šä¸ºæ¯ä¸ªä¸‰è§’å½¢è®¡ç®— AABB å’Œä¸­å¿ƒç‚¹
 void preprocess_triangles(
     const std::vector<glm::vec3>& vertices,
     const std::vector<int>&       indices,

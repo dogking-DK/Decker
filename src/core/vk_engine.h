@@ -19,6 +19,7 @@
 #include "Vulkan/Context.h"
 #include "HierarchyPanel.h"
 //#include "render/PointCloudRender.h"
+#include "World.h"
 #include "Vulkan/CommandPool.h"
 #include "Vulkan/CommandBuffer.h"
 
@@ -217,6 +218,8 @@ public:
     HierarchyPanel hierarchy_panel;
 
     std::shared_ptr<PointCloudRenderer> point_cloud_renderer;
+
+    std::unique_ptr<World> physic_world;
 
     // singleton style getter.multiple engines is not supported
     static VulkanEngine& Get();

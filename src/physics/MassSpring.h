@@ -1,42 +1,58 @@
+// SpringMassSystem.h
 #pragma once
+#include <execution>
+#include <vector>
+#include <memory>
+
 #include "Base.h"
 #include "World.h"
+#include "force/IForce.h"
+#include "solver/ISolver.h"
+#include "data/Particle.h"
 
 namespace dk {
-struct MSParticle
-{
-    glm::vec3 x{0}, v{0};
-    float     inv_mass{1.f};
-};
-
-struct MSSpring
-{
-    u32   i,        j;
-    float rest_len, k, damping;
-};
-
-
-class MassSpringSystem final : public ISystem
+class SpringMassSystem : public ISystem
 {
 public:
-    void setParticles(std::vector<MSParticle> p) { p_ = std::move(p); }
-    void setSprings(std::vector<MSSpring> s) { s_ = std::move(s); }
-    void setGravity(glm::vec3 g) { g_ = g; }
-    void setGlobalDamping(float c) { global_damping_ = c; }
-    void setFloor(float y) { floor_y_ = y; }
+    // 构造时确定求解器
+    SpringMassSystem(std::unique_ptr<ISolver> solver)
+        : _solver(std::move(solver))
+    {
+    }
 
+    // 添加具体的力模型
+    void addForce(std::unique_ptr<IForce> force)
+    {
+        _force.push_back(std::move(force));
+    }
 
-    const std::vector<MSParticle>& particles() const { return p_; }
-    std::vector<MSParticle>&       particles() { return p_; }
-
-
+    // 实现仿真循环的核心逻辑
     void step(float dt) override;
 
+    // 提供对数据的访问
+    ParticleData&       getParticles_mut() { return _data; }
+    Spring&             getTopology_mut() { return _topology; }
+    const ParticleData& getParticleData() const { return _data; }
+
+    void getRenderData(std::vector<PointData>& out_data) const override
+    {
+        const size_t count = _data.size();
+
+        // 清空并预留空间，确保只有在需要时才发生一次内存分配
+        out_data.clear();
+        out_data.resize(count);
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            out_data[i].position = vec4(_data.position[i], 1.0f);
+            out_data[i].color    = _data.color[i];
+        }
+    }
+
 private:
-    std::vector<MSParticle> p_;
-    std::vector<MSSpring>   s_;
-    glm::vec3               g_{0.f, -9.81f, 0.f};
-    float                   global_damping_{0.01f};
-    float                   floor_y_{-std::numeric_limits<float>::infinity()};
+    ParticleData                         _data;
+    Spring                               _topology;
+    std::vector<std::unique_ptr<IForce>> _force;
+    std::unique_ptr<ISolver>             _solver;
 };
-} // namespace dk
+}

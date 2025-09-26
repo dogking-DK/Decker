@@ -23,6 +23,13 @@
 #include <fstream>
 #include <filesystem>
 
+#include "Generator.h"
+#include "MassSpring.h"
+#include "force/GravityForce.h"
+#include "force/SpringForce.h"
+#include "solver/EulerSolver.h"
+#include "World.h"
+
 #define VMA_IMPLEMENTATION
 #define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
 
@@ -40,6 +47,7 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include <Vulkan/DescriptorSetPool.h>
 #include <Vulkan/DescriptorWriter.h>
 #include "render/PointCloudRender.h"
+
 template <>
 struct fmt::formatter<glm::vec3>
 {
@@ -93,11 +101,25 @@ void VulkanEngine::init()
 
     init_renderables();
 
+    physic_world = std::make_unique<World>(WorldSettings{});
+    physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<EulerSolver>());
+
+    auto            sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
+    ClothProperties clothProps;
+    clothProps.width_segments  = 15;
+    clothProps.height_segments = 10;
+    clothProps.width           = 15.0f;
+    clothProps.height          = 10.0f;
+    clothProps.start_position  = vec3(-7.5f, 15.0f, 0.0f);
+    create_cloth(*sm_sys, clothProps);
+
+    sm_sys->addForce(std::make_unique<GravityForce>(vec3(0.0f, -9.8f, 0.0f)));
+    sm_sys->addForce(std::make_unique<SpringForce>(sm_sys->getTopology_mut()));
 
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
 
-    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, { 0,0,0 }, 100, false);
+    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, false);
     point_cloud_renderer->updatePoints();
     init_imgui();
 
@@ -268,7 +290,7 @@ void VulkanEngine::test_render_point_mesh_shader()
                         get_current_frame()._command_pool_transfer,
                         _context->getTransferQueue(),  // 伪代码：优先 transfer，没有就 graphics
                         stagingBuf,
-        gpu_point_buffer,
+                        gpu_point_buffer,
                         {region});
 
 
@@ -488,13 +510,12 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     stats.mesh_draw_time = elapsed.count() / 1000.f;
 
     vkCmdEndRendering(cmd);
-    srand(time(0));
-    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, { 0,0,0 }, 100, true, rand());
+    srand(time(nullptr));
+    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, true, rand());
     //translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
     point_cloud_renderer->updatePoints();
 
-    point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj }, renderInfo);
-
+    point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
@@ -538,7 +559,7 @@ void VulkanEngine::draw()
 
     //naming it cmd for shorter writing
     VkCommandBuffer cmd = get_current_frame()._mainCommandBuffer;
-    cmd = get_current_frame().command_buffer_graphic->getHandle();
+    cmd                 = get_current_frame().command_buffer_graphic->getHandle();
 
     //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
     //VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -594,10 +615,11 @@ void VulkanEngine::draw()
         //we will signal the _renderSemaphore, to signal that rendering has finished
         VkCommandBufferSubmitInfo cmdinfo = vkinit::command_buffer_submit_info(cmd);
 
-        VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
+        VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
             get_current_frame()._swapchainSemaphore);
         VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
-            get_current_frame()._renderSemaphore);
+                                                                         get_current_frame()._renderSemaphore);
 
         VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, &signalInfo, &waitInfo);
 
@@ -608,10 +630,13 @@ void VulkanEngine::draw()
 
     get_current_frame().command_buffer_graphic->end();
 
-    auto wait_info = vkcore::makeWait(get_current_frame()._swapchainSemaphore, vk::PipelineStageFlagBits2::eColorAttachmentOutput);
-    auto signal_info = vkcore::makeSignal(get_current_frame()._renderSemaphore, vk::PipelineStageFlagBits2::eAllGraphics);
+    auto wait_info = vkcore::makeWait(get_current_frame()._swapchainSemaphore,
+                                      vk::PipelineStageFlagBits2::eColorAttachmentOutput);
+    auto signal_info = vkcore::makeSignal(get_current_frame()._renderSemaphore,
+                                          vk::PipelineStageFlagBits2::eAllGraphics);
 
-    get_current_frame().command_buffer_graphic->submit2(_context->getGraphicsQueue(), get_current_frame()._renderFence, {wait_info}, {signal_info});
+    get_current_frame().command_buffer_graphic->submit2(_context->getGraphicsQueue(), get_current_frame()._renderFence,
+                                                        {wait_info}, {signal_info});
 
     //prepare present
     // this will put the image we just rendered to into the visible window.
@@ -816,6 +841,12 @@ void VulkanEngine::run()
     SDL_Event e;
     bool      bQuit = false;
 
+    // --- 持久状态（比如放到你的 App/Scene 里） ---
+    bool  sim_run = false;     // 是否连续运行
+    int   step_N  = 10;        // 每次点击走多少 fixed steps
+    int   queued  = 0;         // 等待执行的步数（按钮累加）
+    float h       = physic_world->settings().fixed_dt;
+
     // main loop
     while (!bQuit)
     {
@@ -959,6 +990,42 @@ void VulkanEngine::run()
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
+        }
+
+
+        // --- 每帧 UI ---
+        ImGui::Begin("Simulation");
+        ImGui::Checkbox("Run", &sim_run);
+        ImGui::SameLine();
+        if (ImGui::Button("Step 1")) queued += 1;
+        ImGui::SameLine();
+        if (ImGui::Button("Step 10")) queued += 10;
+
+        ImGui::InputInt("Step N", &step_N);
+        if (ImGui::Button("Step N Go")) queued += std::max(0, step_N);
+
+        // 可选：按秒推进
+        static float secs = 0.5f;
+        ImGui::InputFloat("Advance secs", &secs);
+        if (ImGui::Button("Advance by secs"))
+        {
+            queued += std::max(0, static_cast<int>(std::round(secs / h)));
+        }
+        ImGui::End();
+
+        // --- 每帧更新 ---
+        if (sim_run)
+        {
+            // 正常实时推进
+            physic_world->tick(physic_world->settings().fixed_dt);  // 你的帧间隔
+        }
+        else
+        {
+            // 暂停状态下，按排队步数推进
+            while (queued-- > 0)
+            {
+                physic_world->tick(h);     // 每次推进正好一个 fixed step
+            }
         }
 
 
@@ -1322,7 +1389,7 @@ void VulkanEngine::init_commands()
         _frames[i]._command_pool_transfer = new vkcore::CommandPool(_context, _context->getTransferQueueIndex());
 
         //_frames[i].command_buffer_graphic = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
-        _frames[i].command_buffer_graphic = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
+        _frames[i].command_buffer_graphic  = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
         _frames[i].command_buffer_transfer = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_transfer);
 
         // allocate the default command buffer that we will use for rendering

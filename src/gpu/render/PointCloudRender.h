@@ -21,11 +21,7 @@
 
 namespace dk {
 // --- GLSL/C++ 共享数据结构 (必须与 Slang 中的定义匹配) ---
-struct PointData
-{
-    glm::vec4 position;
-    glm::vec4 color;
-};
+
 
 // Camera UBO
 struct CameraData
