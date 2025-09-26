@@ -106,10 +106,10 @@ void VulkanEngine::init()
 
     auto            sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     ClothProperties clothProps;
-    clothProps.width_segments  = 15;
-    clothProps.height_segments = 10;
-    clothProps.width           = 15.0f;
-    clothProps.height          = 10.0f;
+    clothProps.width_segments  = 100;
+    clothProps.height_segments = 100;
+    clothProps.width           = 100.0f;
+    clothProps.height          = 100.0f;
     clothProps.start_position  = vec3(-7.5f, 15.0f, 0.0f);
     create_cloth(*sm_sys, clothProps);
 
@@ -119,7 +119,8 @@ void VulkanEngine::init()
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
 
-    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, false);
+    //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, false);
+    physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
     point_cloud_renderer->updatePoints();
     init_imgui();
 
@@ -510,8 +511,9 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     stats.mesh_draw_time = elapsed.count() / 1000.f;
 
     vkCmdEndRendering(cmd);
-    srand(time(nullptr));
-    point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, true, rand());
+    //srand(time(nullptr));
+    //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, { 0, 0, 0 }, 100, true, rand());
+    physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
     //translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
     point_cloud_renderer->updatePoints();
 
@@ -1022,9 +1024,10 @@ void VulkanEngine::run()
         else
         {
             // 暂停状态下，按排队步数推进
-            while (queued-- > 0)
+            if (queued > 0)
             {
                 physic_world->tick(h);     // 每次推进正好一个 fixed step
+                queued--;
             }
         }
 

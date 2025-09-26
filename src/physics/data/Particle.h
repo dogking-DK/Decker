@@ -56,7 +56,7 @@ struct Spring
     std::vector<float>  stiffness; // 弹性系数
     std::vector<float>  rest_length; // 自然长度
 
-    size_t getCount() const
+    size_t size() const
     {
         return index_a.size();
     }
