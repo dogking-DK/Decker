@@ -14,7 +14,7 @@ public:
 
     void applyForce(ParticleData& data) override
     {
-        for (size_t i = 0; i < _topology.getCount(); ++i)
+        for (size_t i = 0; i < _topology.size(); ++i)
         {
             glm::vec3& posA = data.position[_topology.index_a[i]];
             glm::vec3& posB = data.position[_topology.index_b[i]];

@@ -47,6 +47,7 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include <Vulkan/DescriptorSetPool.h>
 #include <Vulkan/DescriptorWriter.h>
 #include "render/PointCloudRender.h"
+#include "render/SpringRender.h"
 
 template <>
 struct fmt::formatter<glm::vec3>
@@ -119,9 +120,14 @@ void VulkanEngine::init()
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
 
+    m_spring_renderer = std::make_unique<dk::SpringRenderer>(_context);
+    m_spring_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
+
     //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, false);
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
     point_cloud_renderer->updatePoints();
+    m_spring_renderer->updateSprings(sm_sys->getParticleData(), sm_sys->getTopology_mut());
+
     init_imgui();
 
     // everything went fine
@@ -518,6 +524,9 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     point_cloud_renderer->updatePoints();
 
     point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
+
+    m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj }, renderInfo);
+
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)

@@ -1,0 +1,86 @@
+#version 460
+#extension GL_EXT_mesh_shader : require
+
+// --- 每组最多处理的线段数量（可按需改动） ---
+layout(local_size_x = 64) in;
+
+// --- 输出：线段 primitive，每段 2 顶点 ---
+layout(lines, max_vertices = 128, max_primitives = 64) out;
+
+// ====== 资源与数据结构，匹配你给的布局 ======
+struct GPUParticle {
+    vec4 position; // xyz 位置, w 可留作他用
+    vec4 color;    // RGBA
+};
+struct SpringIndex {
+    uvec2 indices; // 两端点在 particles[] 的索引
+};
+struct CameraData {
+    mat4 viewProj;
+};
+
+layout(set = 0, binding = 0) uniform CameraBuffer {
+    CameraData camera;
+};
+layout(set = 0, binding = 1, std430) readonly buffer ParticleBuffer {
+    GPUParticle particles[];
+};
+layout(set = 0, binding = 2, std430) readonly buffer SpringIndexBuffer {
+    SpringIndex springIndices[];
+};
+
+layout(push_constant) uniform PushConstants {
+    mat4 modelMatrix; // 模型矩阵，用于将点从局部空间变换到世界空间
+    float size;  // 渲染出的点的大小（像素单位）
+} pushData;
+
+// 传给片元着色器的插值输出
+out PerVertex {
+    layout(location = 0) vec4 color;
+} vtx[];
+
+// 共享：本 workgroup 实际要处理的线段数
+shared uint gNumSegWG;
+
+void main()
+{
+    const uint wgBase    = gl_WorkGroupID.x * gl_WorkGroupSize.x;
+    const uint consumed  = gl_WorkGroupID.x * gl_WorkGroupSize.x;
+    const uint remaining = (springIndices.length() > consumed) ? (springIndices.length() - consumed) : 0u;
+
+    if (gl_LocalInvocationIndex == 0) {
+        gNumSegWG = min(remaining, gl_WorkGroupSize.x);
+    }
+    barrier();
+
+    const uint numSeg = gNumSegWG;
+
+    // 所有线程必须一致调用
+    SetMeshOutputsEXT(numSeg * 2u, numSeg);
+
+    const uint lane = gl_LocalInvocationIndex;
+    if (lane >= numSeg) {
+        return; // 超出有效范围的线程什么也不做
+    }
+
+    const uint segIndex = wgBase + lane;
+    SpringIndex si = springIndices[segIndex];
+
+    GPUParticle p0 = particles[si.indices.x];
+    GPUParticle p1 = particles[si.indices.y];
+
+    // 顶点索引（当前段的两个顶点）
+    const uint v0 = lane * 2u;
+    const uint v1 = v0 + 1u;
+
+    // 写裁剪空间位置（乘以 viewProj）
+    gl_MeshVerticesEXT[v0].gl_Position = camera.viewProj * pushData.modelMatrix * vec4(p0.position.xyz, 1.0);
+    gl_MeshVerticesEXT[v1].gl_Position = camera.viewProj * pushData.modelMatrix * vec4(p1.position.xyz, 1.0);
+
+    // 顶点颜色（片元阶段会线性插值）
+    vtx[v0].color = p0.color;
+    vtx[v1].color = p1.color;
+
+    // 一个线段 primitive 使用这两个顶点
+    gl_PrimitiveLineIndicesEXT[lane] = uvec2(v0, v1);
+}

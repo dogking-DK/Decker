@@ -20,25 +20,11 @@
 #include "Vulkan/ShaderModule.h"
 
 // 引入我们物理模拟的数据结构
-#include "ParticleData.h" // 包含 ParticleData
-#include "SpringTopology.h" // 包含 SpringTopology
+#include "data/Particle.h" // 包含 ParticleData
 
 namespace dk {
 
     // --- GLSL/C++ 共享数据结构 ---
-
-    // Camera UBO (与 PointCloudRenderer 相同)
-    struct CameraData
-    {
-        glm::mat4 viewProj;
-    };
-
-    // Push Constants (将 pointSize 改为 lineWidth)
-    struct PushConstantData
-    {
-        glm::mat4 modelMatrix;
-        float     lineWidth; // 在支持的硬件上可以控制线宽
-    };
 
     // 用于 SSBO 的粒子数据结构 (与着色器对齐)
     struct GPUParticle
@@ -68,7 +54,7 @@ namespace dk {
          * @param particle_data 包含所有粒子位置和颜色的数据.
          * @param topology 包含定义弹簧连接的索引对.
          */
-        void updateSprings(const ParticleData& particle_data, const SpringTopology& topology);
+        void updateSprings(const ParticleData& particle_data, const Spring& topology);
 
         // 录制绘制命令
         void draw(vkcore::CommandBuffer& cmd, const CameraData& camera_data, VkRenderingInfo& render_info);

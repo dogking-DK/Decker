@@ -165,7 +165,7 @@ void PointCloudRenderer::draw(dk::vkcore::CommandBuffer& cmd, const CameraData& 
     
     PushConstantData push_data;
     push_data.modelMatrix = glm::mat4(1.0f);
-    push_data.pointSize   = 3.0f;
+    push_data.size   = 3.0f;
     cmd.getHandle().pushConstants(
         _pipeline_layout->getHandle(),
         vk::ShaderStageFlagBits::eMeshEXT,

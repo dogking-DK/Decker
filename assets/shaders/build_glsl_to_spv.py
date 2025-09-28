@@ -192,6 +192,7 @@ def main():
                     verify_spv(dst)
             except SystemExit:
                 print(f"[FAIL] Failed to compile {rel_path}", file=sys.stderr)
+                input("Press Enter to exit...")
                 # 在这里可以选择是继续还是终止，目前是遇到错误就终止
                 sys.exit(1)
 
@@ -202,6 +203,7 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print(f"\n[FATAL] An unexpected error occurred: {e}", file=sys.stderr)
+        input("Press Enter to exit...")
         sys.exit(1)
     # 移除 input，让脚本可以更好地用于自动化流程
     input("Press Enter to exit...")

@@ -20,6 +20,7 @@
 #include "HierarchyPanel.h"
 //#include "render/PointCloudRender.h"
 #include "World.h"
+//#include "render/SpringRender.h"
 #include "Vulkan/CommandPool.h"
 #include "Vulkan/CommandBuffer.h"
 
@@ -29,8 +30,9 @@ namespace fastgltf
 }
 
 namespace dk {
-
+class SpringRenderer;
 class PointCloudRenderer;   // ← 前置声明（不需要包含头）
+
 struct DeletionQueue
 {
     std::deque<std::function<void()>> deletors;
@@ -218,6 +220,7 @@ public:
     HierarchyPanel hierarchy_panel;
 
     std::shared_ptr<PointCloudRenderer> point_cloud_renderer;
+    std::shared_ptr<SpringRenderer> m_spring_renderer;
 
     std::unique_ptr<World> physic_world;
 

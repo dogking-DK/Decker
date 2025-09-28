@@ -22,20 +22,6 @@
 namespace dk {
 // --- GLSL/C++ 共享数据结构 (必须与 Slang 中的定义匹配) ---
 
-
-// Camera UBO
-struct CameraData
-{
-    glm::mat4 viewProj;
-};
-
-// Push Constants
-struct PushConstantData
-{
-    glm::mat4 modelMatrix;
-    float     pointSize;
-};  
-
 inline void translate_points(std::vector<PointData>& points, const glm::vec4 d)
 {
     ZoneScopedN("point cloud translate");

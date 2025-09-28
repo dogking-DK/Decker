@@ -71,6 +71,19 @@ struct GPUSceneData
     glm::vec4 sunlightColor;
 };
 
+// Camera UBO
+struct CameraData
+{
+    glm::mat4 viewProj;
+};
+
+// Push Constants
+struct PushConstantData
+{
+    glm::mat4 modelMatrix;
+    float     size; // 点或者线的大小
+};
+
 //> mat_types
 enum class MaterialPass :uint8_t
 {
