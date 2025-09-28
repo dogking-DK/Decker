@@ -38,7 +38,7 @@ void PointCloudRenderer::init(vk::Format color_format, vk::Format depth_format)
 void PointCloudRenderer::createBuffers()
 {
     // 这个函数与之前的版本完全相同 (创建主机可见的 SSBO 和 UBO)
-    _max_point_count       = 1000000;
+    _max_point_count       = 2000000;
     _point_count           = 0;
     VkDeviceSize ssbo_size = sizeof(PointData) * _max_point_count;
 
@@ -165,7 +165,7 @@ void PointCloudRenderer::draw(dk::vkcore::CommandBuffer& cmd, const CameraData& 
     
     PushConstantData push_data;
     push_data.modelMatrix = glm::mat4(1.0f);
-    push_data.size   = 3.0f;
+    push_data.size   = 5.0f;
     cmd.getHandle().pushConstants(
         _pipeline_layout->getHandle(),
         vk::ShaderStageFlagBits::eMeshEXT,

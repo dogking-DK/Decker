@@ -9,8 +9,8 @@ public:
     virtual ~IParticleColorizer() = default;
 
     /**
-     * @brief 根据内部逻辑更新 ParticleData 中的颜色.
-     * @param data 要被着色的粒子数据.
+     * @brief 鏍规嵁鍐呴儴閫昏緫鏇存柊 ParticleData 涓殑棰滆壊.
+     * @param data 瑕佽鐫�鑹茬殑绮掑瓙鏁版嵁.
      */
     virtual void colorize(ParticleData& data) = 0;
 };

@@ -419,4 +419,5 @@ def main(argv=None) -> int:
         return 2
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
+    input("Press Enter to exit...")

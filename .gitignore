@@ -3,7 +3,7 @@ cmake_uninstall.cmake
 
 lib/
 bin/
-
+assets/shaders/spv/
 
 *.pc
 *.conf

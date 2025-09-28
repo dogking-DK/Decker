@@ -102,31 +102,37 @@ void VulkanEngine::init()
 
     init_renderables();
 
+
+    fmt::print("build world\n");
     physic_world = std::make_unique<World>(WorldSettings{});
     physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<EulerSolver>());
 
     auto            sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     ClothProperties clothProps;
-    clothProps.width_segments  = 100;
-    clothProps.height_segments = 100;
+    clothProps.width_segments  = 1;
+    clothProps.height_segments = 2;
     clothProps.width           = 100.0f;
     clothProps.height          = 100.0f;
     clothProps.start_position  = vec3(-7.5f, 15.0f, 0.0f);
     create_cloth(*sm_sys, clothProps);
+    fmt::print("build cloth\n");
 
     sm_sys->addForce(std::make_unique<GravityForce>(vec3(0.0f, -9.8f, 0.0f)));
     sm_sys->addForce(std::make_unique<SpringForce>(sm_sys->getTopology_mut()));
 
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
+    fmt::print("build point cloud render\n");
 
-    m_spring_renderer = std::make_unique<dk::SpringRenderer>(_context);
+    m_spring_renderer = std::make_unique<SpringRenderer>(_context);
     m_spring_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
+    fmt::print("build spring render\n");
 
     //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, false);
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
     point_cloud_renderer->updatePoints();
     m_spring_renderer->updateSprings(sm_sys->getParticleData(), sm_sys->getTopology_mut());
+    fmt::print("build render data\n");
 
     init_imgui();
 
@@ -520,13 +526,17 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     //srand(time(nullptr));
     //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, { 0, 0, 0 }, 100, true, rand());
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
+    auto sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
+
+
     //translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
     point_cloud_renderer->updatePoints();
 
+    m_spring_renderer->updateSprings(sm_sys->getParticleData(), sm_sys->getTopology_mut());
+
     point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 
-    m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj }, renderInfo);
-
+    m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)

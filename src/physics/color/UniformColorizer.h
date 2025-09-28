@@ -8,7 +8,7 @@ namespace dk {
 class VelocityColorizer : public IParticleColorizer
 {
 public:
-    // ¹¹ÔìÊ±¶¨ÒåÒ»¸öÑÕÉ«Ìİ¶È
+    // æ„é€ æ—¶å®šä¹‰ä¸€ä¸ªé¢œè‰²æ¢¯åº¦
     VelocityColorizer(const vec4& minColor = vec4(0, 0, 1, 1), const vec4& maxColor = vec4(1, 0, 0, 1))
         : m_minColor(minColor), m_maxColor(maxColor)
     {
@@ -19,7 +19,7 @@ public:
         const size_t count = data.size();
         if (count == 0) return;
 
-        // 1. ÕÒµ½µ±Ç°Ö¡ËÙ¶È´óĞ¡µÄ×îĞ¡ÖµºÍ×î´óÖµ
+        // 1. æ‰¾åˆ°å½“å‰å¸§é€Ÿåº¦å¤§å°çš„æœ€å°å€¼å’Œæœ€å¤§å€¼
         float minMag = std::numeric_limits<float>::max();
         float maxMag = std::numeric_limits<float>::min();
         for (size_t i = 0; i < count; ++i)
@@ -29,23 +29,23 @@ public:
             maxMag    = std::max(maxMag, mag);
         }
 
-        // 2. ¹éÒ»»¯²¢Ó³Éäµ½ÑÕÉ«Ìİ¶È
+        // 2. å½’ä¸€åŒ–å¹¶æ˜ å°„åˆ°é¢œè‰²æ¢¯åº¦
         for (size_t i = 0; i < count; ++i)
         {
             float mag = length(data.velocity[i]);
             float t   = 0.0f;
-            // ±ÜÃâ³ıÒÔÁã
+            // é¿å…é™¤ä»¥é›¶
             if (maxMag > minMag)
             {
                 t = (mag - minMag) / (maxMag - minMag);
             }
-            // Ê¹ÓÃ glm::mix ½øĞĞÏßĞÔ²åÖµ
+            // ä½¿ç”¨ glm::mix è¿›è¡Œçº¿æ€§æ’å€¼
             data.color[i] = mix(m_minColor, m_maxColor, t);
         }
     }
 
 private:
-    vec4 m_minColor; // ËÙ¶È×îÂıÊ±µÄÑÕÉ«
-    vec4 m_maxColor; // ËÙ¶È×î¿ìÊ±µÄÑÕÉ«
+    vec4 m_minColor; // é€Ÿåº¦æœ€æ…¢æ—¶çš„é¢œè‰²
+    vec4 m_maxColor; // é€Ÿåº¦æœ€å¿«æ—¶çš„é¢œè‰²
 };
 }
