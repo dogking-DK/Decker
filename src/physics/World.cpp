@@ -2,6 +2,7 @@
 #include "World.h"
 
 #include <ranges>
+#include <tracy/Tracy.hpp>
 
 
 namespace dk {
@@ -12,6 +13,8 @@ World::World(const WorldSettings& s): settings_(s)
 
 void World::tick(float real_dt)
 {
+    ZoneScopedN("total physic simulation");
+
     acc_ += real_dt;
     const float h = settings_.fixed_dt;
     while (acc_ + kEps >= h)

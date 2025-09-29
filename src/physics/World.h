@@ -10,8 +10,8 @@
 namespace dk {
 struct WorldSettings
 {
-    float fixed_dt{1.0f / 1000.0f}; // 时间步长
-    int   substeps{1}; // 每帧的子步数
+    float fixed_dt{1.0f / 100.0f}; // 时间步长
+    int   substeps{10}; // 每帧的子步数
 };
 
 

@@ -22,6 +22,7 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <filesystem>
+#include <unordered_set>
 
 #include "Generator.h"
 #include "MassSpring.h"
@@ -29,6 +30,9 @@
 #include "force/SpringForce.h"
 #include "solver/EulerSolver.h"
 #include "World.h"
+#include "color/UniformColorizer.h"
+#include "force/DampingForce.h"
+#include "solver/VerletSolver.h"
 
 #define VMA_IMPLEMENTATION
 #define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
@@ -105,12 +109,12 @@ void VulkanEngine::init()
 
     fmt::print("build world\n");
     physic_world = std::make_unique<World>(WorldSettings{});
-    physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<EulerSolver>());
+    physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<VerletSolver>());
 
     auto            sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     ClothProperties clothProps;
-    clothProps.width_segments  = 1;
-    clothProps.height_segments = 2;
+    clothProps.width_segments  = 100;
+    clothProps.height_segments = 100;
     clothProps.width           = 100.0f;
     clothProps.height          = 100.0f;
     clothProps.start_position  = vec3(-7.5f, 15.0f, 0.0f);
@@ -118,7 +122,10 @@ void VulkanEngine::init()
     fmt::print("build cloth\n");
 
     sm_sys->addForce(std::make_unique<GravityForce>(vec3(0.0f, -9.8f, 0.0f)));
+    sm_sys->addForce(std::make_unique<DampingForce>(0.001));
     sm_sys->addForce(std::make_unique<SpringForce>(sm_sys->getTopology_mut()));
+
+    sm_sys->setColorizer(std::make_unique<VelocityColorizer>());
 
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);

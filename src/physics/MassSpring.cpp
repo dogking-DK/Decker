@@ -1,8 +1,11 @@
 #include "MassSpring.h"
 #include <execution>
+#include <tracy/Tracy.hpp>
 
 void dk::SpringMassSystem::step(float dt)
 {
+    ZoneScopedN("spring mass system one step");
+
     // 1. 清除旧力
     std::fill(std::execution::par_unseq, _data->force.begin(), _data->force.end(), glm::vec3(0.0f));
 
