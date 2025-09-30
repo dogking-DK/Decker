@@ -13,9 +13,9 @@ struct PointData
 // 使用SoA (Struct of Arrays) 存储质点数据
 // 优点: 内存访问连续，缓存命中率高，非常适合SIMD优化
 struct ParticleData
-{   
+{
     std::vector<glm::vec3> position; // 位置
-    std::vector<vec3> previous_position; // 上一步位置，用于计算速度
+    std::vector<glm::vec3> previous_position; // 上一步位置，用于计算速度
     std::vector<glm::vec3> velocity; // 速度
     std::vector<glm::vec3> acceleration; // 加速度
     std::vector<glm::vec3> force; // 受力

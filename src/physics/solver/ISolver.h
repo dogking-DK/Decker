@@ -6,5 +6,5 @@ class ISolver
 {
 public:
     virtual      ~ISolver() = default;
-    virtual void solve(dk::ParticleData& particles, float dt) = 0;
+    virtual void solve(dk::ParticleData& particles, dk::Spring& springs, const float dt) = 0;
 };

@@ -85,26 +85,26 @@ inline void create_cloth(SpringMassSystem& system, const ClothProperties& props)
                                    props.height / static_cast<float>(props.height_segments));
             }
 
-            // 剪切弹簧 (Shear)
-            if (x < props.width_segments && y < props.height_segments)
-            {
-                const float diag_length = length(vec2(props.width / static_cast<float>(props.width_segments),
-                                                      props.height / static_cast<float>(props.height_segments)));
-                topology.addSpring(get_index(x, y), get_index(x + 1, y + 1), props.stiffness_shear, diag_length);
-                topology.addSpring(get_index(x + 1, y), get_index(x, y + 1), props.stiffness_shear, diag_length);
-            }
+            //// 剪切弹簧 (Shear)
+            //if (x < props.width_segments && y < props.height_segments)
+            //{
+            //    const float diag_length = length(vec2(props.width / static_cast<float>(props.width_segments),
+            //                                          props.height / static_cast<float>(props.height_segments)));
+            //    topology.addSpring(get_index(x, y), get_index(x + 1, y + 1), props.stiffness_shear, diag_length);
+            //    topology.addSpring(get_index(x + 1, y), get_index(x, y + 1), props.stiffness_shear, diag_length);
+            //}
 
-            // 弯曲弹簧 (Bend) - 这是让布料抗弯曲的关键
-            if (x < props.width_segments - 1)
-            {
-                topology.addSpring(get_index(x, y), get_index(x + 2, y), props.stiffness_bend,
-                                   2.0f * props.width / static_cast<float>(props.width_segments));
-            }
-            if (y < props.height_segments - 1)
-            {
-                topology.addSpring(get_index(x, y), get_index(x, y + 2), props.stiffness_bend,
-                                   2.0f * props.height / static_cast<float>(props.height_segments));
-            }
+            //// 弯曲弹簧 (Bend) - 这是让布料抗弯曲的关键
+            //if (x < props.width_segments - 1)
+            //{
+            //    topology.addSpring(get_index(x, y), get_index(x + 2, y), props.stiffness_bend,
+            //                       2.0f * props.width / static_cast<float>(props.width_segments));
+            //}
+            //if (y < props.height_segments - 1)
+            //{
+            //    topology.addSpring(get_index(x, y), get_index(x, y + 2), props.stiffness_bend,
+            //                       2.0f * props.height / static_cast<float>(props.height_segments));
+            //}
         }
     }
 
