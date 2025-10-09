@@ -1,4 +1,4 @@
-// FixedColorizer.h
+﻿// FixedColorizer.h
 #pragma once
 #include "IParticleColorizer.h"
 

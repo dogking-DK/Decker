@@ -1,4 +1,4 @@
-#include "EulerSolver.h"
+﻿#include "EulerSolver.h"
 
 namespace dk {
 void EulerSolver::solve(dk::ParticleData& data, dk::Spring& springs, const float dt)

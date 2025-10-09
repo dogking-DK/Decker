@@ -1,19 +1,19 @@
-#include "PBDSolver.h"
+ï»¿#include "PBDSolver.h"
 
 namespace dk {
 void PBDSolver::solve(ParticleData& data, Spring& springs, const float dt)
 {
-    // Step 1: Ô¤²âÎ»ÖÃ
+    // Step 1: é¢„æµ‹ä½ç½®
     predictPositions(data, springs, dt);
 
-    // Step 2: Ô¼ÊøÇó½âÑ­»·
+    // Step 2: çº¦æŸæ±‚è§£å¾ªç¯
     for (int i = 0; i < m_solverIterations; ++i)
     {
         projectSpringConstraints(data, springs);
-        // Î´À´¿ÉÒÔÔÚÕâÀïµ÷ÓÃ projectCollisionConstraints(data);
+        // æœªæ¥å¯ä»¥åœ¨è¿™é‡Œè°ƒç”¨ projectCollisionConstraints(data);
     }
 
-    // Step 3: ¸üĞÂËÙ¶ÈºÍ×îÖÕÎ»ÖÃ
+    // Step 3: æ›´æ–°é€Ÿåº¦å’Œæœ€ç»ˆä½ç½®
     updateVelocitiesAndPositions(data, springs, dt);
 }
 
@@ -24,10 +24,10 @@ void PBDSolver::predictPositions(ParticleData& data, Spring& springs, const floa
     for (size_t i = 0; i < count; ++i)
     {
         if (data.is_fixed[i]) continue;
-        // ¼ÆËãËÙ¶È²¢Ê©¼ÓÍâÁ¦£¬¼ÙÉè force ÒÑ¾­±»ÀÛ¼ÓºÃÁË
+        // è®¡ç®—é€Ÿåº¦å¹¶æ–½åŠ å¤–åŠ›ï¼Œå‡è®¾ force å·²ç»è¢«ç´¯åŠ å¥½äº†
         data.velocity[i] += data.force[i] * data.inv_mass[i] * dt;
 
-        // Ô¤²âĞÂÎ»ÖÃ (×¢Òâ£ºÎÒÃÇÖ»¸üĞÂ position, prev_position ÔİÊ±²»±ä)
+        // é¢„æµ‹æ–°ä½ç½® (æ³¨æ„ï¼šæˆ‘ä»¬åªæ›´æ–° position, prev_position æš‚æ—¶ä¸å˜)
         data.position[i] += data.velocity[i] * dt;
     }
 }
@@ -43,7 +43,7 @@ void PBDSolver::projectSpringConstraints(ParticleData& data, Spring& springs)
         vec3& p1 = data.position[i1];
         vec3& p2 = data.position[i2];
 
-        // ¼ÆËãÄæÖÊÁ¿
+        // è®¡ç®—é€†è´¨é‡
         float w1 = data.is_fixed[i1] ? 0.0f : data.inv_mass[i1];
         float w2 = data.is_fixed[i2] ? 0.0f : data.inv_mass[i2];
         if (w1 + w2 == 0.0f) continue;
@@ -52,13 +52,13 @@ void PBDSolver::projectSpringConstraints(ParticleData& data, Spring& springs)
         float dist = length(diff);
         if (dist == 0.0f) continue;
 
-        // ¼ÆËãĞŞÕıÁ¿
+        // è®¡ç®—ä¿®æ­£é‡
         float restLength = springs.rest_length[i];
         vec3  correction = (diff / dist) * (dist - restLength);
         //correction *= 0.1;
         float alpha = 1.0f - std::pow(1.0f - 0.9f, 1.0f / static_cast<float>(m_solverIterations));
         correction *= alpha;
-        // Ó¦ÓÃĞŞÕı
+        // åº”ç”¨ä¿®æ­£
         p1 -= (w1 / (w1 + w2)) * correction;
         p2 += (w2 / (w1 + w2)) * correction;
     }
@@ -71,10 +71,10 @@ void PBDSolver::updateVelocitiesAndPositions(ParticleData& data, Spring& springs
     {
         if (data.is_fixed[i]) continue;
 
-        // ÓÃÍ¶Ó°ºóµÄ×îÖÕÎ»ÖÃ p_i ºÍÖ®Ç°Ö¡µÄÎ»ÖÃ p_prev_i À´¼ÆËã×îÖÕËÙ¶È
+        // ç”¨æŠ•å½±åçš„æœ€ç»ˆä½ç½® p_i å’Œä¹‹å‰å¸§çš„ä½ç½® p_prev_i æ¥è®¡ç®—æœ€ç»ˆé€Ÿåº¦
         data.velocity[i] = (data.position[i] - data.previous_position[i]) / dt;
 
-        // ¸üĞÂ "ÉÏÒ»Ö¡" Î»ÖÃ£¬ÎªÏÂÒ»ÂÖÄ£Äâ×ö×¼±¸
+        // æ›´æ–° "ä¸Šä¸€å¸§" ä½ç½®ï¼Œä¸ºä¸‹ä¸€è½®æ¨¡æ‹Ÿåšå‡†å¤‡
         data.previous_position[i] = data.position[i];
     }
 }

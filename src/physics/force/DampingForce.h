@@ -1,4 +1,4 @@
-// DampingForce.h
+﻿// DampingForce.h
 #pragma once
 #include "IForce.h"
 

@@ -1,4 +1,4 @@
-// IForce.h
+﻿// IForce.h
 #pragma once
 #include "data/Particle.h"
 

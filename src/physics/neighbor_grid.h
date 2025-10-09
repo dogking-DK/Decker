@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Base.h"
 #include <glm/gtx/hash.hpp>
 #include <unordered_map>

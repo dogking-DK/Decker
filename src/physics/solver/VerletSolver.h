@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "ISolver.h"
 
 namespace dk {

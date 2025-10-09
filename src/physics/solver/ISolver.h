@@ -1,4 +1,4 @@
-// ISolver.h
+﻿// ISolver.h
 #pragma once
 #include "data/Particle.h"
 

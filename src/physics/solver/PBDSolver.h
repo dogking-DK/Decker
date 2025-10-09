@@ -1,7 +1,7 @@
-// PBDSolver.h
+ï»¿// PBDSolver.h
 #pragma once
 #include "ISolver.h"
-#include "data/Particle.h" // PBDÇó½âÆ÷ĞèÒªÖªµÀµ¯»ÉµÄÁ¬½Ó¹ØÏµ
+#include "data/Particle.h" // PBDæ±‚è§£å™¨éœ€è¦çŸ¥é“å¼¹ç°§çš„è¿æ¥å…³ç³»
 
 namespace dk {
 class PBDSolver : public ISolver

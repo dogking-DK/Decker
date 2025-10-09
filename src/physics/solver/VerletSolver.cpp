@@ -1,4 +1,4 @@
-#include "VerletSolver.h"
+ï»¿#include "VerletSolver.h"
 
 namespace dk {
 void VerletSolver::solve(dk::ParticleData& data, dk::Spring& springs, float dt)
@@ -10,24 +10,24 @@ void VerletSolver::solve(dk::ParticleData& data, dk::Spring& springs, float dt)
     {
         if (data.is_fixed[i] || data.mass[i] == 0.0f) continue;
 
-        // 1. ¼ÆËã¼ÓËÙ¶È
-        // ×¢Òâ: ÔÚVerletÖĞ£¬ÎÒÃÇ²»¸Ä±äÈ«¾ÖµÄ data.accelerations
+        // 1. è®¡ç®—åŠ é€Ÿåº¦
+        // æ³¨æ„: åœ¨Verletä¸­ï¼Œæˆ‘ä»¬ä¸æ”¹å˜å…¨å±€çš„ data.accelerations
         vec3 acceleration = data.force[i] / data.mass[i];
 
-        // 2. ¼ÇÂ¼µ±Ç°Î»ÖÃ£¬ÒÔ±ãÏÂÒ»²½Ê¹ÓÃ
+        // 2. è®°å½•å½“å‰ä½ç½®ï¼Œä»¥ä¾¿ä¸‹ä¸€æ­¥ä½¿ç”¨
         vec3 temp_position = data.position[i];
 
-        // 3. Verlet »ı·ÖºËĞÄ¹«Ê½
-        // ĞÂÎ»ÖÃ = 2 * µ±Ç°Î»ÖÃ - ÉÏÒ»Î»ÖÃ + ¼ÓËÙ¶È * dt^2
-        // ÕâÀïÎÒÃÇ¶Ô¹«Ê½×öÒ»µãĞŞ¸Ä£¬½«×èÄá¿¼ÂÇ½øÈ¥£¬Õâ±»³ÆÎª "Velocity Verlet" µÄÒ»ÖÖĞÎÊ½
+        // 3. Verlet ç§¯åˆ†æ ¸å¿ƒå…¬å¼
+        // æ–°ä½ç½® = 2 * å½“å‰ä½ç½® - ä¸Šä¸€ä½ç½® + åŠ é€Ÿåº¦ * dt^2
+        // è¿™é‡Œæˆ‘ä»¬å¯¹å…¬å¼åšä¸€ç‚¹ä¿®æ”¹ï¼Œå°†é˜»å°¼è€ƒè™‘è¿›å»ï¼Œè¿™è¢«ç§°ä¸º "Velocity Verlet" çš„ä¸€ç§å½¢å¼
         data.position[i] = data.position[i]
-                           + (data.position[i] - data.previous_position[i]) // Òşº¬µÄËÙ¶ÈÏî (p_current - p_prev)
+                           + (data.position[i] - data.previous_position[i]) // éšå«çš„é€Ÿåº¦é¡¹ (p_current - p_prev)
                            + acceleration * dt_squared;
 
-        // 4. ¸üĞÂÉÏÒ»²½Î»ÖÃ
+        // 4. æ›´æ–°ä¸Šä¸€æ­¥ä½ç½®
         data.previous_position[i] = temp_position;
 
-        // 5. (¿ÉÑ¡µ«ÍÆ¼ö) ¸üĞÂËÙ¶È£¬ÒÔ±ã×èÄáÁ¦µÈÄ£¿éÄÜ»ñÈ¡µ½
+        // 5. (å¯é€‰ä½†æ¨è) æ›´æ–°é€Ÿåº¦ï¼Œä»¥ä¾¿é˜»å°¼åŠ›ç­‰æ¨¡å—èƒ½è·å–åˆ°
         // v = (p_current - p_prev) / dt
         data.velocity[i] = (data.position[i] - data.previous_position[i]) / dt;
     }
