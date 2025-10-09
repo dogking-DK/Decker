@@ -109,7 +109,7 @@ void VulkanEngine::init()
 
 
     fmt::print("build world\n");
-    physic_world = std::make_unique<World>(WorldSettings{0.016f, 1});
+    physic_world = std::make_unique<World>(WorldSettings{0.001f, 1});
     physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<PBDSolver>(1));
 
     auto            sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
@@ -123,7 +123,7 @@ void VulkanEngine::init()
     fmt::print("build cloth\n");
 
     sm_sys->addForce(std::make_unique<GravityForce>(vec3(0.0f, -9.8f, 0.0f)));
-    sm_sys->addForce(std::make_unique<DampingForce>(0.001));
+    sm_sys->addForce(std::make_unique<DampingForce>(0.01));
     //sm_sys->addForce(std::make_unique<SpringForce>(sm_sys->getTopology_mut()));
 
     sm_sys->setColorizer(std::make_unique<VelocityColorizer>());
@@ -1048,7 +1048,7 @@ void VulkanEngine::run()
             // 正常实时推进
             for (int i = 0; i < step_N; ++i)
             {
-                physic_world->tick(physic_world->settings().fixed_dt);  // 你的帧间隔
+                physic_world->tick(physic_world->settings().fixed_dt * stats.frametime);  // 你的帧间隔
             }
         }
         else

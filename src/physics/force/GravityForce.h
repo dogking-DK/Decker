@@ -19,6 +19,7 @@ public:
             if (!data.is_fixed[i])
             {
                 data.force[i] += data.mass[i] * gravity;
+                //data.acceleration[i] += gravity;
             }
         }
     }

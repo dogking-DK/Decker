@@ -24,12 +24,11 @@ void PBDSolver::predictPositions(ParticleData& data, Spring& springs, const floa
     for (size_t i = 0; i < count; ++i)
     {
         if (data.is_fixed[i]) continue;
-        // 计算速度并施加外力
-        vec3 velocity = (data.position[i] - data.previous_position[i]) / dt;
-        velocity += data.force[i] * data.inv_mass[i] * dt;
+        // 计算速度并施加外力，假设 force 已经被累加好了
+        data.velocity[i] += data.force[i] * data.inv_mass[i] * dt;
 
         // 预测新位置 (注意：我们只更新 position, prev_position 暂时不变)
-        data.position[i] += velocity * dt;
+        data.position[i] += data.velocity[i] * dt;
     }
 }
 
@@ -45,8 +44,8 @@ void PBDSolver::projectSpringConstraints(ParticleData& data, Spring& springs)
         vec3& p2 = data.position[i2];
 
         // 计算逆质量
-        float w1 = data.is_fixed[i1] ? 0.0f : 1.0f / data.mass[i1];
-        float w2 = data.is_fixed[i2] ? 0.0f : 1.0f / data.mass[i2];
+        float w1 = data.is_fixed[i1] ? 0.0f : data.inv_mass[i1];
+        float w2 = data.is_fixed[i2] ? 0.0f : data.inv_mass[i2];
         if (w1 + w2 == 0.0f) continue;
 
         vec3  diff = p1 - p2;
