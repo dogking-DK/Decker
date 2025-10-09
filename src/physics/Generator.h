@@ -111,11 +111,10 @@ inline void create_cloth(SpringMassSystem& system, const ClothProperties& props)
     // 3. 固定点 (Pinning)
     if (props.pin_top_corners)
     {
-        for (int i = 0; i <=  props.width_segments; ++i)
-        {
-            particles.is_fixed[get_index(i, 0)] = true;
-
-        }
+        //for (int i = 0; i <=  props.width_segments; ++i)
+        //{
+        //    particles.is_fixed[get_index(i, 0)] = true;
+        //}
 
         particles.is_fixed[get_index(0, 0)]                    = true;
         particles.is_fixed[get_index(props.width_segments, 0)] = true;

@@ -1,5 +1,4 @@
-﻿#include <iostream>
-#include <typeinfo>
+﻿#include <typeinfo>
 #include <vk_loader.h>
 
 #include "vk_engine.h"
