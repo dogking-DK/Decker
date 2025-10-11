@@ -24,6 +24,14 @@ struct ParticleData
     std::vector<vec4>      color; // 质量的倒数，方便计算加速度
     std::vector<bool>      is_fixed; // 是否固定
 
+    // --- SPH 新增核心属性 ---
+    std::vector<float> density;     // 密度 (ρ)
+    std::vector<float> pressure;    // 压力 (P)
+    // --- SPH 邻居列表 (非常重要) ---
+    // 这是一个“数组的数组”，每个粒子 i 都有自己的一个邻居索引列表
+    std::vector<std::vector<size_t>> neighbors;
+
+
     // 添加一个新质点，并返回其索引
     size_t addParticle(const glm::vec3& pos, const float m, const bool fixed = false)
     {
@@ -36,6 +44,12 @@ struct ParticleData
         inv_mass.push_back(1.0f / m);
         color.emplace_back(0, 0, 0, 1);
         is_fixed.push_back(fixed);
+
+        // 初始化SPH属性
+        density.push_back(0.0f);
+        pressure.push_back(0.0f);
+        neighbors.emplace_back(); // 添加一个空的邻居列表
+
         return position.size() - 1;
     }
 
