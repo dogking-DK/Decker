@@ -109,13 +109,13 @@ void VulkanEngine::init()
 
 
     fmt::print("build world\n");
-    physic_world = std::make_unique<World>(WorldSettings{0.0005f, 1});
-    physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<PBDSolver>(1));
+    physic_world = std::make_unique<World>(WorldSettings{0.01f, 1});
+    physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<PBDSolver>(3));
 
     auto            sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     ClothProperties clothProps;
-    clothProps.width_segments  = 50;
-    clothProps.height_segments = 50;
+    clothProps.width_segments  = 100;
+    clothProps.height_segments = 100;
     clothProps.width           = 100.0f;
     clothProps.height          = 100.0f;
     clothProps.start_position  = vec3(-7.5f, 15.0f, 0.0f);
@@ -123,7 +123,7 @@ void VulkanEngine::init()
     fmt::print("build cloth\n");
 
     sm_sys->addForce(std::make_unique<GravityForce>(vec3(0.0f, -9.8f, 0.0f)));
-    sm_sys->addForce(std::make_unique<DampingForce>(0.005));
+    //sm_sys->addForce(std::make_unique<DampingForce>(0.005));
     //sm_sys->addForce(std::make_unique<SpringForce>(sm_sys->getTopology_mut()));
 
     sm_sys->setColorizer(std::make_unique<VelocityColorizer>());
@@ -1029,6 +1029,8 @@ void VulkanEngine::run()
         if (ImGui::Button("Step 1")) queued += 1;
         ImGui::SameLine();
         if (ImGui::Button("Step 10")) queued += 10;
+        ImGui::SameLine();
+        if (ImGui::Button("Step 100")) queued += 100;
 
         ImGui::InputInt("Step N", &step_N);
         if (ImGui::Button("Step N Go")) queued += std::max(0, step_N);
@@ -1048,7 +1050,7 @@ void VulkanEngine::run()
             // 正常实时推进
             for (int i = 0; i < step_N; ++i)
             {
-                physic_world->tick(physic_world->settings().fixed_dt * stats.frametime);  // 你的帧间隔
+                physic_world->tick(physic_world->settings().fixed_dt);  // 你的帧间隔
             }
         }
         else

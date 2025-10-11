@@ -74,6 +74,10 @@ void PBDSolver::updateVelocitiesAndPositions(ParticleData& data, Spring& springs
         // 用投影后的最终位置 p_i 和之前帧的位置 p_prev_i 来计算最终速度
         data.velocity[i] = (data.position[i] - data.previous_position[i]) / dt;
 
+        float damping = 0.0005f;                 // 0.01~0.05
+        float k = std::max(0.f, 1.f - damping);
+        data.velocity[i] *= k;                 // ★ 指数阻尼，替代“阻尼力”
+        if (glm::length(data.velocity[i]) < 0.0001f) data.velocity[i] = vec3(0.f);
         // 更新 "上一帧" 位置，为下一轮模拟做准备
         data.previous_position[i] = data.position[i];
     }
