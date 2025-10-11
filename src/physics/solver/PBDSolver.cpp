@@ -6,11 +6,14 @@ void PBDSolver::solve(ParticleData& data, Spring& springs, const float dt)
     // Step 1: 预测位置
     predictPositions(data, springs, dt);
 
+    m_grid.build(data); // 更新空间哈希网格
+
     // Step 2: 约束求解循环
     for (int i = 0; i < m_solverIterations; ++i)
     {
         projectSpringConstraints(data, springs);
         // 未来可以在这里调用 projectCollisionConstraints(data);
+        projectCollisionConstraints(data);
     }
 
     // Step 3: 更新速度和最终位置
@@ -64,6 +67,47 @@ void PBDSolver::projectSpringConstraints(ParticleData& data, Spring& springs)
     }
 }
 
+void PBDSolver::projectCollisionConstraints(ParticleData& data)
+{
+    constexpr float     thickness    = 0.1f; // 布料厚度
+    const float         thickness_sq = thickness * thickness;
+    std::vector<size_t> candidates;
+
+    for (size_t i = 0; i < data.size(); ++i)
+    {
+        // 1. 使用空间哈希获取候选粒子
+        m_grid.query(data, i, candidates);
+
+        for (size_t j_idx : candidates)
+        {
+            // 2. 避免重复计算和自我检测
+            if (i >= j_idx) continue;
+
+            // 3. 精确检测和投影
+            vec3& p1 = data.position[i];
+            vec3& p2 = data.position[j_idx];
+
+            vec3  diff    = p1 - p2;
+            float dist_sq = dot(diff, diff);
+
+            if (dist_sq < thickness_sq)
+            {
+                // 发生碰撞，进行投影
+                float dist       = std::sqrt(dist_sq);
+                vec3  correction = (diff / dist) * (thickness - dist);
+
+                float w1 = data.is_fixed[i] ? 0.0f : data.inv_mass[i];
+                float w2 = data.is_fixed[j_idx] ? 0.0f : data.inv_mass[j_idx];
+                if (w1 + w2 == 0.0f) continue;
+
+                // 与弹簧约束完全相同的投影逻辑！
+                p1 += (w1 / (w1 + w2)) * correction;
+                p2 -= (w2 / (w1 + w2)) * correction;
+            }
+        }
+    }
+}
+
 void PBDSolver::updateVelocitiesAndPositions(ParticleData& data, Spring& springs, float dt)
 {
     const size_t count = data.size();
@@ -75,9 +119,9 @@ void PBDSolver::updateVelocitiesAndPositions(ParticleData& data, Spring& springs
         data.velocity[i] = (data.position[i] - data.previous_position[i]) / dt;
 
         float damping = 0.0005f;                 // 0.01~0.05
-        float k = std::max(0.f, 1.f - damping);
+        float k       = std::max(0.f, 1.f - damping);
         data.velocity[i] *= k;                 // ★ 指数阻尼，替代“阻尼力”
-        if (glm::length(data.velocity[i]) < 0.0001f) data.velocity[i] = vec3(0.f);
+        if (length(data.velocity[i]) < 0.0001f) data.velocity[i] = vec3(0.f);
         // 更新 "上一帧" 位置，为下一轮模拟做准备
         data.previous_position[i] = data.position[i];
     }

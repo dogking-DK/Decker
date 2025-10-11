@@ -114,8 +114,8 @@ void VulkanEngine::init()
 
     auto            sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     ClothProperties clothProps;
-    clothProps.width_segments  = 100;
-    clothProps.height_segments = 100;
+    clothProps.width_segments  = 50;
+    clothProps.height_segments = 50;
     clothProps.width           = 100.0f;
     clothProps.height          = 100.0f;
     clothProps.start_position  = vec3(-7.5f, 15.0f, 0.0f);

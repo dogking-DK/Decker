@@ -117,7 +117,7 @@ inline void create_cloth(SpringMassSystem& system, const ClothProperties& props)
         //}
 
         particles.is_fixed[get_index(0, 0)]                    = true;
-        particles.is_fixed[get_index(props.width_segments, 0)] = true;
+        //particles.is_fixed[get_index(props.width_segments, 0)] = true;
 
         //particles.is_fixed[get_index(0, props.height_segments)] = true;
         particles.is_fixed[get_index(props.width_segments, props.height_segments)] = true;
