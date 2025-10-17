@@ -31,8 +31,11 @@
 #include "solver/EulerSolver.h"
 #include "World.h"
 #include "color/UniformColorizer.h"
+#include "fluid/FluidSystem.h"
 #include "force/DampingForce.h"
+#include "render/MACVectorRender.h"
 #include "solver/PBDSolver.h"
+#include "solver/StableFliuidsSolver.h"
 #include "solver/VerletSolver.h"
 
 #define VMA_IMPLEMENTATION
@@ -111,11 +114,17 @@ void VulkanEngine::init()
     fmt::print("build world\n");
     physic_world = std::make_unique<World>(WorldSettings{0.01f, 1});
     physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<PBDSolver>(3));
+    auto* fluid = physic_world->addSystem<FluidSystem>("fluid",
+                                                       std::make_unique<StableFluidSolver>(
+                                                           glm::vec3(0, -9.8f, 0), /*pressure_iters=*/60),
+                                                       /*nx=*/10, /*ny=*/10, /*nz=*/10, /*dx=*/5.0f);
+    fluid->setupFallingWater(/*fillHeightRatio=*/0.25f, /*density=*/1.0f);
 
-    auto            sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
+
+    auto sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     ClothProperties clothProps;
-    clothProps.width_segments  = 50;
-    clothProps.height_segments = 50;
+    clothProps.width_segments  = 5;
+    clothProps.height_segments = 5;
     clothProps.width           = 100.0f;
     clothProps.height          = 100.0f;
     clothProps.start_position  = vec3(-7.5f, 15.0f, 0.0f);
@@ -135,6 +144,10 @@ void VulkanEngine::init()
     m_spring_renderer = std::make_unique<SpringRenderer>(_context);
     m_spring_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
     fmt::print("build spring render\n");
+
+    m_vector_render = std::make_unique<MACVectorRenderer>(_context);
+    m_vector_render->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
+    m_vector_render->updateFromGrid(fluid->grid());
 
     //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, false);
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
@@ -535,7 +548,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, { 0, 0, 0 }, 100, true, rand());
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
     auto sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
-
+    auto fluid = physic_world->getSystemAs<FluidSystem>("fluid");
 
     //translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
     point_cloud_renderer->updatePoints();
@@ -543,6 +556,10 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     m_spring_renderer->updateSprings(sm_sys->getParticleData(), sm_sys->getTopology_mut());
 
     point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
+
+    m_vector_render->updateFromGrid(fluid->grid());
+
+    m_vector_render->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj, sceneData.view, sceneData.proj }, renderInfo);
 
     m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 }
@@ -872,6 +889,7 @@ void VulkanEngine::run()
 
     // --- 持久状态（比如放到你的 App/Scene 里） ---
     bool  sim_run = false;     // 是否连续运行
+    bool  sim_run_fluid = false;     // 是否连续运行
     int   step_N  = 10;        // 每次点击走多少 fixed steps
     int   queued  = 0;         // 等待执行的步数（按钮累加）
     float h       = physic_world->settings().fixed_dt;
@@ -1024,7 +1042,7 @@ void VulkanEngine::run()
 
         // --- 每帧 UI ---
         ImGui::Begin("Simulation");
-        ImGui::Checkbox("Run", &sim_run);
+        ImGui::Checkbox("Run Spring", &sim_run);
         ImGui::SameLine();
         if (ImGui::Button("Step 1")) queued += 1;
         ImGui::SameLine();
@@ -1062,7 +1080,6 @@ void VulkanEngine::run()
                 queued--;
             }
         }
-
 
         ImGui::Render();
 

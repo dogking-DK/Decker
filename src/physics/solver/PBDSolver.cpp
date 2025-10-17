@@ -1,8 +1,11 @@
 ﻿#include "PBDSolver.h"
 
 namespace dk {
-void PBDSolver::solve(ParticleData& data, Spring& springs, const float dt)
+void PBDSolver::solve(dk::ISimulationState& state, const float dt)
 {
+    auto particle_state = dynamic_cast<ParticleSystemState*>(&state);
+    auto data = particle_state->particles;
+    auto springs = particle_state->springs;
     // Step 1: 预测位置
     predictPositions(data, springs, dt);
 

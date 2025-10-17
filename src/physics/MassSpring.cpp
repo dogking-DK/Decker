@@ -16,6 +16,7 @@ void dk::SpringMassSystem::step(float dt)
     }
 
     // 3. 使用自己的求解器进行积分
-    _solver->solve(*_data, _topology, dt);
+    auto state = ParticleSystemState(*_data, _topology);
+    _solver->solve(state, dt);
 }
 

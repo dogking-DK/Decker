@@ -1,10 +1,10 @@
 ﻿// ISolver.h
 #pragma once
-#include "data/Particle.h"
+#include "Base.h"
 
 class ISolver
 {
-public:
+public: 
     virtual      ~ISolver() = default;
-    virtual void solve(dk::ParticleData& particles, dk::Spring& springs, const float dt) = 0;
+    virtual void solve(dk::ISimulationState& state, const float dt) = 0;
 };

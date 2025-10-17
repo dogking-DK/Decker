@@ -7,7 +7,7 @@ namespace dk {
 class EulerSolver : public ISolver
 {
 public:
-    void solve(dk::ParticleData& data, dk::Spring& springs, float dt) override;
+    void solve(dk::ISimulationState& state, const float dt) override;
 
 };
 }

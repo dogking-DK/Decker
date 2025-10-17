@@ -1,63 +1,152 @@
-// MACGrid.h
+// data/MacGrid.h
 #pragma once
-#include "Base.h" // 你的基础头文件，包含 glm 等
-#include <vector>
+#include "Base.h"
+#include <algorithm>
+#include <cassert>
 
 namespace dk {
-// 定义网格单元格的类型
-enum class CellType : uint8_t
-{
-    AIR,    // 空气
-    FLUID,  // 流体
-    SOLID   // 固体/边界
-};
-
-class MACGrid
+/**
+ * 3D MAC Staggered Grid (继承 ISimulationState，供 ISolver::solve 接口使用)
+ * 标准布局：
+ *  - u: (nx+1) * ny     * nz     存 x-向量分量，位于 x-法向面中心
+ *  - v: nx     * (ny+1) * nz     存 y-向量分量，位于 y-法向面中心
+ *  - w: nx     * ny     * (nz+1) 存 z-向量分量，位于 z-法向面中心
+ *  - p, div, dye: nx * ny * nz   存标量（中心）
+ */
+class MacGrid : public ISimulationState
 {
 public:
-    MACGrid(const glm::ivec3& dimensions, float cell_size)
-        : m_dims(dimensions), m_cellSize(cell_size)
+    MacGrid(int nx, int ny, int nz, float h, const vec3& origin = vec3(0))
+        : nx_(nx), ny_(ny), nz_(nz), h_(h), origin_(origin)
     {
-        // 速度分量 U 存储在 (i+1/2, j, k) 处，所以 X 维度多一个
-        m_u.resize((m_dims.x + 1) * m_dims.y * m_dims.z, 0.0f);
-        // 速度分量 V 存储在 (i, j+1/2, k) 处，所以 Y 维度多一个
-        m_v.resize(m_dims.x * (m_dims.y + 1) * m_dims.z, 0.0f);
-        // 速度分量 W 存储在 (i, j, k+1/2) 处，所以 Z 维度多一个
-        m_w.resize(m_dims.x * m_dims.y * (m_dims.z + 1), 0.0f);
+        assert(nx_ > 0 && ny_ > 0 && nz_ > 0 && h_ > 0);
+        u_.assign((nx_ + 1) * ny_ * nz_, 0.0f);
+        v_.assign(nx_ * (ny_ + 1) * nz_, 0.0f);
+        w_.assign(nx_ * ny_ * (nz_ + 1), 0.0f);
 
-        // 压力和类型存储在单元格中心
-        m_pressure.resize(m_dims.x * m_dims.y * m_dims.z, 0.0f);
-        m_cellType.resize(m_dims.x * m_dims.y * m_dims.z, CellType::AIR);
+        p_.assign(nx_ * ny_ * nz_, 0.0f);
+        div_.assign(nx_ * ny_ * nz_, 0.0f);
+        dye_.assign(nx_ * ny_ * nz_, 0.0f);
+
+        // scratch
+        u_tmp_.assign(u_.size(), 0.0f);
+        v_tmp_.assign(v_.size(), 0.0f);
+        w_tmp_.assign(w_.size(), 0.0f);
+        p_tmp_.assign(p_.size(), 0.0f);
     }
 
-    // --- 公共接口 ---
+    // 尺寸/步长/原点
+    int   nx() const { return nx_; }
+    int   ny() const { return ny_; }
+    int   nz() const { return nz_; }
+    float h() const { return h_; }
+    vec3  origin() const { return origin_; }
 
-    // 在世界空间中的任意位置对速度场进行三线性插值采样
-    // 这是平流步骤的关键
-    glm::vec3 sampleVelocity(const glm::vec3& world_pos) const
+    // --- 索引工具（行优先: x 最快） ---
+    int idxP(int i, int j, int k) const { return (k * ny_ + j) * nx_ + i; }
+    int idxU(int i, int j, int k) const { return (k * ny_ + j) * (nx_ + 1) + i; }
+    int idxV(int i, int j, int k) const { return (k * (ny_ + 1) + j) * nx_ + i; }
+    int idxW(int i, int j, int k) const { return ((k) * ny_ + j) * nx_ + i; }
+
+    // --- 位置（世界坐标） ---
+    vec3 cellCenter(int i, int j, int k) const
     {
-        // 实现细节：
-        // 1. 将 world_pos 转换为网格坐标 (浮点数)
-        // 2. 分别对 U, V, W 速度分量进行三线性插值
-        //    - 采样 U 需要在其交错网格的8个邻居点上插值
-        //    - 采样 V, W 同理
-        // 3. 返回插值得到的 (u, v, w) 向量
-        return glm::vec3(0.0f); // 待实现
+        return origin_ + h_ * vec3(i + 0.5f, j + 0.5f, k + 0.5f);
     }
 
-    const glm::ivec3& getDimensions() const { return m_dims; }
-    float             getCellSize() const { return m_cellSize; }
+    vec3 uFacePos(int i, int j, int k) const
+    {
+        return origin_ + h_ * vec3(i, j + 0.5f, k + 0.5f);
+    }
 
-    // --- 数据成员 (为方便访问设为 public) ---
+    vec3 vFacePos(int i, int j, int k) const
+    {
+        return origin_ + h_ * vec3(i + 0.5f, j, k + 0.5f);
+    }
 
-    glm::ivec3 m_dims;
-    float      m_cellSize;
+    vec3 wFacePos(int i, int j, int k) const
+    {
+        return origin_ + h_ * vec3(i + 0.5f, j + 0.5f, k);
+    }
 
-    // 速度场 (交错存储)
-    std::vector<float> m_u, m_v, m_w;
+    // --- clamp index 到合法范围 ---
+    int clampI(int i) const { return std::clamp(i, 0, nx_ - 1); }
+    int clampJ(int j) const { return std::clamp(j, 0, ny_ - 1); }
+    int clampK(int k) const { return std::clamp(k, 0, nz_ - 1); }
 
-    // 单元格中心数据
-    std::vector<float>    m_pressure;
-    std::vector<CellType> m_cellType;
+    // --- 访问器 ---
+    float& U(int i, int j, int k) { return u_[idxU(i, j, k)]; }
+    float& V(int i, int j, int k) { return v_[idxV(i, j, k)]; }
+    float& W(int i, int j, int k) { return w_[idxW(i, j, k)]; }
+
+    float U(int i, int j, int k) const { return u_[idxU(i, j, k)]; }
+    float V(int i, int j, int k) const { return v_[idxV(i, j, k)]; }
+    float W(int i, int j, int k) const { return w_[idxW(i, j, k)]; }
+
+    float& P(int i, int j, int k) { return p_[idxP(i, j, k)]; }
+    float  P(int i, int j, int k) const { return p_[idxP(i, j, k)]; }
+
+    float& Div(int i, int j, int k) { return div_[idxP(i, j, k)]; }
+    float  Div(int i, int j, int k) const { return div_[idxP(i, j, k)]; }
+
+    float& Dye(int i, int j, int k) { return dye_[idxP(i, j, k)]; }
+    float  Dye(int i, int j, int k) const { return dye_[idxP(i, j, k)]; }
+
+    // --- 速度采样（半拉格朗日用） ---
+    // 注意：各分量在各自网格上做三线性插值
+    vec3 sampleVelocity(const vec3& x) const;
+
+    // --- 标量在 cell center 上的三线性采样（用于染料、压力等可选） ---
+    float sampleCellScalar(const std::vector<float>& s, const vec3& x) const;
+
+    // --- clamp 物理坐标到可采样域 ---
+    vec3 clampToDomain(const vec3& x) const
+    {
+        // 留 1.5h 的 margin，避免越界插值
+        const float eps  = 1.5f * h_;
+        vec3        minp = origin_ + vec3(eps);
+        vec3        maxp = origin_ + vec3(nx_ * h_ - eps, ny_ * h_ - eps, nz_ * h_ - eps);
+        return clamp(x, minp, maxp);
+    }
+
+    // --- 对外暴露数据（给 solver 用） ---
+    std::vector<float>& u() { return u_; }
+    std::vector<float>& v() { return v_; }
+    std::vector<float>& w() { return w_; }
+    std::vector<float>& p() { return p_; }
+    std::vector<float>& div() { return div_; }
+    std::vector<float>& dye() { return dye_; }
+
+    const std::vector<float>& u() const { return u_; }
+    const std::vector<float>& v() const { return v_; }
+    const std::vector<float>& w() const { return w_; }
+    const std::vector<float>& p() const { return p_; }
+    const std::vector<float>& div() const { return div_; }
+    const std::vector<float>& dye() const { return dye_; }
+
+    // scratch
+    std::vector<float>& u_tmp() { return u_tmp_; }
+    std::vector<float>& v_tmp() { return v_tmp_; }
+    std::vector<float>& w_tmp() { return w_tmp_; }
+    std::vector<float>& p_tmp() { return p_tmp_; }
+
+    // 分量三线性（内部工具）
+    float sampleU(const vec3& x) const;
+    float sampleV(const vec3& x) const;
+    float sampleW(const vec3& x) const;
+
+private:
+
+    int   nx_, ny_, nz_;
+    float h_;
+    vec3  origin_;
+
+    // 主字段
+    std::vector<float> u_, v_, w_;
+    std::vector<float> p_, div_;
+    std::vector<float> dye_;
+
+    // 临时缓存
+    std::vector<float> u_tmp_, v_tmp_, w_tmp_, p_tmp_;
 };
-}
+} // namespace dk

@@ -1,8 +1,14 @@
 ﻿#include "VerletSolver.h"
 
+#include "data/Particle.h"
+
 namespace dk {
-void VerletSolver::solve(dk::ParticleData& data, dk::Spring& springs, float dt)
+void VerletSolver::solve(ISimulationState& state, const float dt)
 {
+    auto particle_state = dynamic_cast<ParticleSystemState*>(&state);
+    auto data           = particle_state->particles;
+    auto springs        = particle_state->springs;
+
     const float  dt_squared = dt * dt;
     const size_t count      = data.size();
 

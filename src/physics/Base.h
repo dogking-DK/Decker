@@ -19,4 +19,12 @@ using vec3 = glm::vec3;
 using vec2 = glm::vec2;
 
 constexpr float kEps = 1e-6f;
+
+
+// 一个抽象的基类，代表任何可以被求解器处理的模拟状态
+class ISimulationState
+{
+public:
+    virtual ~ISimulationState() = default;
+};
 }

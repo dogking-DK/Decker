@@ -14,7 +14,7 @@ public:
         
     }
 
-    void solve(dk::ParticleData& data, dk::Spring& springs, const float dt) override;
+    void solve(dk::ISimulationState& state, const float dt) override;
 
 private:
     void predictPositions(ParticleData& data, dk::Spring& springs, float dt);

@@ -1,8 +1,12 @@
 ﻿#include "EulerSolver.h"
 
+#include "data/Particle.h"
+
 namespace dk {
-void EulerSolver::solve(dk::ParticleData& data, dk::Spring& springs, const float dt)
+void EulerSolver::solve(dk::ISimulationState& state, const float dt)
 {
+    auto particle_state = dynamic_cast<ParticleSystemState*>(&state);
+    auto data = particle_state->particles;
     const size_t count = data.size();
     for (size_t i = 0; i < count; ++i)
     {

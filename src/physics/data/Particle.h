@@ -85,4 +85,16 @@ struct Spring
         rest_length.push_back(l);
     }
 };
+
+// 包含粒子系统数据的状态类
+class ParticleSystemState : public ISimulationState
+{
+public:
+    ParticleData& particles;
+    Spring&       springs;
+
+    ParticleSystemState(ParticleData& p, Spring& s) : particles(p), springs(s)
+    {
+    }
+};
 }
