@@ -31,6 +31,7 @@
 #include "solver/EulerSolver.h"
 #include "World.h"
 #include "color/UniformColorizer.h"
+#include "data/MACInit.h"
 #include "fluid/FluidSystem.h"
 #include "force/DampingForce.h"
 #include "render/MACVectorRender.h"
@@ -114,12 +115,18 @@ void VulkanEngine::init()
     fmt::print("build world\n");
     physic_world = std::make_unique<World>(WorldSettings{0.01f, 1});
     physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<PBDSolver>(3));
-    auto* fluid = physic_world->addSystem<FluidSystem>("fluid",
-                                                       std::make_unique<StableFluidSolver>(
-                                                           glm::vec3(0, -9.8f, 0), /*pressure_iters=*/60),
-                                                       /*nx=*/10, /*ny=*/10, /*nz=*/10, /*dx=*/5.0f);
-    fluid->setupFallingWater(/*fillHeightRatio=*/0.25f, /*density=*/1.0f);
+    FluidSystem::Config cfg;
+    cfg.nx = 64; cfg.ny = 48; cfg.nz = 48;
+    cfg.h = 0.02f;
+    auto* fluid = physic_world->addSystem<FluidSystem>("fluid", cfg);
+    auto& g = fluid->grid();
 
+    // 1) 高处落水柱
+    {
+        const float radius = 0.15f;      // 世界单位半径
+        const float topH = 0.9f;       // 顶部高度（0~1 比例）
+        dk::gridinit::Scene_FallingWaterColumn(g, radius, topH, /*initVy*/ -3.0f, /*dye*/ 1.0f);
+    }
 
     auto sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     ClothProperties clothProps;
@@ -145,7 +152,7 @@ void VulkanEngine::init()
     m_spring_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
     fmt::print("build spring render\n");
 
-    m_vector_render = std::make_unique<MACVectorRenderer>(_context);
+    m_vector_render = std::make_unique<dk::MacGridVectorRenderer>(_context);
     m_vector_render->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
     m_vector_render->updateFromGrid(fluid->grid());
 
