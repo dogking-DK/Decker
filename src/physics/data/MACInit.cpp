@@ -1,4 +1,4 @@
-#include "MACInit.h"
+ï»¿#include "MACInit.h"
 #include <algorithm>
 #include <cmath>
 #include <glm/gtx/norm.hpp>
@@ -134,7 +134,7 @@ void PaintDyeByPredicate(MacGrid& g, const std::function<bool(const vec3&)>& ins
             }
 }
 
-// -------------------- Ô¤Éè³¡¾° --------------------
+// -------------------- é¢„è®¾åœºæ™¯ --------------------
 
 void Scene_DamBreak(MacGrid& g, float fillRatioX, float fillHeightRatio, float dyeValue)
 {
@@ -148,7 +148,7 @@ void Scene_DamBreak(MacGrid& g, float fillRatioX, float fillHeightRatio, float d
                                 0.8f * (domMax.z - domMin.z));
     FillDyeBox_World(g, boxMin, boxMax, dyeValue);
 
-    // ³õÊ¼ËÙ¶ÈÎª0£¬Í¶Ó°ºó¼´¿ÉÔÚÖØÁ¦ÏÂ×ÔÈ»Ì®Ëú
+    // åˆå§‹é€Ÿåº¦ä¸º0ï¼ŒæŠ•å½±åå³å¯åœ¨é‡åŠ›ä¸‹è‡ªç„¶åå¡Œ
 }
 
 void Scene_FallingWaterColumn(MacGrid& g, float              columnRadiusW,
@@ -159,13 +159,13 @@ void Scene_FallingWaterColumn(MacGrid& g, float              columnRadiusW,
     const vec3 domMax = g.origin() + vec3(g.nx() * g.h(), g.ny() * g.h(), g.nz() * g.h());
 
     const float yTop     = domMin.y + topHeightRatio * (domMax.y - domMin.y);
-    const float yBottom  = std::max(domMin.y + 0.7f * (domMax.y - domMin.y), yTop - 3.0f * g.h()); // ¶ÌÖù¶Î¼´¿É
+    const float yBottom  = std::max(domMin.y + 0.7f * (domMax.y - domMin.y), yTop - 3.0f * g.h()); // çŸ­æŸ±æ®µå³å¯
     auto        centerXZ = vec3(0.5f * (domMin.x + domMax.x), 0.0f, 0.5f * (domMin.z + domMax.z));
 
-    // ¶¥²¿Ò»¶Î´¹Ö±Ô²Öù
+    // é¡¶éƒ¨ä¸€æ®µå‚ç›´åœ†æŸ±
     FillDyeCylinder_World(g, centerXZ, columnRadiusW, yBottom, yTop, dyeValue);
 
-    // ¸øÒ»¸öÏòÏÂ³õËÙ¶È£¨Ö»Éè V ·ÖÁ¿Îª¸º£©
+    // ç»™ä¸€ä¸ªå‘ä¸‹åˆé€Ÿåº¦ï¼ˆåªè®¾ V åˆ†é‡ä¸ºè´Ÿï¼‰
     SetVelocityBox_World(g,
                          vec3(centerXZ.x - columnRadiusW, yBottom, centerXZ.z - columnRadiusW),
                          vec3(centerXZ.x + columnRadiusW, yTop, centerXZ.z + columnRadiusW),
@@ -175,7 +175,7 @@ void Scene_FallingWaterColumn(MacGrid& g, float              columnRadiusW,
 void Scene_FaucetInflowOnce(MacGrid&    g, const vec3& holeMinW, const vec3& holeMaxW,
                             const vec3& vel, float     dyeValue)
 {
-    // ½ö³õÊ¼»¯Ò»´ÎÈëÁ÷ÍÅ£¨ÈôÒª³ÖĞøÈëÁ÷£¬¿ÉÔÚÃ¿Ö¡ step Ç°ÔÙ´Îµ÷ÓÃ£©
+    // ä»…åˆå§‹åŒ–ä¸€æ¬¡å…¥æµå›¢ï¼ˆè‹¥è¦æŒç»­å…¥æµï¼Œå¯åœ¨æ¯å¸§ step å‰å†æ¬¡è°ƒç”¨ï¼‰
     FillDyeBox_World(g, holeMinW, holeMaxW, dyeValue);
     SetVelocityBox_World(g, holeMinW, holeMaxW, vel);
 }
@@ -185,7 +185,7 @@ void Scene_ShearLayer(MacGrid& g, float vTop, float vBottom, float transitionThi
     ClearAll(g);
     const float yMid = g.origin().y + 0.5f * g.ny() * g.h();
 
-    // U ·ÖÁ¿£ºÉÏ°ëÓò +vTop£¬ÏÂ°ëÓò -vBottom£¬ÖĞ¼ä¿É×ö¹ı¶É
+    // U åˆ†é‡ï¼šä¸ŠåŠåŸŸ +vTopï¼Œä¸‹åŠåŸŸ -vBottomï¼Œä¸­é—´å¯åšè¿‡æ¸¡
     for (int k = 0; k < g.nz(); ++k)
         for (int j = 0; j < g.ny(); ++j)
             for (int i = 0; i < g.nx() + 1; ++i)
@@ -200,7 +200,7 @@ void Scene_ShearLayer(MacGrid& g, float vTop, float vBottom, float transitionThi
                 }
                 g.U(i, j, k) = v;
             }
-    // ÆäÓà·ÖÁ¿Îª 0£»dye ¿É°´ĞèÍ¿Ä¨ÉÏÏÂÁ½²ãÑÕÉ«ÒÔ±ã¿ÉÊÓ»¯
+    // å…¶ä½™åˆ†é‡ä¸º 0ï¼›dye å¯æŒ‰éœ€æ¶‚æŠ¹ä¸Šä¸‹ä¸¤å±‚é¢œè‰²ä»¥ä¾¿å¯è§†åŒ–
 }
 
 void Scene_VortexSpin(MacGrid& g, const vec3& centerW, float omega, float maxRadiusW)
@@ -208,9 +208,9 @@ void Scene_VortexSpin(MacGrid& g, const vec3& centerW, float omega, float maxRad
     ClearAll(g);
     const float rMax2 = maxRadiusW * maxRadiusW;
 
-    // ÔÚË®Æ½ÃæÄÚÖÆÔìÈÆ centerW µÄÔÈ½ÇËÙ¶È³¡£ºu = (-¦Ø (y-?),  ¦Ø (x-?), 0)
-    // ×¢ÒâÕâÀïÊÇ 3D£ºÎÒÃÇÈÃËÙ¶ÈÖ»ÔÚ XZ Æ½Ãæ×Ô×ª£¨ÈÆ Y Öá£©
-    // U faces£¨²ÉÑùÔÚ (i, j+1/2, k+1/2)£©
+    // åœ¨æ°´å¹³é¢å†…åˆ¶é€ ç»• centerW çš„åŒ€è§’é€Ÿåº¦åœºï¼šu = (-Ï‰ (y-?),  Ï‰ (x-?), 0)
+    // æ³¨æ„è¿™é‡Œæ˜¯ 3Dï¼šæˆ‘ä»¬è®©é€Ÿåº¦åªåœ¨ XZ å¹³é¢è‡ªè½¬ï¼ˆç»• Y è½´ï¼‰
+    // U facesï¼ˆé‡‡æ ·åœ¨ (i, j+1/2, k+1/2)ï¼‰
     for (int k = 0; k < g.nz(); ++k)
         for (int j = 0; j < g.ny(); ++j)
             for (int i = 0; i < g.nx() + 1; ++i)
@@ -220,15 +220,15 @@ void Scene_VortexSpin(MacGrid& g, const vec3& centerW, float omega, float maxRad
                 float r2 = dot(d, d);
                 if (r2 <= rMax2)
                 {
-                    // ÀíÏë¸ÕÌåĞı×ª£ºu = -¦Ø (z - zc)
-                    // µ« U ´æµÄÊÇ x ·ÖÁ¿£¬ÈÆ y Ğı×ªËÙ¶È x = -¦Ø (z - zc)
+                    // ç†æƒ³åˆšä½“æ—‹è½¬ï¼šu = -Ï‰ (z - zc)
+                    // ä½† U å­˜çš„æ˜¯ x åˆ†é‡ï¼Œç»• y æ—‹è½¬é€Ÿåº¦ x = -Ï‰ (z - zc)
                     g.U(i, j, k) = -omega * (p.z - centerW.z);
                 }
             }
-    // V faces£ºÈÆ y ÖáĞı×ª¶Ô y ·ÖÁ¿Îª 0
-    // ±£³ÖÄ¬ÈÏ 0
+    // V facesï¼šç»• y è½´æ—‹è½¬å¯¹ y åˆ†é‡ä¸º 0
+    // ä¿æŒé»˜è®¤ 0
 
-    // W faces£¨z ·ÖÁ¿ = ¦Ø (x - xc)£©
+    // W facesï¼ˆz åˆ†é‡ = Ï‰ (x - xc)ï¼‰
     for (int k = 0; k < g.nz() + 1; ++k)
         for (int j = 0; j < g.ny(); ++j)
             for (int i = 0; i < g.nx(); ++i)
@@ -241,7 +241,7 @@ void Scene_VortexSpin(MacGrid& g, const vec3& centerW, float omega, float maxRad
                     g.W(i, j, k) = omega * (p.x - centerW.x);
                 }
             }
-    // ¿ÉÑ¡£ºÔÚĞıÎĞ°ë¾¶ÄÚÌî³äÒ»µãÈ¾ÁÏ£¬±ãÓÚ¿ÉÊÓ»¯
+    // å¯é€‰ï¼šåœ¨æ—‹æ¶¡åŠå¾„å†…å¡«å……ä¸€ç‚¹æŸ“æ–™ï¼Œä¾¿äºå¯è§†åŒ–
     PaintDyeByPredicate(g, [&](const vec3& c)
     {
         auto d = vec2(c.x - centerW.x, c.z - centerW.z);

@@ -34,6 +34,7 @@
 #include "data/MACInit.h"
 #include "fluid/FluidSystem.h"
 #include "force/DampingForce.h"
+#include "render/MacGridPointRender.h"
 #include "render/MACVectorRender.h"
 #include "solver/PBDSolver.h"
 #include "solver/StableFliuidsSolver.h"
@@ -116,19 +117,24 @@ void VulkanEngine::init()
     physic_world = std::make_unique<World>(WorldSettings{0.01f, 1});
     physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<PBDSolver>(3));
     FluidSystem::Config cfg;
-    cfg.nx = 64; cfg.ny = 48; cfg.nz = 48;
-    cfg.h = 0.02f;
-    auto* fluid = physic_world->addSystem<FluidSystem>("fluid", cfg);
+    cfg.nx     = cfg.ny = cfg.nz = 100;  // 每边 100 个 cell
+    cfg.h      = 1.0f;                   // 每个 cell 1 个世界单位 => 盒子长宽高各 100
+    cfg.origin = {0, 0, 0};            // 放在世界原点（可改）
+
+    auto fluid = physic_world->addSystem<FluidSystem>("fluid", cfg);
+
     auto& g = fluid->grid();
 
     // 1) 高处落水柱
-    {
-        const float radius = 0.15f;      // 世界单位半径
-        const float topH = 0.9f;       // 顶部高度（0~1 比例）
-        dk::gridinit::Scene_FallingWaterColumn(g, radius, topH, /*initVy*/ -3.0f, /*dye*/ 1.0f);
-    }
+    gridinit::Scene_FallingWaterColumn(
+        fluid->grid(),
+        /*columnRadiusW   */ 10.0f,
+        /*topHeightRatio  */ 0.90f,
+        /*initVy          */ -5.0f,
+        /*dyeValue        */ 1.0f
+    );
 
-    auto sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
+    auto            sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     ClothProperties clothProps;
     clothProps.width_segments  = 5;
     clothProps.height_segments = 5;
@@ -152,9 +158,19 @@ void VulkanEngine::init()
     m_spring_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
     fmt::print("build spring render\n");
 
-    m_vector_render = std::make_unique<dk::MacGridVectorRenderer>(_context);
+    m_vector_render = std::make_unique<MacGridVectorRenderer>(_context);
     m_vector_render->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
-    m_vector_render->updateFromGrid(fluid->grid());
+    m_vector_render->updateFromGrid(fluid->grid(), /*stride*/{2, 2, 2}, /*minMag*/ 0.01f);
+
+    m_grid_point_render = std::make_unique<MacGridPointRenderer>(_context);
+    m_grid_point_render->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
+    m_grid_point_render->updateFromGridUniform(
+        fluid->grid(),
+        /*stride*/{2, 2, 2},
+        /*mode  */ PointScalarMode::SpeedMagnitude,
+        /*clampMin*/ 0.0f,
+        /*clampMax*/ -1.0f  // 自动推导 vmax
+    );
 
     //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, false);
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
@@ -555,7 +571,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, { 0, 0, 0 }, 100, true, rand());
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
     auto sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
-    auto fluid = physic_world->getSystemAs<FluidSystem>("fluid");
+    auto fluid  = physic_world->getSystemAs<FluidSystem>("fluid");
 
     //translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
     point_cloud_renderer->updatePoints();
@@ -564,9 +580,24 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
     point_cloud_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 
-    m_vector_render->updateFromGrid(fluid->grid());
+    m_vector_render->updateFromGrid(fluid->grid(), /*stride*/{2, 2, 2}, /*minMag*/ 0.01f);
 
-    m_vector_render->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj, sceneData.view, sceneData.proj }, renderInfo);
+    //m_vector_render->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj, sceneData.view, sceneData.proj}, renderInfo);
+
+    m_grid_point_render->updateFromGridUniform(
+        fluid->grid(),
+        /*stride*/{2, 2, 2},
+        /*mode  */ PointScalarMode::SpeedMagnitude,
+        /*clampMin*/ 0.0f,
+        /*clampMax*/ -1.0f  // 自动推导 vmax
+    );
+
+    m_grid_point_render->draw(*get_current_frame().command_buffer_graphic,
+                              {sceneData.viewproj, sceneData.view, sceneData.proj}, renderInfo,
+                              /*pointWorldSize*/ 0.5f,  // 每个点的小方片在“世界空间”的边长
+                              /*vmin*/ 0.0f,
+                              /*vmax*/ -1.0f            // 自动使用数据最大值
+    );
 
     m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 }
@@ -895,11 +926,11 @@ void VulkanEngine::run()
     bool      bQuit = false;
 
     // --- 持久状态（比如放到你的 App/Scene 里） ---
-    bool  sim_run = false;     // 是否连续运行
+    bool  sim_run       = false;     // 是否连续运行
     bool  sim_run_fluid = false;     // 是否连续运行
-    int   step_N  = 10;        // 每次点击走多少 fixed steps
-    int   queued  = 0;         // 等待执行的步数（按钮累加）
-    float h       = physic_world->settings().fixed_dt;
+    int   step_N        = 10;        // 每次点击走多少 fixed steps
+    int   queued        = 0;         // 等待执行的步数（按钮累加）
+    float h             = physic_world->settings().fixed_dt;
 
     // main loop
     while (!bQuit)

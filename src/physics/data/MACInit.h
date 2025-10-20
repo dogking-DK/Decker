@@ -1,38 +1,38 @@
-#pragma once
+ï»¿#pragma once
 #include "data/MacGrid.h"
 #include <functional>
 
 namespace dk::gridinit {
-// »ù´¡²Ù×÷
-void ClearAll(MacGrid& g);                                       // Çå¿ÕËùÓĞ×Ö¶Î
+// åŸºç¡€æ“ä½œ
+void ClearAll(MacGrid& g);                                       // æ¸…ç©ºæ‰€æœ‰å­—æ®µ
 void FillDyeBox_World(MacGrid& g, const vec3& minW, const vec3& maxW, float value);
 void FillDyeSphere_World(MacGrid& g, const vec3& centerW, float radiusW, float value);
 void FillDyeCylinder_World(MacGrid& g, const vec3& baseCenterW, float radiusW,
                            float    yMinW, float   yMaxW, float       value);
 
-// ÔÚÊÀ½çAABBÄÚÉèÖÃ¾ùÔÈËÙ¶È£¨·Ö±ğÉèÖÃ U/V/W Èı¸öÃæÖĞĞÄÉÏµÄÖµ£©
+// åœ¨ä¸–ç•ŒAABBå†…è®¾ç½®å‡åŒ€é€Ÿåº¦ï¼ˆåˆ†åˆ«è®¾ç½® U/V/W ä¸‰ä¸ªé¢ä¸­å¿ƒä¸Šçš„å€¼ï¼‰
 void SetVelocityBox_World(MacGrid& g, const vec3& minW, const vec3& maxW, const vec3& vel);
 
-// ³£ÓÃ³¡¾°
-// 1) Dam Break£ººĞ×Ó×ó²à/µ×²¿Ìî³ä¡°Ë®¡±£¨ÓÃ dye ±íÊ¾£©£¬ËÙ¶È³õÊ¼Îª 0
+// å¸¸ç”¨åœºæ™¯
+// 1) Dam Breakï¼šç›’å­å·¦ä¾§/åº•éƒ¨å¡«å……â€œæ°´â€ï¼ˆç”¨ dye è¡¨ç¤ºï¼‰ï¼Œé€Ÿåº¦åˆå§‹ä¸º 0
 void Scene_DamBreak(MacGrid& g, float fillRatioX = 0.35f,
                     float    fillHeightRatio     = 0.6f, float dyeValue = 1.0f);
 
-// 2) ¸ß´¦ÂäÏÂµÄË®Öù£ºÔÚ¶¥²¿·ÅÒ»¶Î´¹Ö±Ô²Öù£¨dye=1£©£¬¸ø¸ºÏò³õËÙ¶È Vy
+// 2) é«˜å¤„è½ä¸‹çš„æ°´æŸ±ï¼šåœ¨é¡¶éƒ¨æ”¾ä¸€æ®µå‚ç›´åœ†æŸ±ï¼ˆdye=1ï¼‰ï¼Œç»™è´Ÿå‘åˆé€Ÿåº¦ Vy
 void Scene_FallingWaterColumn(MacGrid& g, float              columnRadiusW,
                               float    topHeightRatio, float initVy = -3.0f, float dyeValue = 1.0f);
 
-// 3) ¶¥²¿¡°Ë®ÁúÍ·¡±ÈëÁ÷£ºÔÚ¶¥ÃæÒ»¸ö¿×¶´ÇøÓòÉèÖÃÏòÏÂËÙ¶È£¬²¢Ìî³ä dye
+// 3) é¡¶éƒ¨â€œæ°´é¾™å¤´â€å…¥æµï¼šåœ¨é¡¶é¢ä¸€ä¸ªå­”æ´åŒºåŸŸè®¾ç½®å‘ä¸‹é€Ÿåº¦ï¼Œå¹¶å¡«å…… dye
 void Scene_FaucetInflowOnce(MacGrid&    g, const vec3& holeMinW, const vec3& holeMaxW,
                             const vec3& vel, float     dyeValue = 1.0f);
 
-// 4) ¼ôÇĞ²ã£ºÉÏ°ëÓò +Ux£¬ÏÂ°ëÓò -Ux£¬ÖÆÔì Kelvin¨CHelmholtz ³õÊ¼Ìõ¼ş
+// 4) å‰ªåˆ‡å±‚ï¼šä¸ŠåŠåŸŸ +Uxï¼Œä¸‹åŠåŸŸ -Uxï¼Œåˆ¶é€  Kelvinâ€“Helmholtz åˆå§‹æ¡ä»¶
 void Scene_ShearLayer(MacGrid& g, float vTop = 1.0f, float vBottom = -1.0f, float transitionThicknessW = 0.0f);
 
-// 5) Ë®Æ½Æ½ÃæÄÚµÄ¹Ì¶¨Î»ĞÎĞıÎĞ³¡£¨ÈÆ centerW£¬×Ô×ª½ÇËÙ¶È omega£©
+// 5) æ°´å¹³å¹³é¢å†…çš„å›ºå®šä½å½¢æ—‹æ¶¡åœºï¼ˆç»• centerWï¼Œè‡ªè½¬è§’é€Ÿåº¦ omegaï¼‰
 void Scene_VortexSpin(MacGrid& g, const vec3& centerW, float omega, float maxRadiusW);
 
-// Ğ¡¹¤¾ß£º¸ø¶¨Î½´Ê£¬ÔÚÂú×ãÌõ¼şµÄÎ»ÖÃÉÏÉèÖÃÃæ/ÖĞĞÄËÙ¶È»òÈ¾ÁÏ
+// å°å·¥å…·ï¼šç»™å®šè°“è¯ï¼Œåœ¨æ»¡è¶³æ¡ä»¶çš„ä½ç½®ä¸Šè®¾ç½®é¢/ä¸­å¿ƒé€Ÿåº¦æˆ–æŸ“æ–™
 void PaintVelocityByPredicate(MacGrid& g, const std::function<bool(const vec3&)>& inside, const vec3& velUVW);
 void PaintDyeByPredicate(MacGrid& g, const std::function<bool(const vec3&)>& inside, float value);
 }

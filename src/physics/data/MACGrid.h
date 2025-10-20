@@ -1,4 +1,4 @@
-// data/MacGrid.h
+ï»¿// data/MacGrid.h
 #pragma once
 #include "Base.h"
 #include <algorithm>
@@ -6,12 +6,12 @@
 
 namespace dk {
 /**
- * 3D MAC Staggered Grid (¼Ì³Ğ ISimulationState£¬¹© ISolver::solve ½Ó¿ÚÊ¹ÓÃ)
- * ±ê×¼²¼¾Ö£º
- *  - u: (nx+1) * ny     * nz     ´æ x-ÏòÁ¿·ÖÁ¿£¬Î»ÓÚ x-·¨ÏòÃæÖĞĞÄ
- *  - v: nx     * (ny+1) * nz     ´æ y-ÏòÁ¿·ÖÁ¿£¬Î»ÓÚ y-·¨ÏòÃæÖĞĞÄ
- *  - w: nx     * ny     * (nz+1) ´æ z-ÏòÁ¿·ÖÁ¿£¬Î»ÓÚ z-·¨ÏòÃæÖĞĞÄ
- *  - p, div, dye: nx * ny * nz   ´æ±êÁ¿£¨ÖĞĞÄ£©
+ * 3D MAC Staggered Grid (ç»§æ‰¿ ISimulationStateï¼Œä¾› ISolver::solve æ¥å£ä½¿ç”¨)
+ * æ ‡å‡†å¸ƒå±€ï¼š
+ *  - u: (nx+1) * ny     * nz     å­˜ x-å‘é‡åˆ†é‡ï¼Œä½äº x-æ³•å‘é¢ä¸­å¿ƒ
+ *  - v: nx     * (ny+1) * nz     å­˜ y-å‘é‡åˆ†é‡ï¼Œä½äº y-æ³•å‘é¢ä¸­å¿ƒ
+ *  - w: nx     * ny     * (nz+1) å­˜ z-å‘é‡åˆ†é‡ï¼Œä½äº z-æ³•å‘é¢ä¸­å¿ƒ
+ *  - p, div, dye: nx * ny * nz   å­˜æ ‡é‡ï¼ˆä¸­å¿ƒï¼‰
  */
 class MacGrid : public ISimulationState
 {
@@ -35,20 +35,20 @@ public:
         p_tmp_.assign(p_.size(), 0.0f);
     }
 
-    // ³ß´ç/²½³¤/Ô­µã
+    // å°ºå¯¸/æ­¥é•¿/åŸç‚¹
     int   nx() const { return nx_; }
     int   ny() const { return ny_; }
     int   nz() const { return nz_; }
     float h() const { return h_; }
     vec3  origin() const { return origin_; }
 
-    // --- Ë÷Òı¹¤¾ß£¨ĞĞÓÅÏÈ: x ×î¿ì£© ---
+    // --- ç´¢å¼•å·¥å…·ï¼ˆè¡Œä¼˜å…ˆ: x æœ€å¿«ï¼‰ ---
     int idxP(int i, int j, int k) const { return (k * ny_ + j) * nx_ + i; }
     int idxU(int i, int j, int k) const { return (k * ny_ + j) * (nx_ + 1) + i; }
     int idxV(int i, int j, int k) const { return (k * (ny_ + 1) + j) * nx_ + i; }
     int idxW(int i, int j, int k) const { return ((k) * ny_ + j) * nx_ + i; }
 
-    // --- Î»ÖÃ£¨ÊÀ½ç×ø±ê£© ---
+    // --- ä½ç½®ï¼ˆä¸–ç•Œåæ ‡ï¼‰ ---
     vec3 cellCenter(int i, int j, int k) const
     {
         return origin_ + h_ * vec3(i + 0.5f, j + 0.5f, k + 0.5f);
@@ -69,12 +69,12 @@ public:
         return origin_ + h_ * vec3(i + 0.5f, j + 0.5f, k);
     }
 
-    // --- clamp index µ½ºÏ·¨·¶Î§ ---
+    // --- clamp index åˆ°åˆæ³•èŒƒå›´ ---
     int clampI(int i) const { return std::clamp(i, 0, nx_ - 1); }
     int clampJ(int j) const { return std::clamp(j, 0, ny_ - 1); }
     int clampK(int k) const { return std::clamp(k, 0, nz_ - 1); }
 
-    // --- ·ÃÎÊÆ÷ ---
+    // --- è®¿é—®å™¨ ---
     float& U(int i, int j, int k) { return u_[idxU(i, j, k)]; }
     float& V(int i, int j, int k) { return v_[idxV(i, j, k)]; }
     float& W(int i, int j, int k) { return w_[idxW(i, j, k)]; }
@@ -92,24 +92,24 @@ public:
     float& Dye(int i, int j, int k) { return dye_[idxP(i, j, k)]; }
     float  Dye(int i, int j, int k) const { return dye_[idxP(i, j, k)]; }
 
-    // --- ËÙ¶È²ÉÑù£¨°ëÀ­¸ñÀÊÈÕÓÃ£© ---
-    // ×¢Òâ£º¸÷·ÖÁ¿ÔÚ¸÷×ÔÍø¸ñÉÏ×öÈıÏßĞÔ²åÖµ
+    // --- é€Ÿåº¦é‡‡æ ·ï¼ˆåŠæ‹‰æ ¼æœ—æ—¥ç”¨ï¼‰ ---
+    // æ³¨æ„ï¼šå„åˆ†é‡åœ¨å„è‡ªç½‘æ ¼ä¸Šåšä¸‰çº¿æ€§æ’å€¼
     vec3 sampleVelocity(const vec3& x) const;
 
-    // --- ±êÁ¿ÔÚ cell center ÉÏµÄÈıÏßĞÔ²ÉÑù£¨ÓÃÓÚÈ¾ÁÏ¡¢Ñ¹Á¦µÈ¿ÉÑ¡£© ---
+    // --- æ ‡é‡åœ¨ cell center ä¸Šçš„ä¸‰çº¿æ€§é‡‡æ ·ï¼ˆç”¨äºæŸ“æ–™ã€å‹åŠ›ç­‰å¯é€‰ï¼‰ ---
     float sampleCellScalar(const std::vector<float>& s, const vec3& x) const;
 
-    // --- clamp ÎïÀí×ø±êµ½¿É²ÉÑùÓò ---
+    // --- clamp ç‰©ç†åæ ‡åˆ°å¯é‡‡æ ·åŸŸ ---
     vec3 clampToDomain(const vec3& x) const
     {
-        // Áô 1.5h µÄ margin£¬±ÜÃâÔ½½ç²åÖµ
+        // ç•™ 1.5h çš„ marginï¼Œé¿å…è¶Šç•Œæ’å€¼
         const float eps  = 1.5f * h_;
         vec3        minp = origin_ + vec3(eps);
         vec3        maxp = origin_ + vec3(nx_ * h_ - eps, ny_ * h_ - eps, nz_ * h_ - eps);
         return clamp(x, minp, maxp);
     }
 
-    // --- ¶ÔÍâ±©Â¶Êı¾İ£¨¸ø solver ÓÃ£© ---
+    // --- å¯¹å¤–æš´éœ²æ•°æ®ï¼ˆç»™ solver ç”¨ï¼‰ ---
     std::vector<float>& u() { return u_; }
     std::vector<float>& v() { return v_; }
     std::vector<float>& w() { return w_; }
@@ -130,7 +130,7 @@ public:
     std::vector<float>& w_tmp() { return w_tmp_; }
     std::vector<float>& p_tmp() { return p_tmp_; }
 
-    // ·ÖÁ¿ÈıÏßĞÔ£¨ÄÚ²¿¹¤¾ß£©
+    // åˆ†é‡ä¸‰çº¿æ€§ï¼ˆå†…éƒ¨å·¥å…·ï¼‰
     float sampleU(const vec3& x) const;
     float sampleV(const vec3& x) const;
     float sampleW(const vec3& x) const;
@@ -141,12 +141,12 @@ private:
     float h_;
     vec3  origin_;
 
-    // Ö÷×Ö¶Î
+    // ä¸»å­—æ®µ
     std::vector<float> u_, v_, w_;
     std::vector<float> p_, div_;
     std::vector<float> dye_;
 
-    // ÁÙÊ±»º´æ
+    // ä¸´æ—¶ç¼“å­˜
     std::vector<float> u_tmp_, v_tmp_, w_tmp_, p_tmp_;
 };
 } // namespace dk

@@ -1,4 +1,4 @@
-// SpatialGrid.h
+ï»¿// SpatialGrid.h
 #pragma once
 #include "Particle.h"
 #include <unordered_map>
@@ -6,12 +6,12 @@
 #include <tsl/robin_map.h>
 
 namespace dk {
-// ÓÃÓÚ¹şÏ£ glm::ivec3 µÄ¸¨Öú½á¹¹Ìå
+// ç”¨äºå“ˆå¸Œ glm::ivec3 çš„è¾…åŠ©ç»“æ„ä½“
 struct Ivec3Hash
 {
     std::size_t operator()(const glm::ivec3& v) const
     {
-        // Ò»¸ö¼òµ¥µÄ¹şÏ£º¯Êı
+        // ä¸€ä¸ªç®€å•çš„å“ˆå¸Œå‡½æ•°
         return std::hash<int>()(v.x) ^ (std::hash<int>()(v.y) << 1) ^ (std::hash<int>()(v.z) << 2);
     }
 };
@@ -23,7 +23,7 @@ public:
     {
     }
 
-    // ¸ù¾İËùÓĞÁ£×ÓµÄµ±Ç°Î»ÖÃ£¬ÖØĞÂ¹¹½¨¹şÏ£±í
+    // æ ¹æ®æ‰€æœ‰ç²’å­çš„å½“å‰ä½ç½®ï¼Œé‡æ–°æ„å»ºå“ˆå¸Œè¡¨
     void build(const ParticleData& data)
     {
         m_grid.clear();
@@ -34,13 +34,13 @@ public:
         }
     }
 
-    // ²éÑ¯Ò»¸öÁ£×ÓÖÜÎ§¿ÉÄÜ·¢ÉúÅö×²µÄÆäËûÁ£×ÓµÄË÷Òı
+    // æŸ¥è¯¢ä¸€ä¸ªç²’å­å‘¨å›´å¯èƒ½å‘ç”Ÿç¢°æ’çš„å…¶ä»–ç²’å­çš„ç´¢å¼•
     void query(const ParticleData& data, size_t particle_idx, std::vector<size_t>& out_candidates)
     {
         out_candidates.clear();
         glm::ivec3 center_idx = getCellIndex(data.position[particle_idx]);
 
-        // ±éÀúÖĞĞÄµ¥Ôª¸ñºÍÖÜÎ§26¸öÁÚ¾Ó
+        // éå†ä¸­å¿ƒå•å…ƒæ ¼å’Œå‘¨å›´26ä¸ªé‚»å±…
         for (int x = -1; x <= 1; ++x)
         {
             for (int y = -1; y <= 1; ++y)
@@ -51,7 +51,7 @@ public:
                     auto       it           = m_grid.find(neighbor_idx);
                     if (it != m_grid.end())
                     {
-                        // ½«ÁÚ¾Óµ¥Ôª¸ñÖĞµÄËùÓĞÁ£×ÓÌí¼Óµ½ºòÑ¡ÁĞ±íÖĞ
+                        // å°†é‚»å±…å•å…ƒæ ¼ä¸­çš„æ‰€æœ‰ç²’å­æ·»åŠ åˆ°å€™é€‰åˆ—è¡¨ä¸­
                         out_candidates.insert(out_candidates.end(), it->second.begin(), it->second.end());
                     }
                 }

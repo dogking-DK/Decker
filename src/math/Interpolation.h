@@ -1,4 +1,4 @@
-// Math/Interpolation.h
+﻿// Math/Interpolation.h
 #pragma once
 
 #include <vector>

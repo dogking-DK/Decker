@@ -71,8 +71,8 @@ namespace dk {
         // 加载 mesh + frag
         namespace fs = std::filesystem;
         fs::path cwd = fs::current_path();
-        auto mesh_spv = vkcore::loadSpirvFromFile(fs::absolute(cwd / "../../assets/shaders/spv/fluid/macgrid_vector.mesh.spv"));
-        auto frag_spv = vkcore::loadSpirvFromFile(fs::absolute(cwd / "../../assets/shaders/spv/fluid/macgrid_vector.frag.spv"));
+        auto mesh_spv = vkcore::loadSpirvFromFile(fs::absolute(cwd / "../../assets/shaders/spv/fluid/mac_vector.mesh.spv"));
+        auto frag_spv = vkcore::loadSpirvFromFile(fs::absolute(cwd / "../../assets/shaders/spv/fluid/mac_vector.frag.spv"));
         auto mesh_mod = std::make_unique<vkcore::ShaderModule>(_ctx, mesh_spv);
         auto frag_mod = std::make_unique<vkcore::ShaderModule>(_ctx, frag_spv);
 

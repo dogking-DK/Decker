@@ -8,8 +8,8 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 const uint VERTS_PER_ARROW     = 18u;
 const uint PRIMS_PER_ARROW     = 6u;
 
-layout(max_vertices = 64 * VERTS_PER_ARROW,
-       max_primitives = 64 * PRIMS_PER_ARROW,
+layout(max_vertices = 64,
+       max_primitives = 64,
        triangles) out;
 
 struct GPUVector { vec4 pos; vec4 vel; };
@@ -17,9 +17,9 @@ layout(set=0, binding=1) readonly buffer Vectors { GPUVector vecs[]; };
 
 layout(set=0, binding=0) uniform CameraData {
     // 按你工程的 CameraData 来放；以下示例给出常见字段（请与你的定义一致）
+    mat4 viewProj;
     mat4 view;
     mat4 proj;
-    mat4 viewProj;
     vec4 eye; // xyz + padding
 } uCam;
 
@@ -111,8 +111,8 @@ void main()
 
     // 生成 6 个三角形（2 个用于杆，4 个用于箭头），共 18 顶点
     // 为简洁，用一个方形杆 + 四面体箭头（你可换成更精致的截面）
-    vec3 up   = B[0];  // 横向
-    vec3 side = B[1];  // 纵向
+    vec3 up   = 10.0f * B[0];  // 横向
+    vec3 side = 10.0f * B[1];  // 纵向
 
     vec3 v0 = p0 + ( up*r + side*r);
     vec3 v1 = p0 + (-up*r + side*r);

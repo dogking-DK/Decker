@@ -1,27 +1,14 @@
 #version 460
+layout(location=0) in  vec3 inColor;
+layout(location=0) out vec4 outColor;
 
-// =================================================================
-// 1. 输入 (Input)
-// =================================================================
-// 定义一个与 Mesh Shader 输出匹配的接口块。
-// `location = 0` 必须与 Mesh Shader 中的 `location = 0` 对应。
-// GPU 会自动为每个像素插值正确的颜色。对于点来说，没有插值，就是顶点的颜色。
-layout(location = 0) in PerVertexData {
-    vec4 color;
-} inData;
+// 如需“圆点”，可打开下面的 discard：
+// layout(origin_upper_left) in vec4 gl_FragCoord; // 可选
+// in vec2 gl_PointCoord; // Mesh Shader 输出 points 同样可用
+void main(){
+    // 圆形点（可选）：
+//  vec2 q = gl_PointCoord * 2.0 - 1.0;
+//  if (dot(q,q) > 1.0) discard;
 
-
-// =================================================================
-// 2. 输出 (Output)
-// =================================================================
-// 声明一个输出变量，它将写入到颜色附件（帧缓冲）的第 0 个位置。
-layout(location = 0) out vec4 outColor;
-
-
-// =================================================================
-// 3. 主函数 (Main Execution)
-// =================================================================
-void main() {
-    // 将输入的颜色直接赋给输出变量。
-    outColor = inData.color;
+    outColor = vec4(inColor, 1.0);
 }

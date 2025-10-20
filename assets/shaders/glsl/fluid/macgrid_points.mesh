@@ -1,0 +1,104 @@
+#version 460
+#extension GL_EXT_mesh_shader : require
+
+layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+// 每个点输出一个小方片（2 三角形 = 6 顶点）
+const uint VERTS_PER_PT  = 6u;
+const uint PRIMS_PER_PT  = 2u;
+
+layout(max_vertices = 64,
+       max_primitives = 64 * PRIMS_PER_PT,
+       triangles) out;
+
+struct GPUPoint { vec4 pos; vec4 val; };
+
+layout(set=0, binding=1) readonly buffer PointsSSBO { GPUPoint pts[]; };
+
+layout(set=0, binding=0) uniform CameraData {
+    mat4 view;
+    mat4 proj;
+    mat4 viewProj;
+    vec4 eye;
+} uCam;
+
+layout(set=0, binding=2) uniform DrawParams {
+    uint  count;
+    float pointWorldSize; // 方片在世界中的边长
+    float vmin;
+    float vmax;
+} uParams;
+
+layout(push_constant) uniform PushConstantData {
+    mat4 modelMatrix;
+    float size;
+} pushC;
+
+layout(location=0) out vec3 outColor[];
+
+// 简易 colormap
+vec3 turbo(float t){
+    t = clamp(t, 0.0, 1.0);
+    return vec3(clamp(1.5*t,0,1),
+                clamp(1.5*(t-0.33),0,1),
+                clamp(1.5*(0.66-t),0,1));
+}
+
+void main()
+{
+    uint base = gl_WorkGroupID.x * gl_WorkGroupSize.x;
+    uint idx  = base + gl_LocalInvocationID.x;
+    uint N    = uParams.count;
+
+    if (gl_LocalInvocationID.x == 0u)
+        SetMeshOutputsEXT(gl_WorkGroupSize.x * VERTS_PER_PT,
+                          gl_WorkGroupSize.x * PRIMS_PER_PT);
+
+    // 超界：写退化三角形
+    if (idx >= N) {
+        uint vbase = gl_LocalInvocationID.x * VERTS_PER_PT;
+        for (uint k=0; k<VERTS_PER_PT; ++k){
+            gl_MeshVerticesEXT[vbase+k].gl_Position = vec4(0,0,-1,0);
+            outColor[vbase+k] = vec3(0);
+        }
+        uint pbase = gl_LocalInvocationID.x * PRIMS_PER_PT;
+        for (uint p=0; p<PRIMS_PER_PT; ++p){
+            gl_PrimitiveTriangleIndicesEXT[pbase+p] = uvec3(vbase, vbase, vbase);
+        }
+        return;
+    }
+
+    GPUPoint P = pts[idx];
+
+    // 颜色映射：val.x 为标量
+    float t = (P.val.x - uParams.vmin) / max(uParams.vmax - uParams.vmin, 1e-6);
+    vec3  col = turbo(t);
+
+    // 用相机 view 的列向量构建屏幕对齐基（右/上）
+    // view 是把世界 -> 视图，所以其逆的列向量是世界坐标系下相机的轴
+    // 这里偷懒：直接用 view^-1 的列，或者用 view 的行（取法一致即可）
+    // 简化：用 view 矩阵第三行/列构造，但最稳妥是传 camera 的 right/up
+    vec3 camRight = normalize(vec3(uCam.view[0][0], uCam.view[1][0], uCam.view[2][0]));
+    vec3 camUp    = normalize(vec3(uCam.view[0][1], uCam.view[1][1], uCam.view[2][1]));
+
+    float s = (uParams.pointWorldSize > 0.0) ? uParams.pointWorldSize : pushC.size;
+    vec3 p  = P.pos.xyz;
+
+    // 方片四角（世界）
+    vec3 a = p + ( camRight + camUp) * (0.5*s);
+    vec3 b = p + (-camRight + camUp) * (0.5*s);
+    vec3 c = p + (-camRight - camUp) * (0.5*s);
+    vec3 d = p + ( camRight - camUp) * (0.5*s);
+
+    // 输出 2 三角形
+    uint vbase = gl_LocalInvocationID.x * VERTS_PER_PT;
+    uint pbase = gl_LocalInvocationID.x * PRIMS_PER_PT;
+
+    vec3 vtx[6] = { a,b,c,  a,c,d };
+    for (uint k=0; k<6; ++k){
+        gl_MeshVerticesEXT[vbase+k].gl_Position = uCam.viewProj * vec4(vtx[k], 1.0);
+        outColor[vbase+k] = col;
+    }
+    gl_PrimitiveTriangleIndicesEXT[pbase+0] = uvec3(vbase+0, vbase+1, vbase+2);
+    gl_PrimitiveTriangleIndicesEXT[pbase+1] = uvec3(vbase+3, vbase+4, vbase+5);
+}

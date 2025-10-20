@@ -1,10 +1,10 @@
-// data/MacGrid.cpp
+ï»¿// data/MacGrid.cpp
 #include "data/MacGrid.h"
 #include <cmath>
 
 namespace dk {
 
-    // --- Í¨ÓÃ°ïÖú£ºÈýÏßÐÔ²åÖµ ---
+    // --- é€šç”¨å¸®åŠ©ï¼šä¸‰çº¿æ€§æ’å€¼ ---
     static inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
 
     static inline float trilerp(float c000, float c100, float c010, float c110,
@@ -20,7 +20,7 @@ namespace dk {
         return lerp(c0, c1, fz);
     }
 
-    // ½«ÊÀ½ç×ø±êÓ³Éäµ½ cell index + frac£¨ÖÐÐÄÍø¸ñ£©
+    // å°†ä¸–ç•Œåæ ‡æ˜ å°„åˆ° cell index + fracï¼ˆä¸­å¿ƒç½‘æ ¼ï¼‰
     static inline void worldToCell(const vec3& origin, float h, const vec3& x,
         int& i, int& j, int& k, float& fx, float& fy, float& fz)
     {
@@ -32,7 +32,7 @@ namespace dk {
         fx = p.x - xi; fy = p.y - yj; fz = p.z - zk;
     }
 
-    // ½«ÊÀ½ç×ø±êÓ³Éäµ½ U/V/W Íø¸ñ index + frac
+    // å°†ä¸–ç•Œåæ ‡æ˜ å°„åˆ° U/V/W ç½‘æ ¼ index + frac
     static inline void worldToU(const vec3& origin, float h, const vec3& x,
         int& i, int& j, int& k, float& fx, float& fy, float& fz)
     {
@@ -71,7 +71,7 @@ namespace dk {
         int i, j, k; float fx, fy, fz;
         worldToU(origin_, h_, clampToDomain(x), i, j, k, fx, fy, fz);
 
-        // U Íø¸ñ³ß´ç£º(nx+1, ny, nz)
+        // U ç½‘æ ¼å°ºå¯¸ï¼š(nx+1, ny, nz)
         auto C = [&](int ii, int jj, int kk) -> float {
             ii = std::clamp(ii, 0, nx_);
             jj = std::clamp(jj, 0, ny_ - 1);

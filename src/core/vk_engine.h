@@ -25,6 +25,10 @@
 #include "Vulkan/CommandBuffer.h"
 
 namespace dk {
+class MacGridPointRenderer;
+}
+
+namespace dk {
 class MacGridVectorRenderer;
 }
 
@@ -226,6 +230,7 @@ public:
     std::shared_ptr<PointCloudRenderer> point_cloud_renderer;
     std::shared_ptr<SpringRenderer> m_spring_renderer;
     std::shared_ptr<MacGridVectorRenderer> m_vector_render;
+    std::shared_ptr<MacGridPointRenderer> m_grid_point_render;
 
     std::unique_ptr<World> physic_world;
 
