@@ -162,15 +162,15 @@ void VulkanEngine::init()
     m_vector_render->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
     m_vector_render->updateFromGrid(fluid->grid(), /*stride*/{2, 2, 2}, /*minMag*/ 0.01f);
 
-    m_grid_point_render = std::make_unique<MacGridPointRenderer>(_context);
-    m_grid_point_render->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
-    m_grid_point_render->updateFromGridUniform(
-        fluid->grid(),
-        /*stride*/{2, 2, 2},
-        /*mode  */ PointScalarMode::SpeedMagnitude,
-        /*clampMin*/ 0.0f,
-        /*clampMax*/ -1.0f  // 自动推导 vmax
-    );
+    //m_grid_point_render = std::make_unique<MacGridPointRenderer>(_context);
+    //m_grid_point_render->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
+    //m_grid_point_render->updateFromGridUniform(
+    //    fluid->grid(),
+    //    /*stride*/{2, 2, 2},
+    //    /*mode  */ PointScalarMode::SpeedMagnitude,
+    //    /*clampMin*/ 0.0f,
+    //    /*clampMax*/ -1.0f  // 自动推导 vmax
+    //);
 
     //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, {0, 0, 0}, 100, false);
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
@@ -584,22 +584,17 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
     //m_vector_render->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj, sceneData.view, sceneData.proj}, renderInfo);
 
-    m_grid_point_render->updateFromGridUniform(
-        fluid->grid(),
-        /*stride*/{2, 2, 2},
-        /*mode  */ PointScalarMode::SpeedMagnitude,
-        /*clampMin*/ 0.0f,
-        /*clampMax*/ -1.0f  // 自动推导 vmax
-    );
+    //m_grid_point_render->updateFromGridUniform(
+    //    fluid->grid(),
+    //    /*stride*/{2, 2, 2},
+    //    /*mode  */ PointScalarMode::SpeedMagnitude,
+    //    /*clampMin*/ 0.0f,
+    //    /*clampMax*/ -1.0f  // 自动推导 vmax
+    //);
 
-    m_grid_point_render->draw(*get_current_frame().command_buffer_graphic,
-                              {sceneData.viewproj, sceneData.view, sceneData.proj}, renderInfo,
-                              /*pointWorldSize*/ 0.5f,  // 每个点的小方片在“世界空间”的边长
-                              /*vmin*/ 0.0f,
-                              /*vmax*/ -1.0f            // 自动使用数据最大值
-    );
+    //m_grid_point_render->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj, sceneData.view, sceneData.proj }, renderInfo, 0.5, 0.0, -1.0);
 
-    m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
+    //m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)

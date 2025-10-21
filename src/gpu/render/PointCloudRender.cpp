@@ -145,9 +145,10 @@ void PointCloudRenderer::draw(dk::vkcore::CommandBuffer& cmd, const CameraData& 
 {
     // 这个函数与之前的版本完全相同，因为底层的绑定逻辑没有改变
     if (_point_count == 0) return;
+    vkDeviceWaitIdle(_context->getDevice());
 
-    _camera_ubo->update(&camera_data, sizeof(CameraData));
     _frame_allocator->reset();
+    _camera_ubo->update(&camera_data, sizeof(CameraData));
 
     vk::DescriptorSet               frame_set = _frame_allocator->allocate(*_layout);
     dk::vkcore::DescriptorSetWriter writer;

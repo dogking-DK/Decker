@@ -1,74 +1,119 @@
 #version 460
+// 启用 Mesh Shader 扩展，这是必需的
 #extension GL_EXT_mesh_shader : require
 
-layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+// =================================================================
+// 1. 工作组配置 (Input)
+// =================================================================
+// 定义每个工作组的大小。我们将让每个工作组处理 64 个点。
+// 这意味着 GPU 会以 64 个线程为一批来执行这个着色器。
+// 这个值 (64) 必须与 C++ 代码中计算 group_count 时使用的 workgroup_size 匹配。
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
-// 直接输出 point：每个线程 1 顶点 + 1 原语
-layout(max_vertices   = 128,
-       max_primitives = 128,
-       points) out;
 
-struct GPUPoint { vec4 pos; vec4 val; };
+// =================================================================
+// 2. 输出配置 (Output)
+// =================================================================
+// 定义这个 Mesh Shader 输出的图元类型。我们正在绘制点云，所以是 'points'。
+layout(points) out;
 
-layout(set=0, binding=1) readonly buffer PointsSSBO { GPUPoint pts[]; };
+// 声明每个工作组最大可能输出的顶点和图元数量。
+// 因为我们最多处理 64 个点，所以每个工作组最多输出 64 个顶点和 64 个点图元。
+layout(max_vertices = 64, max_primitives = 64) out;
 
-layout(set=0, binding=0) uniform CameraData {
-    mat4 view;
-    mat4 proj;
-    mat4 viewProj;
-    vec4 eye;
-} uCam;
 
-layout(set=0, binding=2) uniform DrawParams {
-    uint  count;
-    float pointPixelSize; // gl_PointSize（像素）
-    float vmin;
-    float vmax;
-} uParams;
+// =================================================================
+// 3. 资源绑定 (Resource Bindings)
+// =================================================================
+// 这些绑定必须与 C++ 中 `DescriptorSetLayout::Builder` 的定义严格匹配。
 
-layout(push_constant) uniform PushConstantData {
-    mat4 modelMatrix;
-    float size;
-} pushC;
+// --- Set 0, Binding 0: Uniform Buffer Object (UBO) for Camera ---
+// 包含了每帧更新一次的、所有线程共享的数据。
+layout(set = 0, binding = 0) uniform CameraData {
+    mat4 viewProj; // 视图 * 投影 矩阵
+} camera;
 
-layout(location=0) out vec3 outColor[];
 
-// 简易 colormap
-vec3 turbo(float t){
-    t = clamp(t, 0.0, 1.0);
-    return vec3(clamp(1.5*t,0,1),
-                clamp(1.5*(t-0.33),0,1),
-                clamp(1.5*(0.66-t),0,1));
-}
+// --- Set 0, Binding 1: Shader Storage Buffer Object (SSBO) for Point Data ---
+// 包含了点云的位置和颜色数据。SSBO 适合存储大量数据。
+// 'readonly' 关键字是一个优化提示，告诉驱动我们只会读取这个缓冲区。
+struct Point {
+    vec4 position; // 点的局部空间位置 (x, y, z, 1.0)
+    vec4 color;    // 点的颜色 (r, g, b, a)
+};
 
-void main()
-{
-    uint base = gl_WorkGroupID.x * gl_WorkGroupSize.x;
-    uint idx  = base + gl_LocalInvocationID.x;
-    uint N    = uParams.count;
+layout(set = 0, binding = 1) readonly buffer PointCloudBuffer {
+    Point points[]; // 一个动态大小的数组，包含所有点
+} pointCloud;
 
-    if (gl_LocalInvocationID.x == 0u)
-        SetMeshOutputsEXT(gl_WorkGroupSize.x, gl_WorkGroupSize.x);
 
-    if (idx >= N) {
-        // 退化：放到裁剪外
-        gl_MeshVerticesEXT[gl_LocalInvocationID.x].gl_Position = vec4(0,0,-1,0);
-        gl_MeshVerticesEXT[gl_LocalInvocationID.x].gl_PointSize = 0.0;
-        outColor[gl_LocalInvocationID.x] = vec3(0);
-        gl_PrimitivePointIndicesEXT[gl_LocalInvocationID.x] = gl_LocalInvocationID.x;
+// --- Push Constants ---
+// 用于推送小块、频繁更新的数据（例如每个绘制调用都可能不同）。
+layout(push_constant) uniform PushConstants {
+    mat4 modelMatrix; // 模型矩阵，用于将点从局部空间变换到世界空间
+    float pointSize;  // 渲染出的点的大小（像素单位）
+} pushData;
+
+
+// =================================================================
+// 4. 输出到片元着色器 (Interpolants / Varyings)
+// =================================================================
+// 定义一个接口块，用于将数据（这里是颜色）传递给片元着色器。
+// 'outData' 也是一个数组，大小与输出的顶点数相同。
+layout(location = 0) out PerVertexData {
+    vec4 color;
+} outData[];
+
+
+// =================================================================
+// 5. 主函数 (Main Execution)
+// =================================================================
+void main() {
+    // gl_GlobalInvocationID.x 是当前线程在所有工作组中的全局唯一ID。
+    // 这也是我们要处理的点在 SSBO 中的索引。
+    uint index = gl_GlobalInvocationID.x;
+    uint pointCount = pointCloud.points.length(); // 获取 SSBO 中点的总数
+
+    // 边界检查：如果点的总数不是 64 的整数倍，最后几个工作组中的某些线程
+    // 可能会被分配一个超出范围的索引。我们必须检查并让这些线程提前退出。
+    if (index >= pointCount) {
         return;
     }
 
-    GPUPoint P = pts[idx];
+    // gl_LocalInvocationIndex 是当前线程在它自己工作组内的索引 (范围 0-63)。
+    // 我们用这个索引来写入输出数组。
+    uint localIndex = gl_LocalInvocationIndex;
 
-    float t = (P.val.x - uParams.vmin) / max(uParams.vmax - uParams.vmin, 1e-6);
-    vec3  col = turbo(t);
+    // --- 顶点处理 ---
+    // 1. 从 SSBO 读取当前点的数据
+    Point currentPoint = pointCloud.points[index];
 
-    // 写顶点 & 颜色
-    gl_MeshVerticesEXT[gl_LocalInvocationID.x].gl_Position  = uCam.viewProj * vec4(P.pos.xyz, 1.0);
-    gl_MeshVerticesEXT[gl_LocalInvocationID.x].gl_PointSize = max(uParams.pointPixelSize, 1.0);
-    outColor[gl_LocalInvocationID.x] = col;
+    // 2. 模型-视图-投影 (MVP) 变换
+    //    局部空间 -> 世界空间 -> 裁剪空间
+    vec4 worldPos = pushData.modelMatrix * currentPoint.position;
+    gl_MeshVerticesEXT[localIndex].gl_Position = camera.viewProj * worldPos;
 
-    // 每线程一个 point primitive
-    gl_PrimitivePointIndicesEXT[gl_LocalInvocationID.x] = gl_LocalInvocationID.x;
+    // 3. 设置点的大小
+    //    这个内置变量控制了光栅化后点的大小（像素）。
+    gl_MeshVerticesEXT[localIndex].gl_PointSize = pushData.pointSize;
+
+    // 4. 传递颜色给片元着色器
+    outData[localIndex].color = currentPoint.color;
+
+    // --- 图元处理 ---
+    // 定义图元。对于点来说，一个图元只包含一个顶点。
+    // `gl_PrimitivePointIndicesEXT` 是一个新引入的数组，用于存储点的顶点索引。
+    gl_PrimitivePointIndicesEXT[localIndex] = localIndex;
+
+    // --- 工作组输出 ---
+    // 这个函数必须被调用，以告诉硬件这个工作组最终要输出多少顶点和图元。
+    // 为了避免 64 个线程都调用它，我们通常只让工作组的第一个线程 (localIndex == 0) 来调用。
+    if (localIndex == 0) {
+        // 再次进行边界检查，计算这个工作组实际有效的点数。
+        // 例如，如果有 130 个点，第一个工作组 (处理 0-63) 输出 64 个，
+        // 第二个工作组 (处理 64-127) 输出 64 个，
+        // 第三个工作组 (处理 128-191) 只应输出 2 个 (索引 128, 129)。
+        uint numPointsInWorkgroup = min(gl_WorkGroupSize.x, pointCount - gl_WorkGroupID.x * gl_WorkGroupSize.x);
+        SetMeshOutputsEXT(numPointsInWorkgroup, numPointsInWorkgroup);
+    }
 }
