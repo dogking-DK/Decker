@@ -35,7 +35,7 @@
 #include "fluid/FluidSystem.h"
 #include "force/DampingForce.h"
 #include "render/MacGridPointRender.h"
-#include "render/MACVectorRender.h"
+#include "render/MacGridVectorRenderer.h"
 #include "solver/PBDSolver.h"
 #include "solver/StableFliuidsSolver.h"
 #include "solver/VerletSolver.h"
@@ -117,7 +117,7 @@ void VulkanEngine::init()
     physic_world = std::make_unique<World>(WorldSettings{0.01f, 1});
     physic_world->addSystem<SpringMassSystem>("spring", std::make_unique<PBDSolver>(3));
     FluidSystem::Config cfg;
-    cfg.nx     = cfg.ny = cfg.nz = 100;  // 每边 100 个 cell
+    cfg.nx     = cfg.ny = cfg.nz = 20;  // 每边 100 个 cell
     cfg.h      = 1.0f;                   // 每个 cell 1 个世界单位 => 盒子长宽高各 100
     cfg.origin = {0, 0, 0};            // 放在世界原点（可改）
 
@@ -582,7 +582,14 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
     m_vector_render->updateFromGrid(fluid->grid(), /*stride*/{2, 2, 2}, /*minMag*/ 0.01f);
 
-    //m_vector_render->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj, sceneData.view, sceneData.proj}, renderInfo);
+    dk::PushVector pvc{};
+    pvc.model = glm::mat4(1.0f);
+    pvc.baseScale = 0.1f;
+    pvc.headRatio = 0.35f;
+    pvc.halfWidth = 0.02f;
+    pvc.magScale = 0.8f;
+
+    m_vector_render->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj, sceneData.view, sceneData.proj}, renderInfo, pvc);
 
     //m_grid_point_render->updateFromGridUniform(
     //    fluid->grid(),
@@ -594,7 +601,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
     //m_grid_point_render->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj, sceneData.view, sceneData.proj }, renderInfo, 0.5, 0.0, -1.0);
 
-    //m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
+    m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)

@@ -24,6 +24,10 @@
 #include "Vulkan/CommandPool.h"
 #include "Vulkan/CommandBuffer.h"
 
+namespace dk::vkcore {
+class GrowableDescriptorAllocator;
+}
+
 namespace dk {
 class MacGridPointRenderer;
 }
@@ -88,6 +92,7 @@ struct FrameData
     VkFence _renderFence;
 
     DescriptorAllocatorGrowable _frameDescriptors;
+    std::shared_ptr<vkcore::GrowableDescriptorAllocator> _dynamicDescriptorAllocator{nullptr};
     DeletionQueue _deletionQueue;
     vkcore::CommandPool* _command_pool_graphic{ nullptr };
     vkcore::CommandPool* _command_pool_transfer{nullptr};

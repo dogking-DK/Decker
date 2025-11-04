@@ -1,158 +1,131 @@
 #version 460
 #extension GL_EXT_mesh_shader : require
 
-layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+#define WG_SIZE 24
+#define VERTS_PER_ARROW 9
+#define TRIS_PER_ARROW  3
 
-// 我们每个“箭头”用 6 个三角形（=18 顶点）描述：1 个拉伸的箭杆矩形(2三角) + 4 个小三角形构成箭头（简单好看）
-// 你也可以改成更省的 2 三角（细长菱形）或 billboard 线段
-const uint VERTS_PER_ARROW     = 18u;
-const uint PRIMS_PER_ARROW     = 6u;
-
-layout(max_vertices = 64,
-       max_primitives = 64,
+layout(local_size_x = WG_SIZE) in;
+layout(max_vertices   = WG_SIZE * VERTS_PER_ARROW,
+       max_primitives = WG_SIZE * TRIS_PER_ARROW,
        triangles) out;
 
 struct GPUVector { vec4 pos; vec4 vel; };
-layout(set=0, binding=1) readonly buffer Vectors { GPUVector vecs[]; };
 
-layout(set=0, binding=0) uniform CameraData {
-    // 按你工程的 CameraData 来放；以下示例给出常见字段（请与你的定义一致）
-    mat4 viewProj;
+layout(set=0, binding=0, std140) uniform CameraData 
+{
+    mat4 viewproj;
     mat4 view;
     mat4 proj;
-    vec4 eye; // xyz + padding
-} uCam;
+    vec4 eye;
+} uCamera;
 
-layout(set=0, binding=2) uniform DrawParams {
-    uint  count;
-    float arrowScale;
-    float vmin;
-    float vmax;
-} uParams;
-
-// push 常量（与你工程一致：modelMatrix + size）
-layout(push_constant) uniform PushConstantData {
-    mat4 modelMatrix;
-    float size; // 这里与 uParams.arrowScale 冗余，保留兼容
-} pushC;
-
-// Mesh 输出
-layout(location = 0) out vec3 outColor[];
-
-// 工具：构造屏幕面对的正交基，用于生成箭杆截面
-mat3 makeBasis(vec3 dir, vec3 camZ)
+layout(set=0, binding=1, std430) buffer Vectors 
 {
-    vec3 z = normalize(dir);
-    // 用相机朝向稳定构建（避免与 z 平行时抖动）
-    vec3 x = normalize(cross(camZ, z));
-    if (length(x) < 1e-5) x = normalize(cross(vec3(0,1,0), z));
-    vec3 y = normalize(cross(z, x));
-    return mat3(x, y, z);
-}
+    GPUVector vectors[];
+};
 
-vec3 turbo(float t) { // 简易 colormap（0..1）
-    // 低成本近似：蓝->青->黄->红
-    t = clamp(t, 0.0, 1.0);
-    return vec3(clamp(1.5*t,0,1),
-                clamp(1.5*(t-0.33),0,1),
-                clamp(1.5*(0.66-t),0,1));
+layout(push_constant) uniform Push 
+{
+    mat4  model;
+    float baseScale;
+    float headRatio;
+    float halfWidth;
+    float magScale;
+} PC;
+
+// ✅ per-primitive 输出：保持“无尺寸数组”写法或显式给大小都可
+layout(location = 0) perprimitiveEXT out vec3 pColor[]; // 每个三角的颜色
+layout(location = 1) out vec3 vColor[];                 // 每顶点颜色
+
+// ❌ 不要这样重新声明并起名 prim：
+// perprimitiveEXT out gl_MeshPerPrimitiveEXT { uint gl_PrimitiveID; } prim[];
+
+// ✅ 如需访问内建 per-primitive 块（一般不需要），只能用内建实例名：
+// perprimitiveEXT out gl_MeshPerPrimitiveEXT { uint gl_PrimitiveID; } gl_MeshPrimitivesEXT[];
+
+void emit_arrow(uint aidx, uint vbase, uint pbase)
+{
+    GPUVector gv = vectors[aidx];
+    vec3 P      = (PC.model * vec4(gv.pos.xyz, 1.0)).xyz;
+    vec3 V      = gv.vel.xyz;
+
+    // 相机基向量（只要旋转部分）
+    mat3 RviewInv = mat3(inverse(uCamera.view));
+    vec3 camFwd   = normalize(RviewInv[2]);
+    vec3 camUp    = normalize(RviewInv[1]);
+    vec3 camRight = normalize(RviewInv[0]);
+
+    // 速度在屏幕平面内的方向
+    float mag = length(V);
+    vec3 dir  = (mag > 1e-6) ? (V / mag) : camUp;
+    vec3 t    = dir - dot(dir, camFwd) * camFwd;
+    float tlen= length(t);
+    t = (tlen > 1e-6) ? (t / tlen) : camUp;
+    vec3 s    = normalize(cross(camFwd, t));
+
+    float length_total = PC.baseScale * (1.0 + PC.magScale * mag);
+    float head_len     = clamp(PC.headRatio, 0.1, 0.8) * length_total;
+    float shaft_len    = max(length_total - head_len, 1e-6);
+    float w            = max(PC.halfWidth, 1e-6);
+    float head_w       = w * 1.8;
+
+    vec3 tip = P + t * (shaft_len + head_len);
+    vec3 sh0 = P;
+    vec3 sh1 = P + t * shaft_len;
+
+    vec3 q1 = sh0 + s * w;
+    vec3 q2 = sh0 - s * w;
+    vec3 q3 = sh1 + s * w;
+    vec3 q4 = sh1 - s * w;
+
+    vec3 h1 = sh1 + s * head_w;
+    vec3 h2 = sh1 - s * head_w;
+
+    vec3 pos[VERTS_PER_ARROW] = 
+    {
+        q1, q2, q3,
+        q2, q4, q3,
+        h1, h2, tip
+    };
+
+    vec3 baseCol = mix(vec3(0.2, 0.4, 1.0), vec3(1.0, 0.3, 0.1), clamp(mag * 0.5, 0.0, 1.0));
+
+    for (uint i = 0; i < VERTS_PER_ARROW; ++i) 
+    {
+        gl_MeshVerticesEXT[vbase + i].gl_Position = uCamera.viewproj * vec4(pos[i], 1.0);
+        vColor[vbase + i] = baseCol;
+    }
+
+    gl_PrimitiveTriangleIndicesEXT[pbase + 0] = uvec3(vbase + 0, vbase + 1, vbase + 2);
+    gl_PrimitiveTriangleIndicesEXT[pbase + 1] = uvec3(vbase + 3, vbase + 4, vbase + 5);
+    gl_PrimitiveTriangleIndicesEXT[pbase + 2] = uvec3(vbase + 6, vbase + 7, vbase + 8);
+
+    pColor[pbase + 0] = baseCol;
+    pColor[pbase + 1] = baseCol;
+    pColor[pbase + 2] = baseCol;
 }
 
 void main()
 {
-    uint base = gl_WorkGroupID.x * gl_WorkGroupSize.x;
-    uint i    = base + gl_LocalInvocationID.x;
-    uint N    = uParams.count;
+    uint globalBase = gl_WorkGroupID.x * WG_SIZE;
+    uint localID    = gl_LocalInvocationIndex;
+    uint arrowID    = globalBase + localID;
 
-    // 本 workgroup 实际处理的数量
-    uint localCount = (i < N) ? 1u : 0u;
-    // 仅由 0 号线程设置全组的输出上限（保守设置：都满额；无效箭头写到 degenerate 位置）
-    if (gl_LocalInvocationID.x == 0u)
-        SetMeshOutputsEXT(gl_WorkGroupSize.x * VERTS_PER_ARROW, gl_WorkGroupSize.x * PRIMS_PER_ARROW);
+    uint total      = vectors.length();
+    uint groupCount = (globalBase + WG_SIZE <= total) ? WG_SIZE : max(0u, total - globalBase);
 
-    // 超出范围的线程写入退化三角形（放到裁剪外）
-    if (i >= N) {
-        // 写一个退化三角形（全部置于 w<0）
-        uint vbase = gl_LocalInvocationID.x * VERTS_PER_ARROW;
-        for (uint k=0; k<VERTS_PER_ARROW; ++k) {
-            gl_MeshVerticesEXT[vbase+k].gl_Position = vec4(0,0,-1,0);
-            outColor[vbase+k] = vec3(0);
-        }
-        // 原地声明对应的 primitive 索引
-        uint pbase = gl_LocalInvocationID.x * PRIMS_PER_ARROW;
-        for (uint p=0; p<PRIMS_PER_ARROW; ++p) {
-            gl_PrimitiveTriangleIndicesEXT[pbase+p] = uvec3(vbase, vbase, vbase);
-        }
-        return;
+    // ✅ EXT 规范：用函数设置输出数量（而不是给变量赋值）
+    if (localID == 0) 
+    {
+        SetMeshOutputsEXT(groupCount * VERTS_PER_ARROW,
+                          groupCount * TRIS_PER_ARROW);
     }
+    barrier();                 // 同步“输出计数”对全组可见
+    if (localID >= groupCount) return;
 
-    GPUVector V = vecs[i];
-    vec3  p0 = V.pos.xyz;
-    vec3  v  = V.vel.xyz;
-    float mag = length(v);
-    if (mag < 1e-8) v = vec3(0,1e-8,0);
+    uint vbase = localID * VERTS_PER_ARROW;
+    uint pbase = localID * TRIS_PER_ARROW;
 
-    // 颜色映射
-    float t = (mag - uParams.vmin) / max(uParams.vmax - uParams.vmin, 1e-6);
-    vec3  col = turbo(t);
-
-    // 箭头几何参数
-    float L   = (uParams.arrowScale > 0.0 ? uParams.arrowScale : pushC.size); // 优先用 ubo
-    float len = L * mag;         // 长度与速度幅值成比例
-    float r   = 0.005 * L;       // 杆半径（可按需要调）
-    float hd  = 3.0 * r;         // 箭头底径
-    float hl  = 3.0 * r;         // 箭头长度
-
-    vec3  dir = normalize(v);
-    mat3  B   = makeBasis(dir, normalize(-uCam.view[2].xyz)); // 相机 -Z
-
-    vec3  p1  = p0 + dir * max(0.0, len - hl); // 杆末端
-    vec3  p2  = p0 + dir * len;                // 箭尖
-
-    // 生成 6 个三角形（2 个用于杆，4 个用于箭头），共 18 顶点
-    // 为简洁，用一个方形杆 + 四面体箭头（你可换成更精致的截面）
-    vec3 up   = 10.0f * B[0];  // 横向
-    vec3 side = 10.0f * B[1];  // 纵向
-
-    vec3 v0 = p0 + ( up*r + side*r);
-    vec3 v1 = p0 + (-up*r + side*r);
-    vec3 v2 = p0 + (-up*r - side*r);
-    vec3 v3 = p0 + ( up*r - side*r);
-
-    vec3 w0 = p1 + ( up*r + side*r);
-    vec3 w1 = p1 + (-up*r + side*r);
-    vec3 w2 = p1 + (-up*r - side*r);
-    vec3 w3 = p1 + ( up*r - side*r);
-
-    // 箭头四面体底点（围绕 p1 一个正方形的四角），尖端 p2
-    vec3 h0 = p1 +  up*hd;
-    vec3 h1 = p1 + -up*hd;
-    vec3 h2 = p1 +  side*hd;
-    vec3 h3 = p1 + -side*hd;
-
-    uint vbase = gl_LocalInvocationID.x * VERTS_PER_ARROW;
-    uint pbase = gl_LocalInvocationID.x * PRIMS_PER_ARROW;
-
-    // 杆（两个三角形: v0-v1-w1, v0-w1-w0 ; 另一侧 v1-v2-w2, v1-w2-w1 ; 再 v2-v3-w3, v2-w3-w2 ; v3-v0-w0, v3-w0-w3）
-    // 为节省三角形数，这里只画两面（你可扩成四面，更圆柱一些）
-    vec3 verts[18] = {
-        // 杆（2 三角）
-        v0, v1, w1,
-        v0, w1, w0,
-        // 箭头（4 三角）：(h0,h1,p2),(h2,h3,p2),(h0,h2,p2),(h1,h3,p2)
-        h0, h1, p2,
-        h2, h3, p2,
-        h0, h2, p2,
-        h1, h3, p2
-    };
-
-    for (uint k=0; k<VERTS_PER_ARROW; ++k) {
-        gl_MeshVerticesEXT[vbase+k].gl_Position = uCam.viewProj * vec4(verts[k], 1.0);
-        outColor[vbase+k] = col;
-    }
-
-    for (uint p=0; p<PRIMS_PER_ARROW; ++p) {
-        uint s = vbase + p*3u;
-        gl_PrimitiveTriangleIndicesEXT[pbase+p] = uvec3(s, s+1u, s+2u);
-    }
+    emit_arrow(arrowID, vbase, pbase);
 }
