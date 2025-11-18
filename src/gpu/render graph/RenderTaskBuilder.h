@@ -7,32 +7,36 @@
 
 
 namespace dk {
-
+struct RenderTaskBase;
+class RenderGraph;
 // ---------------------------------------------
 // RenderTaskBuilder：建图辅助类
 // ---------------------------------------------
-class RenderTaskBuilder {
+class RenderTaskBuilder
+{
 public:
-    RenderTaskBuilder(RenderGraph& g, RenderTaskBase* t)
-        : graph(g), task(t) {
+    RenderTaskBuilder(RenderGraph* g, RenderTaskBase* t)
+        : _graph(g), _task(t)
+    {
     }
 
-    template<typename ResT>
-    ResT* create(const std::string& name,
-        const typename ResT::Desc& desc,
-        ResourceLifetime life = ResourceLifetime::Transient);
+    template <typename ResT>
+    ResT* create(const std::string&         name,
+                 const typename ResT::Desc& desc,
+                 ResourceLifetime           life = ResourceLifetime::Transient);
 
-    template<typename ResT>
+    template <typename ResT>
     ResT* read(ResT* res);
 
-    template<typename ResT>
+    template <typename ResT>
     ResT* write(ResT* res);
 
 private:
-    RenderGraph& graph;
-    RenderTaskBase* task;
+    RenderGraph*    _graph;
+    RenderTaskBase* _task;
 
     friend class RenderGraph;
 };
+
 
 }

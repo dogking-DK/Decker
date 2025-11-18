@@ -14,7 +14,7 @@ class ImageViewBuilder;
 
 namespace dk::vkcore {
 // ImageViewResource 封装了 vk::ImageView，并在析构时自动销毁
-class ImageViewResource : Resource<vk::ImageView, vk::ObjectType::eImageView>
+class ImageViewResource : public Resource<vk::ImageView, vk::ObjectType::eImageView>
 {
 public:
     ImageViewResource(VulkanContext& context, ImageViewBuilder& builder);

@@ -9,17 +9,24 @@
 #include <climits>
 
 namespace dk {
+namespace vkcore {
+    class VulkanContext;
+}
+
+// 前置声明
 struct RenderTaskBase;
+
+// 执行时要需要 VulkanContext & VMA，这里搞个简单的上下文
+struct RenderGraphContext
+{
+    vkcore::VulkanContext* vkCtx = nullptr;
+};
 
 // ---------------------------------------------
 // 基本 ID 类型
 // ---------------------------------------------
 using ResourceId = uint32_t;
 using TaskId     = uint32_t;
-
-// 前置声明
-class RenderGraph;
-class RenderTaskBuilder;
 
 // ---------------------------------------------
 // 资源生命周期枚举
@@ -49,13 +56,11 @@ struct ResourceBase
 
     virtual ~ResourceBase() = default;
 
-    virtual void realize()
+    virtual void realize(RenderGraphContext& ctx)
     {
-        // 这一版先打印，之后接 Vulkan / Pool
-        std::cout << "[RG] Realize resource \"" << name << "\" (id=" << id << ")\n";
     }
 
-    virtual void derealize()
+    virtual void derealize(RenderGraphContext& ctx)
     {
         std::cout << "[RG] Derealize resource \"" << name << "\" (id=" << id << ")\n";
     }
@@ -101,7 +106,7 @@ struct Resource : ResourceBase
         return external ? external : actual.get();
     }
 
-    void realize() override
+    void realize(RenderGraphContext& ctx) override
     {
         if (lifetime == ResourceLifetime::Transient && !actual)
         {
@@ -110,7 +115,7 @@ struct Resource : ResourceBase
         std::cout << "[RG] Realize resource \"" << name << "\" (id=" << id << ")\n";
     }
 
-    void derealize() override
+    void derealize(RenderGraphContext& ctx) override
     {
         if (lifetime == ResourceLifetime::Transient)
         {

@@ -30,8 +30,8 @@ void RenderGraph::compile()
         {
             writers.push_back(w->id);
         }
-        std::sort(writers.begin(), writers.end());
-        writers.erase(std::unique(writers.begin(), writers.end()), writers.end());
+        std::ranges::sort(writers);
+        writers.erase(std::ranges::unique(writers).begin(), writers.end());
 
         // 写写链：w0 -> w1 -> w2 ...
         for (size_t i = 1; i < writers.size(); ++i)
@@ -151,7 +151,7 @@ void RenderGraph::compile()
     }
 }
 
-void RenderGraph::execute()
+void RenderGraph::execute(RenderGraphContext& ctx)
 {
     std::cout << "[RG] Execute begin\n";
     for (size_t i = 0; i < timeline_.size(); ++i)
@@ -161,7 +161,7 @@ void RenderGraph::execute()
 
         for (auto* r : step.toRealize)
         {
-            r->realize();
+            r->realize(ctx);
         }
 
         if (step.task)
@@ -172,7 +172,7 @@ void RenderGraph::execute()
 
         for (auto* r : step.toDerealize)
         {
-            r->derealize();
+            r->derealize(ctx);
         }
     }
     std::cout << "[RG] Execute end\n";
