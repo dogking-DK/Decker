@@ -1,4 +1,7 @@
 ﻿#include "Buffer.h"
+
+#include <spdlog/spdlog.h>
+
 #include "BufferBuilder.h"
 
 namespace dk::vkcore {
@@ -6,17 +9,19 @@ BufferResource::BufferResource(VulkanContext& context, BufferBuilder& builder)
     : Resource(&context, nullptr)
 {
     //_allocation_create_info = builder.getAllocationCreateInfo(); // 储存分配的创建信息
-    VmaAllocationInfo info{};
-    VkResult          result = vmaCreateBuffer(context.getVmaAllocator(),
-                                               reinterpret_cast<const VkBufferCreateInfo*>(&builder.getCreateInfo()),
-                                               &builder.getAllocationCreateInfo(),
-                                               reinterpret_cast<VkBuffer*>(&_handle),
-                                               &_allocation,
-                                               &info);
+    VkResult result = vmaCreateBuffer(context.getVmaAllocator(),
+                                      reinterpret_cast<const VkBufferCreateInfo*>(&builder.getCreateInfo()),
+                                      &builder.getAllocationCreateInfo(),
+                                      reinterpret_cast<VkBuffer*>(&_handle),
+                                      &_allocation,
+                                      &_allocation_info);
 
     if (result != VK_SUCCESS)
     {
-        fmt::print("image create fail\n");
+        //fmt::print("image create fail\n");
+        auto resStr = to_string(static_cast<vk::Result>(result));
+        spdlog::error("vmaCreateBuffer failed: {} (vkResult={})",
+            resStr, static_cast<int>(result));
     }
 
     VkMemoryPropertyFlags props{};
@@ -24,9 +29,9 @@ BufferResource::BufferResource(VulkanContext& context, BufferBuilder& builder)
     _host_visible  = (props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
     _host_coherent = (props & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
 
-    if (info.pMappedData)
+    if (_allocation_info.pMappedData)
     {
-        _data         = info.pMappedData;
+        _data         = _allocation_info.pMappedData;
         _owns_mapping = false;             // 不是我们调用 map 得到的
     }
 }

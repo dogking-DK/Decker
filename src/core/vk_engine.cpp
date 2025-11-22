@@ -34,14 +34,16 @@
 #include "data/MACInit.h"
 #include "fluid/FluidSystem.h"
 #include "force/DampingForce.h"
+#include "render graph/RenderGraph.h"
+#include "render graph/Resource.h"
+#include "render graph/ResourceTexture.h"
 #include "render/MacGridPointRender.h"
 #include "render/MacGridVectorRenderer.h"
 #include "solver/PBDSolver.h"
 #include "solver/StableFliuidsSolver.h"
 #include "solver/VerletSolver.h"
 
-#define VMA_IMPLEMENTATION
-#define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
+# include <vk_mem_alloc.h>
 
 // 定义全局默认分发器的存储（只在一个 TU 里写！）
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -50,7 +52,6 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include "ResourceCache.h"
 #include "ResourceLoader.h"
 #include "vk_debug_util.h"
-#include "vk_mem_alloc.h"
 #include "Vulkan/BufferBuilder.h"
 #include "Vulkan/CommandBuffer.h"
 #include <Vulkan/DescriptorSetLayout.h>
@@ -153,6 +154,9 @@ void VulkanEngine::init()
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
     fmt::print("build point cloud render\n");
+
+    test_render_graph();
+
 
     m_spring_renderer = std::make_unique<SpringRenderer>(_context);
     m_spring_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
@@ -303,88 +307,81 @@ void VulkanEngine::init_default_data()
     });
 }
 
-void VulkanEngine::test_render_point_mesh_shader()
+void VulkanEngine::test_render_graph()
 {
-    using namespace vkcore;
-    // --- 生成一些点 ---
-    constexpr uint32_t N = 200000;
-    std::vector<float> positions;
-    positions.reserve(N * 3);
-    for (uint32_t i = 0; i < N; ++i)
+    using MyRes = Resource<ImageDesc, FrameGraphImage>;
+
+    RenderGraph graph;
+
+    MyRes* res1 = nullptr;
+    MyRes* res2 = nullptr;
+
+    // Task A
+    struct AData
     {
-        float a = (static_cast<float>(i) / (2.f * N)) * glm::pi<float>();
-        float r = 1.0f + 0.5f * std::sin(13.0f * a);
-        float x = r * std::cos(a), y = r * std::sin(a), z = 0.2f * std::sin(37.0f * a);
-        positions.push_back(x);
-        positions.push_back(y);
-        positions.push_back(z);
-    }
+        MyRes* r1 = nullptr;
+    };
+    graph.addTask<AData>(
+        "TaskA",
+        // setup
+        [&](AData& data, RenderTaskBuilder& b)
+        {
+            auto* r1 = b.create<MyRes>("R1", ImageDesc{});
+            data.r1  = r1;
+            res1     = r1;
+        },
+        // execute
+        [&](const AData& data)
+        {
+            std::cout << "      [TaskA] running. R1=" << data.r1->get() << "\n";
+        }
+    );
 
-    VkDeviceSize bytes = positions.size() * sizeof(float);
+    // Task B
+    struct BData
+    {
+        MyRes* r1 = nullptr;
+        MyRes* r2 = nullptr;
+    };
+    graph.addTask<BData>(
+        "TaskB",
+        [&](BData& data, RenderTaskBuilder& b)
+        {
+            data.r1  = b.read<MyRes>(res1);
+            auto* r2 = b.create<MyRes>("R2", ImageDesc{});
+            data.r2  = r2;
+            res2     = r2;
+        },
+        [&](const BData& data)
+        {
+            std::cout << "      [TaskB] running. R1=" << data.r1->get()
+                << ", R2=" << data.r2->get() << "\n";
+        }
+    );
 
-    // 2) staging（Host 可见 + 持久映射）
-    BufferBuilder staging;
-    staging.setUsage(vk::BufferUsageFlagBits::eTransferSrc)
-           .setSize(bytes)
-           .withVmaUsage(VMA_MEMORY_USAGE_AUTO) // 让 VMA 选 Host 内存
-           .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
-                         | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-    auto stagingBuf = staging.build(*_context);
+    // Task C
+    struct CData
+    {
+        MyRes* r2 = nullptr;
+    };
+    graph.addTask<CData>(
+        "TaskC",
+        [&](CData& data, RenderTaskBuilder& b)
+        {
+            data.r2 = b.read<MyRes>(res2);
+        },
+        [&](const CData& data)
+        {
+            std::cout << "      [TaskC] running. R2=" << data.r2->get() << "\n";
+        }
+    );
 
-    // 3) 目标 SSBO（设备本地 + 作为拷贝目标 & 着色器读）
-    BufferBuilder gpuSSBO;
-    gpuSSBO.setSize(bytes)
-           .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)
-           .withVmaUsage(VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
-    auto gpu_point_buffer = gpuSSBO.build(*_context);
+    RenderGraphContext ctx;
+    ctx.vkCtx = _context;
 
-    // 4) CPU → staging
-    stagingBuf.update(positions.data(), bytes, 0);  // ← 关键修正
-
-    // 5) staging → device（可优先选择 transfer 队列）
-    vk::BufferCopy2 region{0, 0, bytes};
-    copyBufferImmediate(_context,
-                        get_current_frame()._command_pool_transfer,
-                        _context->getTransferQueue(),  // 伪代码：优先 transfer，没有就 graphics
-                        stagingBuf,
-                        gpu_point_buffer,
-                        {region});
-
-
-    //auto dsl  = DescriptorSetLayoutBuilder{}
-    //           .addBuffer(/*binding*/0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eAll) // 或 Mesh/Vertex/Fragment
-    //           //.addImage(/*binding*/1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
-    //           .build(*_context);
-
-    //// 2) Pipeline Layout
-    //vk::PipelineLayoutCreateInfo plCI({}, 1, &(dsl.get()));
-    //vk::PipelineLayout           pipelineLayout = _context->getDevice().createPipelineLayout(plCI);
-
-    //// 3) 池（估算好数目）
-    //DescriptorPoolDesc poolDesc{};
-    //poolDesc.maxSets = /*frames*/ 3;
-    //poolDesc.sizes   = {
-    //    {vk::DescriptorType::eStorageBuffer, 3},
-    //    {vk::DescriptorType::eCombinedImageSampler, 3}
-    //};
-    //DescriptorPool pool(*_context, poolDesc);
-
-    //// 4) 分配每帧一套 set
-    //std::vector<vk::DescriptorSetLayout> layouts(poolDesc.maxSets, dsl.get());
-    //vk::DescriptorSetAllocateInfo        ai(pool.get(), static_cast<uint32_t>(layouts.size()), layouts.data());
-    //auto                                 sets = _context->getDevice().allocateDescriptorSets(ai);
-
-    //// 5) 写入
-    //DescriptorSetWriter writer;
-    //for (uint32_t i = 0; i < poolDesc.maxSets; ++i)
-    //{
-    //    vk::DescriptorBufferInfo dbi{gpu_point_buffer.getHandle(), 0, VK_WHOLE_SIZE};
-    //    //vk::DescriptorImageInfo  ii{sampler, imageView, vk::ImageLayout::eShaderReadOnlyOptimal};
-
-    //    writer.writeBuffer(0, vk::DescriptorType::eStorageBuffer, dbi)
-    //          //.writeImage(1, vk::DescriptorType::eCombinedImageSampler, ii)
-    //          .update(*_context, sets[i]);
-    //}
+    // 编译 + 执行
+    graph.compile();
+    graph.execute(ctx);
 }
 
 void VulkanEngine::cleanup()
@@ -582,14 +579,15 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
     m_vector_render->updateFromGrid(fluid->grid(), /*stride*/{2, 2, 2}, /*minMag*/ 0.01f);
 
-    dk::PushVector pvc{};
-    pvc.model = glm::mat4(1.0f);
+    PushVector pvc{};
+    pvc.model     = glm::mat4(1.0f);
     pvc.baseScale = 0.1f;
     pvc.headRatio = 0.35f;
     pvc.halfWidth = 0.02f;
-    pvc.magScale = 0.8f;
+    pvc.magScale  = 0.8f;
 
-    m_vector_render->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj, sceneData.view, sceneData.proj}, renderInfo, pvc);
+    m_vector_render->draw(*get_current_frame().command_buffer_graphic,
+                          {sceneData.viewproj, sceneData.view, sceneData.proj}, renderInfo, pvc);
 
     //m_grid_point_render->updateFromGridUniform(
     //    fluid->grid(),
@@ -813,7 +811,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     });
 
     //update the buffer
-    auto sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
+    auto sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.info.pMappedData);
     *sceneUniformData     = sceneData;
 
     VkDescriptorSetVariableDescriptorCountAllocateInfo allocArrayInfo{
@@ -1300,7 +1298,7 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
     AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                             VMA_MEMORY_USAGE_CPU_ONLY);
 
-    void* data = staging.allocation->GetMappedData();
+    void* data = staging.info.pMappedData;
 
     // copy vertex buffer
     memcpy(data, vertices.data(), vertexBufferSize);

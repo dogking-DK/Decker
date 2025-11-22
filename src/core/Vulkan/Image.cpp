@@ -1,6 +1,7 @@
 ﻿#include "Image.h"
 
 #include "ImageBuilder.h"
+#include <spdlog/spdlog.h>
 
 namespace dk::vkcore {
 ImageResource::ImageResource(VulkanContext& context, ImageBuilder& builder)
@@ -11,13 +12,20 @@ ImageResource::ImageResource(VulkanContext& context, ImageBuilder& builder)
                                      &builder.getAllocationCreateInfo(),
                                      reinterpret_cast<VkImage*>(&_handle),
                                      &_allocation,
-                                     nullptr);
-    
+                                     &_allocation_info);
+
     _allocation_create_info = builder.getAllocationCreateInfo(); // 储存分配的创建信息
 
     if (result != VK_SUCCESS)
     {
-        fmt::print("image create fail\n");
+        //fmt::print("image create fail\n");
+        auto resStr = to_string(static_cast<vk::Result>(result));
+        spdlog::error("vmaCreateImage failed: {} (vkResult={})",
+                      resStr, static_cast<int>(result));
     }
+
+    VkMemoryPropertyFlags props{};
+    vmaGetAllocationMemoryProperties(context.getVmaAllocator(), _allocation, &props);
+
 }
 }

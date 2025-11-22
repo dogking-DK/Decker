@@ -17,6 +17,8 @@ public:
         _create_info.initialLayout = vk::ImageLayout::eUndefined;
         _create_info.samples = vk::SampleCountFlagBits::e1;
         _create_info.sharingMode = vk::SharingMode::eExclusive;
+        _create_info.mipLevels = 1;
+        _create_info.arrayLayers = 1;
     }
 
     // 设置 image 格式
@@ -60,7 +62,10 @@ public:
     {
         return { context, *this };
     }
-
+    std::unique_ptr<ImageResource> buildUnique(VulkanContext& context)
+    {
+        return std::make_unique<ImageResource>(context, *this);
+    }
 private:
     friend ImageResource;
 };

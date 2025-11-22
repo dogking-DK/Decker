@@ -12,7 +12,7 @@ class BufferResource : public Resource<vk::Buffer, vk::ObjectType::eBuffer>
 {
 public:
     BufferResource(VulkanContext& context, BufferBuilder& builder);
-    BufferResource() = default;
+    BufferResource() = delete;
 
     ~BufferResource() override
     {
@@ -51,6 +51,7 @@ public:
     }
 private:
     VmaAllocation _allocation{};
+    VmaAllocationInfo           _allocation_info = {};
 
     void*        _data          = nullptr;
     bool         _owns_mapping  = false;

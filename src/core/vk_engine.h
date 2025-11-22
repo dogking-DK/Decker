@@ -309,7 +309,8 @@ private:
 
     void init_default_data();
 
-    void test_render_point_mesh_shader();
+    void test_render_graph();
+
 };
 
 }

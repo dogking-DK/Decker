@@ -49,6 +49,7 @@ public:
 private:
     VmaAllocationCreateInfo _allocation_create_info = {};
     VmaAllocation           _allocation = VK_NULL_HANDLE;
+    VmaAllocationInfo           _allocation_info = {};
     tsl::robin_set<ImageViewResource*> _image_views;
 };
 }

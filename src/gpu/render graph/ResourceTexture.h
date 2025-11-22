@@ -10,15 +10,15 @@
 namespace dk {
 struct ImageDesc
 {
-    uint32_t width  = 0;
-    uint32_t height = 0;
+    uint32_t width  = 100;
+    uint32_t height = 100;
     uint32_t depth  = 1;
 
     uint32_t mipLevels   = 1;
     uint32_t arrayLayers = 1;
 
-    vk::Format              format  = vk::Format::eUndefined;
-    vk::ImageUsageFlags     usage   = {};
+    vk::Format              format  = vk::Format::eR16G16B16A16Sfloat;
+    vk::ImageUsageFlags     usage   = vk::ImageUsageFlagBits::eSampled;
     vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1;
     vk::ImageTiling         tiling  = vk::ImageTiling::eOptimal;
     vk::ImageType           type    = vk::ImageType::e2D;
@@ -32,8 +32,8 @@ struct ImageDesc
 struct FrameGraphImage
 {
     // 用 unique_ptr 确保销毁顺序：先 view 后 image
-    std::unique_ptr<vkcore::ImageResource>     image;
-    std::unique_ptr<vkcore::ImageViewResource> view;  // 默认 view（可选）
+    std::unique_ptr<vkcore::ImageResource>     image{nullptr};
+    std::unique_ptr<vkcore::ImageViewResource> view{nullptr};  // 默认 view（可选）
 
     vk::Image     getVkImage() const { return image ? image->getHandle() : VK_NULL_HANDLE; }
     vk::ImageView getVkImageView() const { return view ? view->getHandle() : VK_NULL_HANDLE; }

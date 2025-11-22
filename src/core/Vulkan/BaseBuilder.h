@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include <string>
-#include <vk_mem_alloc.h>
 #include "vk_types.h"
 
 namespace dk::vkcore {

@@ -19,13 +19,16 @@ void Resource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
         // 1. 用你的 ImageBuilder 创建 ImageResource
         vkcore::ImageBuilder builder;
         builder.setFormat(desc.format)
-               .setExtent(vk::Extent3D{desc.width, desc.height, desc.depth})
-               .setUsage(desc.usage)
-               .setTiling(desc.tiling)
-               .setImageType(desc.type);
+            .setExtent(vk::Extent3D{ desc.width, desc.height, desc.depth })
+            .setUsage(desc.usage)
+            .setTiling(desc.tiling)
+            .setImageType(desc.type)
+            //.withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)
+            .withVmaUsage(VMA_MEMORY_USAGE_AUTO);
         // 如果你在 ImageBuilder 里扩展了 mipLevels/arrayLayers，顺便设置一下
 
-        actual->image = std::make_unique<vkcore::ImageResource>(*ctx.vkCtx, builder);
+        //actual->image = std::make_unique<vkcore::ImageResource>(*ctx.vkCtx, builder);
+        actual->image = builder.buildUnique(*ctx.vkCtx);
 
         // 2. 创建一个默认的 ImageViewResource（比如 color attachment / sampled view）
         vkcore::ImageViewBuilder viewBuilder(*actual->image);
