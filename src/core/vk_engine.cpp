@@ -632,8 +632,8 @@ void VulkanEngine::draw()
         return;
     }
     uint32_t swapchainImageIndex = result.second;
-    _drawExtent.height = std::min(_context->getSwapchain()->get_extent().height, _drawImage.imageExtent.height) * 1.f;
-    _drawExtent.width = std::min(_context->getSwapchain()->get_extent().width, _drawImage.imageExtent.width) * 1.f;
+    _drawExtent.height = std::min(_context->getSwapchain()->get_extent().height, _drawImage.imageExtent.height) * 1;
+    _drawExtent.width = std::min(_context->getSwapchain()->get_extent().width, _drawImage.imageExtent.width) * 1;
 
     VK_CHECK(vkResetFences(_context->getDevice(), 1, &get_current_frame()._renderFence));
 

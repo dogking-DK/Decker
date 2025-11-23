@@ -102,7 +102,6 @@ struct FrameData
     VkCommandBuffer _mainCommandBuffer;
 };
 
-constexpr unsigned int FRAME_OVERLAP = 2;
 
 
 

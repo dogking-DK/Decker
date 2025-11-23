@@ -32,7 +32,9 @@
 #include <glm/glm.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
-//< intro 
+//< intro
+
+constexpr unsigned int FRAME_OVERLAP = 2;
 
 
 // we will add our main reusable types here
