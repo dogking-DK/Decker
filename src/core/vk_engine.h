@@ -24,6 +24,10 @@
 #include "Vulkan/CommandPool.h"
 #include "Vulkan/CommandBuffer.h"
 
+namespace dk {
+class RenderGraph;
+}
+
 namespace dk::vkcore {
 class GrowableDescriptorAllocator;
 }
@@ -177,7 +181,7 @@ public:
 
     AllocatedBuffer _defaultGLTFMaterialData;
 
-    FrameData _frames[FRAME_OVERLAP];
+    std::array<FrameData, FRAME_OVERLAP> _frames;
 
     VkExtent2D _drawExtent;
     VkDescriptorPool _descriptorPool;
@@ -235,6 +239,8 @@ public:
     std::shared_ptr<SpringRenderer> m_spring_renderer;
     std::shared_ptr<MacGridVectorRenderer> m_vector_render;
     std::shared_ptr<MacGridPointRenderer> m_grid_point_render;
+    std::shared_ptr<RenderGraph> render_graph;
+
 
     std::unique_ptr<World> physic_world;
 

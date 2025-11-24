@@ -311,77 +311,84 @@ void VulkanEngine::test_render_graph()
 {
     using MyRes = Resource<ImageDesc, FrameGraphImage>;
 
-    RenderGraph graph;
-
     MyRes* res1 = nullptr;
     MyRes* res2 = nullptr;
 
     // Task A
-    struct AData
+    struct FXAA
     {
-        MyRes* r1 = nullptr;
+        MyRes* color = nullptr;
+        MyRes* depth = nullptr;
     };
-    graph.addTask<AData>(
+
+    if (render_graph == nullptr)
+    {
+        render_graph = std::make_shared<RenderGraph>();
+    }
+
+    render_graph->addTask<FXAA>(
         "TaskA",
         // setup
-        [&](AData& data, RenderTaskBuilder& b)
+        [&](FXAA& data, RenderTaskBuilder& b)
         {
-            auto* r1 = b.create<MyRes>("R1", ImageDesc{});
-            data.r1  = r1;
-            res1     = r1;
+            //auto* r1 = b.create<MyRes>("R1", ImageDesc{});
+            //data.r1 = r1;
+            //res1 = r1;
         },
         // execute
-        [&](const AData& data)
+        [&](const FXAA& data)
         {
-            std::cout << "      [TaskA] running. R1=" << data.r1->get() << "\n";
+
+
+            //std::cout << "      [TaskA] running. R1=" << data.r1->get() << "\n";
         }
     );
 
-    // Task B
-    struct BData
-    {
-        MyRes* r1 = nullptr;
-        MyRes* r2 = nullptr;
-    };
-    graph.addTask<BData>(
-        "TaskB",
-        [&](BData& data, RenderTaskBuilder& b)
-        {
-            data.r1  = b.read<MyRes>(res1);
-            auto* r2 = b.create<MyRes>("R2", ImageDesc{});
-            data.r2  = r2;
-            res2     = r2;
-        },
-        [&](const BData& data)
-        {
-            std::cout << "      [TaskB] running. R1=" << data.r1->get()
-                << ", R2=" << data.r2->get() << "\n";
-        }
-    );
+    //// Task B
+    //struct BData
+    //{
+    //    MyRes* r1 = nullptr;
+    //    MyRes* r2 = nullptr;
+    //};
+    //render_graph->addTask<BData>(
+    //    "TaskB",
+    //    [&](BData& data, RenderTaskBuilder& b)
+    //    {
+    //        data.r1 = b.read<MyRes>(res1);
+    //        auto* r2 = b.create<MyRes>("R2", ImageDesc{});
+    //        data.r2 = r2;
+    //        res2 = r2;
+    //    },
+    //    [&](const BData& data)
+    //    {
+    //        std::cout << "      [TaskB] running. R1=" << data.r1->get()
+    //            << ", R2=" << data.r2->get() << "\n";
+    //    }
+    //);
 
-    // Task C
-    struct CData
-    {
-        MyRes* r2 = nullptr;
-    };
-    graph.addTask<CData>(
-        "TaskC",
-        [&](CData& data, RenderTaskBuilder& b)
-        {
-            data.r2 = b.read<MyRes>(res2);
-        },
-        [&](const CData& data)
-        {
-            std::cout << "      [TaskC] running. R2=" << data.r2->get() << "\n";
-        }
-    );
+    //// Task C
+    //struct CData
+    //{
+    //    MyRes* r2 = nullptr;
+    //};
+    //render_graph->addTask<CData>(
+    //    "TaskC",
+    //    [&](CData& data, RenderTaskBuilder& b)
+    //    {
+    //        data.r2 = b.read<MyRes>(res2);
+    //    },
+    //    [&](const CData& data)
+    //    {
+    //        std::cout << "      [TaskC] running. R2=" << data.r2->get() << "\n";
+    //    }
+    //);
 
     RenderGraphContext ctx;
     ctx.vkCtx = _context;
-
+    ctx.frame_data = &_frames;
     // 编译 + 执行
-    graph.compile();
-    graph.execute(ctx);
+    render_graph->compile();
+    render_graph->execute(ctx);
 }
 
 void VulkanEngine::cleanup()
@@ -569,6 +576,10 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
     auto sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     auto fluid  = physic_world->getSystemAs<FluidSystem>("fluid");
+
+    RenderGraphContext ctx;
+    ctx.vkCtx = _context;
+    render_graph->execute(ctx);
 
     //translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
     point_cloud_renderer->updatePoints();

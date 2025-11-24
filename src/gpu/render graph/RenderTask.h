@@ -12,7 +12,7 @@ class RenderTaskBuilder;
 // ---------------------------------------------
 // RenderTaskBase：任务基类
 // ---------------------------------------------
-struct RenderTaskBase
+struct  RenderTaskBase
 {
     TaskId      id = ~0u;
     std::string name;

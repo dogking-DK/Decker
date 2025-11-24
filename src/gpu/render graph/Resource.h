@@ -20,6 +20,7 @@ struct RenderTaskBase;
 struct RenderGraphContext
 {
     vkcore::VulkanContext* vkCtx = nullptr;
+    std::array<FrameData, FRAME_OVERLAP>* frame_data = nullptr;
 };
 
 // ---------------------------------------------
@@ -31,17 +32,19 @@ using TaskId     = uint32_t;
 // ---------------------------------------------
 // 资源生命周期枚举
 // ---------------------------------------------
-enum class ResourceLifetime
+enum class ResourceLifetime : std::uint8_t
 {
-    Transient,   // 每帧内创建/销毁（未来可接 image pool）
-    External     // 外部管理（swapchain RT 等）
+    Transient,    // 每帧内创建/销毁（未来可接 image pool）
+    External,     // 外部管理（swapchain RT 等）
+    Persistent,   // 持久性
 };
 
 // ---------------------------------------------
 // ResourceBase：所有资源的公共信息
 // ---------------------------------------------
-struct ResourceBase
+class ResourceBase
 {
+public:
     ResourceId       id = ~0u;
     std::string      name;
     ResourceLifetime lifetime = ResourceLifetime::Transient;
@@ -67,30 +70,17 @@ struct ResourceBase
 };
 
 // ---------------------------------------------
-// DummyDesc / DummyActual：占位类型
-// 将来可以替换成 ImageDesc/Image 或 BufferDesc/Buffer
-// ---------------------------------------------
-struct DummyDesc
-{
-    int size = 0;   // 只是示意
-};
-
-struct DummyActual
-{
-    int dummy = 0;  // 只是示意
-};
-
-// ---------------------------------------------
 // 模板 Resource：挂上描述和实际对象类型
 // ---------------------------------------------
 template <typename DescT, typename ActualT>
-struct Resource : ResourceBase
+class Resource : public ResourceBase
 {
+public:
     using Desc   = DescT;
     using Actual = ActualT;
 
     Desc                    desc;
-    Actual*                 external = nullptr;           // External 时指向外部对象
+    Actual*                 external = nullptr; // External 时指向外部对象
     std::unique_ptr<Actual> actual;       // Transient 时使用
 
     Resource(const std::string& n, const Desc& d,

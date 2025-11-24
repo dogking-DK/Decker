@@ -1,13 +1,33 @@
 ﻿#include "ResourceTexture.h"
 
 namespace dk {
+void Resource<ImageDesc, FrameGraphImage>::setExternal(vk::Image image, vk::ImageView view)
+{
+    if (!actual)
+    {
+        actual = std::make_unique<Actual>();
+    }
+
+    actual->isExternal        = true;
+    actual->externalImage     = image;
+    actual->externalImageView = view;
+
+    // 确保不会误用内部路径
+    actual->image.reset();
+    actual->view.reset();
+}
+
 void Resource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
 {
+    // ★ 外部资源：FG 不创建 / 管理，只是个占位 + debug 打印
     if (lifetime == ResourceLifetime::External)
     {
-        // 外部资源（比如 swapchain image）另说，这里先不管
+        std::cout << "[RG] Realize EXTERNAL FG Image \"" << name << "\"\n";
+        // 这里假定 setExternal() 已经在 execute 之前被调用
         return;
     }
+
+    // 以下是原来的内部资源路径
     if (!ctx.vkCtx)
     {
         throw std::runtime_error("RenderGraphContext.vkCtx is null");
@@ -19,15 +39,12 @@ void Resource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
         // 1. 用你的 ImageBuilder 创建 ImageResource
         vkcore::ImageBuilder builder;
         builder.setFormat(desc.format)
-            .setExtent(vk::Extent3D{ desc.width, desc.height, desc.depth })
-            .setUsage(desc.usage)
-            .setTiling(desc.tiling)
-            .setImageType(desc.type)
-            //.withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)
-            .withVmaUsage(VMA_MEMORY_USAGE_AUTO);
-        // 如果你在 ImageBuilder 里扩展了 mipLevels/arrayLayers，顺便设置一下
+               .setExtent(vk::Extent3D{desc.width, desc.height, desc.depth})
+               .setUsage(desc.usage)
+               .setTiling(desc.tiling)
+               .setImageType(desc.type)
+               .withVmaUsage(VMA_MEMORY_USAGE_AUTO);
 
-        //actual->image = std::make_unique<vkcore::ImageResource>(*ctx.vkCtx, builder);
         actual->image = builder.buildUnique(*ctx.vkCtx);
 
         // 2. 创建一个默认的 ImageViewResource（比如 color attachment / sampled view）
