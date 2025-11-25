@@ -44,7 +44,7 @@ public:
 
     // 设置着色器阶段
     PipelineBuilder& setShaders(vk::ShaderModule mesh_shader, vk::ShaderModule fragment_shader);
-
+    PipelineBuilder& setShaders(vk::ShaderModule comp_shader);
     // 设置管线布局
     PipelineBuilder& setLayout(PipelineLayout* layout);
 
@@ -85,5 +85,8 @@ private:
     vk::Format              _depth_attachment_format{vk::Format::eUndefined};
 
     std::vector<vk::DynamicState> _dynamic_states;
+
+    enum class PipelineType { Graphics, Compute };
+    PipelineType _type = PipelineType::Graphics;   // 新增：当前是图形还是计算
 };
 } // namespace dk::vkcore

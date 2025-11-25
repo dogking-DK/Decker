@@ -556,11 +556,6 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     auto sm_sys = physic_world->getSystemAs<SpringMassSystem>("spring");
     auto fluid  = physic_world->getSystemAs<FluidSystem>("fluid");
 
-    RenderGraphContext ctx;
-    ctx.vkCtx = _context;
-    ctx.frame_data = &get_current_frame();
-    render_graph->execute(ctx);
-
     //translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });
     point_cloud_renderer->updatePoints();
 
@@ -591,6 +586,11 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     //m_grid_point_render->draw(*get_current_frame().command_buffer_graphic, { sceneData.viewproj, sceneData.view, sceneData.proj }, renderInfo, 0.5, 0.0, -1.0);
 
     m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
+
+    RenderGraphContext ctx;
+    ctx.vkCtx = _context;
+    ctx.frame_data = &get_current_frame();
+    render_graph->execute(ctx);
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)

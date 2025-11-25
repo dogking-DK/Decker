@@ -57,7 +57,29 @@ std::unique_ptr<Pipeline> PipelineBuilder::build()
         throw std::runtime_error("Shader stages must be set before building a pipeline.");
     }
 
-    // --- 组装最终的 CreateInfo 结构体 ---
+    if (_type == PipelineType::Compute)
+    {
+        // ---- Compute pipeline 路径 ----
+        if (_shader_stages.size() != 1 ||
+            _shader_stages[0].stage != vk::ShaderStageFlagBits::eCompute)
+        {
+            throw std::runtime_error("Compute pipeline requires exactly one compute shader stage.");
+        }
+
+        vk::ComputePipelineCreateInfo cpInfo;
+        cpInfo.stage  = _shader_stages[0];
+        cpInfo.layout = _pipeline_layout->getHandle();
+
+        auto result = _context->getDevice().createComputePipeline(nullptr, cpInfo);
+        if (result.result != vk::Result::eSuccess)
+        {
+            throw std::runtime_error("Failed to create compute pipeline!");
+        }
+
+        return std::unique_ptr<Pipeline>(new Pipeline(_context, result.value, _pipeline_layout));
+    }
+
+    // ---- Graphics pipeline 路径（保持你原来的逻辑）----
     vk::PipelineViewportStateCreateInfo viewport_state_info;
     viewport_state_info.viewportCount = 1;
     viewport_state_info.scissorCount  = 1;
@@ -121,9 +143,20 @@ std::unique_ptr<Pipeline> PipelineBuilder::build()
 
 PipelineBuilder& PipelineBuilder::setShaders(vk::ShaderModule mesh_shader, vk::ShaderModule fragment_shader)
 {
+    _type = PipelineType::Graphics;        // 明确是图形管线
+
     _shader_stages.clear();
     _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eMeshEXT, mesh_shader, "main"});
     _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eFragment, fragment_shader, "main"});
+    return *this;
+}
+
+PipelineBuilder& PipelineBuilder::setShaders(vk::ShaderModule comp_shader)
+{
+    _type = PipelineType::Compute;         // 明确是计算管线
+
+    _shader_stages.clear();
+    _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eCompute, comp_shader, "main"});
     return *this;
 }
 
@@ -193,7 +226,7 @@ PipelineBuilder& PipelineBuilder::setColorBlendingAdditive()
     _color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eOne;
     _color_blend_attachment.alphaBlendOp        = vk::BlendOp::eAdd;
     _color_blend_attachment.colorWriteMask      = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-                                                  vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+                                             vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
     return *this;
 }
 
@@ -207,7 +240,7 @@ PipelineBuilder& PipelineBuilder::setColorBlendingAlpha()
     _color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eZero;
     _color_blend_attachment.alphaBlendOp        = vk::BlendOp::eAdd;
     _color_blend_attachment.colorWriteMask      = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-                                                  vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+                                             vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
     return *this;
 }
 
