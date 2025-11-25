@@ -177,6 +177,9 @@ public:
     void copyImageToImage(const ImageResource& source, const ImageResource& destination, vk::Extent2D src_size,
                           vk::Extent2D         dst_size);
 
+    void copyImageToImage(const vk::Image& source, const vk::Image& destination, vk::Extent2D src_size,
+        vk::Extent2D         dst_size);
+
     void generateMipmaps(const ImageResource& image, vk::Extent2D image_size);
 
     void copyBuffer(const BufferResource& src, const BufferResource& dst, vk::BufferCopy2 copy);

@@ -37,6 +37,7 @@
 #include "render graph/RenderGraph.h"
 #include "render graph/Resource.h"
 #include "render graph/ResourceTexture.h"
+#include "render graph/renderpass/BlitPass.h"
 #include "render/MacGridPointRender.h"
 #include "render/MacGridVectorRenderer.h"
 #include "solver/PBDSolver.h"
@@ -315,80 +316,58 @@ void VulkanEngine::test_render_graph()
     MyRes* res2 = nullptr;
 
     // Task A
-    struct FXAA
+    struct CreateTempData
     {
         MyRes* color = nullptr;
-        MyRes* depth = nullptr;
     };
 
     if (render_graph == nullptr)
     {
         render_graph = std::make_shared<RenderGraph>();
+        m_blit_pass  = std::make_shared<BlitPass>();
     }
+    ImageDesc desc{
+        .width = _drawImage.imageExtent.width,
+        .height = _drawImage.imageExtent.height,
+        .depth = _drawImage.imageExtent.depth,
+        .format = static_cast<vk::Format>(_drawImage.imageFormat)
+    };
+    color_image = make_shared<MyRes>("color src", desc, ResourceLifetime::External);
+    color_image->setExternal(
+        _drawImage.image,
+        _drawImage.imageView  // 或者你封装里的 view
+    );
+    m_blit_pass->setSrc(color_image.get());
 
-    render_graph->addTask<FXAA>(
-        "TaskA",
+    render_graph->addTask<CreateTempData>(
+        "Create temp data",
         // setup
-        [&](FXAA& data, RenderTaskBuilder& b)
+        [&](CreateTempData& data, RenderTaskBuilder& b)
         {
-            //auto* r1 = b.create<MyRes>("R1", ImageDesc{});
+            ImageDesc desc{
+                .width = _drawImage.imageExtent.width,
+                .height = _drawImage.imageExtent.height,
+                .format = static_cast<vk::Format>(_drawImage.imageFormat),
+                .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment
+            };
+            auto* r1 = b.create<MyRes>("color_temp", desc);
             //data.r1 = r1;
-            //res1 = r1;
+            res1 = r1;
         },
         // execute
-        [&](const FXAA& data)
+        [&](const CreateTempData& data, RenderGraphContext& ctx)
         {
-
-
             //std::cout << "      [TaskA] running. R1=" << data.r1->get() << "\n";
         }
     );
-
-    //// Task B
-    //struct BData
-    //{
-    //    MyRes* r1 = nullptr;
-    //    MyRes* r2 = nullptr;
-    //};
-    //render_graph->addTask<BData>(
-    //    "TaskB",
-    //    [&](BData& data, RenderTaskBuilder& b)
-    //    {
-    //        data.r1 = b.read<MyRes>(res1);
-    //        auto* r2 = b.create<MyRes>("R2", ImageDesc{});
-    //        data.r2 = r2;
-    //        res2 = r2;
-    //    },
-    //    [&](const BData& data)
-    //    {
-    //        std::cout << "      [TaskB] running. R1=" << data.r1->get()
-    //            << ", R2=" << data.r2->get() << "\n";
-    //    }
-    //);
-
-    //// Task C
-    //struct CData
-    //{
-    //    MyRes* r2 = nullptr;
-    //};
-    //render_graph->addTask<CData>(
-    //    "TaskC",
-    //    [&](CData& data, RenderTaskBuilder& b)
-    //    {
-    //        data.r2 = b.read<MyRes>(res2);
-    //    },
-    //    [&](const CData& data)
-    //    {
-    //        std::cout << "      [TaskC] running. R2=" << data.r2->get() << "\n";
-    //    }
-    //);
+    m_blit_pass->registerToGraph(*render_graph, color_image.get(), res1);
 
     RenderGraphContext ctx;
-    ctx.vkCtx = _context;
-    ctx.frame_data = &_frames;
+    ctx.vkCtx      = _context;
+    ctx.frame_data = &get_current_frame();
     // 编译 + 执行
     render_graph->compile();
-    render_graph->execute(ctx);
+    //render_graph->execute(ctx);
 }
 
 void VulkanEngine::cleanup()
@@ -579,6 +558,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
     RenderGraphContext ctx;
     ctx.vkCtx = _context;
+    ctx.frame_data = &get_current_frame();
     render_graph->execute(ctx);
 
     //translate_points(point_cloud_renderer->getPointData(), { 0.1, 0, 0, 0 });

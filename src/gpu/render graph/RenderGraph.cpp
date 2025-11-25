@@ -141,11 +141,11 @@ void RenderGraph::compile()
         auto* res = resPtr.get();
         if (res->firstUse < 0)
         {
-            std::cout << "  Resource \"" << res->name << "\" not used by any task\n";
+            std::cout << "  Resource \"" << res->_name << "\" not used by any task\n";
         }
         else
         {
-            std::cout << "  Resource \"" << res->name << "\" : firstUse=" << res->firstUse
+            std::cout << "  Resource \"" << res->_name << "\" : firstUse=" << res->firstUse
                 << ", lastUse=" << res->lastUse << "\n";
         }
     }
@@ -167,7 +167,7 @@ void RenderGraph::execute(RenderGraphContext& ctx)
         if (step.task)
         {
             std::cout << "    Execute task \"" << step.task->name << "\" (id=" << step.task->id << ")\n";
-            step.task->execute();
+            step.task->execute(ctx);
         }
 
         for (auto* r : step.toDerealize)

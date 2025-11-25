@@ -21,7 +21,7 @@ struct  RenderTaskBase
     std::vector<ResourceBase*> writes;
 
     virtual      ~RenderTaskBase() = default;
-    virtual void execute() = 0;
+    virtual void execute(RenderGraphContext& ctx) = 0;
 };
 
 // ---------------------------------------------
@@ -32,7 +32,7 @@ struct RenderTask : RenderTaskBase
 {
     using Data        = DataT;
     using SetupFunc   = std::function<void(Data&, RenderTaskBuilder&)>;
-    using ExecuteFunc = std::function<void(const Data&)>;
+    using ExecuteFunc = std::function<void(const Data&, RenderGraphContext&)>;
 
     Data        data{};
     SetupFunc   setup;
@@ -46,9 +46,9 @@ struct RenderTask : RenderTaskBase
         name = n;
     }
 
-    void execute() override
+    void execute(RenderGraphContext& ctx) override
     {
-        if (run) run(data);
+        if (run) run(data, ctx);
     }
 };
 }

@@ -72,7 +72,7 @@ ResT* RenderTaskBuilder::create(const std::string& name,
 
     auto  res = std::make_unique<ResT>(name, desc, life);
     auto* ptr = res.get();
-    ptr->id = static_cast<ResourceId>(_graph->resources_.size());
+    ptr->_id = static_cast<ResourceId>(_graph->resources_.size());
     ptr->creator = _task;
     _graph->resources_.push_back(std::move(res));
 

@@ -8,6 +8,9 @@
 #include <algorithm>
 #include <climits>
 
+#include "vk_base.h"
+#include "vk_types.h"
+
 namespace dk {
 namespace vkcore {
     class VulkanContext;
@@ -19,8 +22,8 @@ struct RenderTaskBase;
 // 执行时要需要 VulkanContext & VMA，这里搞个简单的上下文
 struct RenderGraphContext
 {
-    vkcore::VulkanContext* vkCtx = nullptr;
-    std::array<FrameData, FRAME_OVERLAP>* frame_data = nullptr;
+    vkcore::VulkanContext* vkCtx      = nullptr;
+    FrameData*             frame_data = nullptr;
 };
 
 // ---------------------------------------------
@@ -45,18 +48,6 @@ enum class ResourceLifetime : std::uint8_t
 class ResourceBase
 {
 public:
-    ResourceId       id = ~0u;
-    std::string      name;
-    ResourceLifetime lifetime = ResourceLifetime::Transient;
-
-    RenderTaskBase*              creator = nullptr;
-    std::vector<RenderTaskBase*> readers;
-    std::vector<RenderTaskBase*> writers;
-
-    // 编译阶段填充：
-    int firstUse = -1;
-    int lastUse  = -1;
-
     virtual ~ResourceBase() = default;
 
     virtual void realize(RenderGraphContext& ctx)
@@ -65,8 +56,27 @@ public:
 
     virtual void derealize(RenderGraphContext& ctx)
     {
-        std::cout << "[RG] Derealize resource \"" << name << "\" (id=" << id << ")\n";
+        std::cout << "[RG] Derealize resource \"" << _name << "\" (id=" << _id << ")\n";
     }
+
+    std::string      name() const { return _name; }
+    ResourceId       id() const { return _id; }
+    ResourceLifetime lifetime() const { return _lifetime; }
+
+protected:
+    ResourceId       _id = ~0u;
+    std::string      _name;
+    ResourceLifetime _lifetime = ResourceLifetime::Transient;
+
+    RenderTaskBase*              creator = nullptr;
+    std::vector<RenderTaskBase*> readers;
+    std::vector<RenderTaskBase*> writers;
+
+    // 编译阶段填充：
+    int firstUse = -1;
+    int lastUse  = -1;
+    friend class RenderTaskBuilder;
+    friend class RenderGraph;
 };
 
 // ---------------------------------------------
@@ -79,16 +89,12 @@ public:
     using Desc   = DescT;
     using Actual = ActualT;
 
-    Desc                    desc;
-    Actual*                 external = nullptr; // External 时指向外部对象
-    std::unique_ptr<Actual> actual;       // Transient 时使用
-
     Resource(const std::string& n, const Desc& d,
              ResourceLifetime   life = ResourceLifetime::Transient)
     {
-        name     = n;
-        desc     = d;
-        lifetime = life;
+        _name     = n;
+        _desc     = d;
+        _lifetime = life;
     }
 
     Actual* get()
@@ -96,22 +102,29 @@ public:
         return external ? external : actual.get();
     }
 
+    const Desc& desc() { return _desc; }
+
     void realize(RenderGraphContext& ctx) override
     {
-        if (lifetime == ResourceLifetime::Transient && !actual)
+        if (_lifetime == ResourceLifetime::Transient && !actual)
         {
             actual = std::make_unique<Actual>();
         }
-        std::cout << "[RG] Realize resource \"" << name << "\" (id=" << id << ")\n";
+        std::cout << "[RG] Realize resource \"" << _name << "\" (id=" << _id << ")\n";
     }
 
     void derealize(RenderGraphContext& ctx) override
     {
-        if (lifetime == ResourceLifetime::Transient)
+        if (_lifetime == ResourceLifetime::Transient)
         {
             actual.reset();
         }
-        std::cout << "[RG] Derealize resource \"" << name << "\" (id=" << id << ")\n";
+        std::cout << "[RG] Derealize resource \"" << _name << "\" (id=" << _id << ")\n";
     }
+
+private:
+    Desc                    _desc;
+    Actual*                 external = nullptr; // External 时指向外部对象
+    std::unique_ptr<Actual> actual;       // Transient 时使用
 };
 }
