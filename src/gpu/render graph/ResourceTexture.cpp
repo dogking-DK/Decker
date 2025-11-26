@@ -22,7 +22,11 @@ void Resource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
     // ★ 外部资源：FG 不创建 / 管理，只是个占位 + debug 打印
     if (_lifetime == ResourceLifetime::External)
     {
-        std::cout << "[RG] Realize EXTERNAL FG Image \"" << _name << "\"\n";
+        if (ctx.compiled_)
+        {
+            std::cout << "[RG] Realize EXTERNAL FG Image \"" << _name << "\"\n";
+        }
+
         // 这里假定 setExternal() 已经在 execute 之前被调用
         return;
     }
@@ -46,16 +50,18 @@ void Resource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
                .withVmaUsage(VMA_MEMORY_USAGE_AUTO);
 
         actual->image = builder.buildUnique(*ctx.vkCtx);
-
+        actual->image->setDebugName(_name);
         // 2. 创建一个默认的 ImageViewResource（比如 color attachment / sampled view）
         vkcore::ImageViewBuilder viewBuilder(*actual->image);
         viewBuilder.setFormat(_desc.format)
                    .setAspectFlags(_desc.aspectMask);
         actual->view = std::make_unique<vkcore::ImageViewResource>(*ctx.vkCtx, viewBuilder);
     }
-
-    std::cout << "[RG] Realize FG Image \"" << _name
-        << "\" (" << _desc.width << "x" << _desc.height << ")\n";
+    if (ctx.compiled_)
+    {
+        std::cout << "[RG] Realize FG Image \"" << _name
+            << "\" (" << _desc.width << "x" << _desc.height << ")\n";
+    }
 }
 
 void Resource<ImageDesc, FrameGraphImage>::derealize(RenderGraphContext& ctx)
@@ -73,6 +79,9 @@ void Resource<ImageDesc, FrameGraphImage>::derealize(RenderGraphContext& ctx)
         //    img.reset();
         //});
     }
-    std::cout << "[RG] Derealize FG Image \"" << _name << "\"\n";
+    if (ctx.compiled_)
+    {
+        std::cout << "[RG] Derealize FG Image \"" << _name << "\"\n";
+    }
 }
 }

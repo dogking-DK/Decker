@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "render graph/Resource.h"
+#include "Vulkan/Sampler.h"
 
 namespace dk {
 class RenderGraph;
@@ -38,6 +39,6 @@ private:
     std::unique_ptr<vkcore::PipelineLayout> _pipeline_layout;
     std::unique_ptr<vkcore::Pipeline>       _pipeline;
 
-    VkSampler _sampler = VK_NULL_HANDLE;
+    std::unique_ptr<vkcore::SamplerResource> _sampler{nullptr};
 };
 } // namespace dk

@@ -60,7 +60,7 @@ void BlitPass::record(RenderGraphContext& ctx, const BlitPassData& data)
                              VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
     vkutil::transition_image(ctx.frame_data->command_buffer_graphic->getHandle(), dst,
-        VK_IMAGE_LAYOUT_GENERAL, // 当前刚 acquire 的 swapchain image
+        VK_IMAGE_LAYOUT_UNDEFINED, // 当前刚 acquire 的 swapchain image
                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     // 2. 填 blit 区域（全屏 blit）

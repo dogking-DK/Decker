@@ -24,6 +24,7 @@ struct RenderGraphContext
 {
     vkcore::VulkanContext* vkCtx      = nullptr;
     FrameData*             frame_data = nullptr;
+    bool                   compiled_  = false;
 };
 
 // ---------------------------------------------
@@ -56,7 +57,10 @@ public:
 
     virtual void derealize(RenderGraphContext& ctx)
     {
-        std::cout << "[RG] Derealize resource \"" << _name << "\" (id=" << _id << ")\n";
+        if (ctx.compiled_)
+        {
+            std::cout << "[RG] Derealize resource \"" << _name << "\" (id=" << _id << ")\n";
+        }
     }
 
     std::string      name() const { return _name; }

@@ -46,6 +46,8 @@
 
 # include <vk_mem_alloc.h>
 
+#include "render graph/renderpass/GaussianBlurPass.h"
+
 // 定义全局默认分发器的存储（只在一个 TU 里写！）
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -323,8 +325,10 @@ void VulkanEngine::test_render_graph()
 
     if (render_graph == nullptr)
     {
-        render_graph = std::make_shared<RenderGraph>();
-        m_blit_pass  = std::make_shared<BlitPass>();
+        render_graph         = std::make_shared<RenderGraph>();
+        m_blit_pass          = std::make_shared<BlitPass>();
+        m_gaussian_blur_pass = std::make_shared<GaussianBlurPass>();
+        m_gaussian_blur_pass->init(_context);
     }
     ImageDesc desc{
         .width = _drawImage.imageExtent.width,
@@ -348,11 +352,13 @@ void VulkanEngine::test_render_graph()
                 .width = _drawImage.imageExtent.width,
                 .height = _drawImage.imageExtent.height,
                 .format = static_cast<vk::Format>(_drawImage.imageFormat),
-                .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment
+                .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
             };
             auto* r1 = b.create<MyRes>("color_temp", desc);
+            auto* r2 = b.create<MyRes>("color_after_blur", desc);
             //data.r1 = r1;
             res1 = r1;
+            res2 = r2;
         },
         // execute
         [&](const CreateTempData& data, RenderGraphContext& ctx)
@@ -361,7 +367,7 @@ void VulkanEngine::test_render_graph()
         }
     );
     m_blit_pass->registerToGraph(*render_graph, color_image.get(), res1);
-
+    m_gaussian_blur_pass->registerToGraph(*render_graph, res1, color_image.get());
     RenderGraphContext ctx;
     ctx.vkCtx      = _context;
     ctx.frame_data = &get_current_frame();
@@ -588,7 +594,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 
     RenderGraphContext ctx;
-    ctx.vkCtx = _context;
+    ctx.vkCtx      = _context;
     ctx.frame_data = &get_current_frame();
     render_graph->execute(ctx);
 }
@@ -613,6 +619,7 @@ void VulkanEngine::draw()
 
     get_current_frame()._deletionQueue.flush();
     get_current_frame()._frameDescriptors.clear_pools(_context->getDevice());
+    get_current_frame()._dynamicDescriptorAllocator->reset();
 
     //request image from the swapchain
     auto result = _context->getSwapchain()->acquire_next_image(get_current_frame()._swapchainSemaphore, nullptr);
@@ -1471,6 +1478,9 @@ void VulkanEngine::init_commands()
 
         //_frames[i].command_buffer_graphic = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
         _frames[i].command_buffer_graphic  = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
+        std::string name = "frame graphic command ";
+        name.append(std::to_string(i));
+        _frames[i].command_buffer_graphic->setDebugName(name);
         _frames[i].command_buffer_transfer = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_transfer);
 
         // allocate the default command buffer that we will use for rendering
@@ -1722,6 +1732,23 @@ void VulkanEngine::init_descriptors()
 
         _frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
         _frames[i]._frameDescriptors.init(_context->getDevice(), 1000, frame_sizes);
+
+        std::vector<vk::DescriptorPoolSize> pool_sizes = {
+            {vk::DescriptorType::eSampler, 1000},
+            {vk::DescriptorType::eCombinedImageSampler, 1000},
+            {vk::DescriptorType::eSampledImage, 1000},
+            {vk::DescriptorType::eStorageImage, 1000},
+            {vk::DescriptorType::eUniformTexelBuffer, 1000},
+            {vk::DescriptorType::eStorageTexelBuffer, 1000},
+            {vk::DescriptorType::eUniformBuffer, 1000},
+            {vk::DescriptorType::eStorageBuffer, 1000},
+            {vk::DescriptorType::eUniformBufferDynamic, 1000},
+            {vk::DescriptorType::eStorageBufferDynamic, 1000},
+            {vk::DescriptorType::eInputAttachment, 1000}
+        };
+
+        _frames[i]._dynamicDescriptorAllocator = std::make_unique<vkcore::GrowableDescriptorAllocator>(
+            _context, 1000, pool_sizes);
         _mainDeletionQueue.push_function([&, i]()
         {
             _frames[i]._frameDescriptors.destroy_pools(_context->getDevice());

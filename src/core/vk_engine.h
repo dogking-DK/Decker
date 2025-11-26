@@ -26,6 +26,10 @@
 #include "Vulkan/CommandPool.h"
 #include "Vulkan/CommandBuffer.h"
 
+namespace dk {
+class GaussianBlurPass;
+}
+
 namespace dk::vkcore {
 class GrowableDescriptorAllocator;
 }
@@ -178,6 +182,7 @@ public:
     std::shared_ptr<MacGridPointRenderer> m_grid_point_render;
     std::shared_ptr<RenderGraph> render_graph;
     std::shared_ptr<BlitPass> m_blit_pass;
+    std::shared_ptr<GaussianBlurPass> m_gaussian_blur_pass;
 
     std::unique_ptr<World> physic_world;
 
