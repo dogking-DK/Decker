@@ -1,46 +1,107 @@
 #version 460
 
-layout (local_size_x = 16, local_size_y = 16) in;
+// 每个 workgroup 处理 16x16 像素
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
-// 绑定：binding 0 = 采样源，binding 1 = 可写目标
+// 绑定：binding 0 = 源纹理（采样），binding 1 = 目标图（storage image）
 layout (binding = 0) uniform sampler2D uSrc;
 layout (binding = 1, rgba16f) writeonly uniform image2D uDst;
 
+// push constant：保持你原来的结构和大小
 layout (push_constant) uniform PushConstants {
     vec2 direction; // (1,0) 横向, (0,1) 纵向
-    vec2 texelSize; // 1/width, 1/height
+    vec2 texelSize; // 1/width, 1/height （这里其实用不到，但保留以兼容 C++）
 } pc;
 
-// 这里用半径 = 5 的核，权重可以预先算好直接写死
-const int RADIUS = 5;
-const float kernel[11] = float[](
-    0.009167, 0.01453, 0.020595, 0.026995, 0.032418,
-    0.035855,
-    0.032418, 0.026995, 0.020595, 0.01453, 0.009167
+// 一维高斯核，半径 = 5（11 tap）
+const int   RADIUS      = 5;
+const int   KERNEL_SIZE = 2 * RADIUS + 1;
+
+// 你也可以换成自己喜欢的权重
+const float kernel[KERNEL_SIZE] = float[](
+    0.035483, 0.058501, 0.086310, 0.113945, 0.134610,
+    0.142300,
+    0.134610, 0.113945, 0.086310, 0.058501, 0.035483
 );
+
+// workgroup 内核心 tile 尺寸
+const int WORK_W = 16;
+const int WORK_H = 16;
+
+// 为了同时支持横/竖 blur，这里在 X / Y 方向都扩 RADIUS 的 halo
+const int TILE_W = WORK_W + 2 * RADIUS;
+const int TILE_H = WORK_H + 2 * RADIUS;
+
+// 共享内存 tile（只存 rgb 就够了）
+shared vec3 sTile[TILE_H][TILE_W];
 
 void main()
 {
-    ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 size = imageSize(uDst);
-    if (gid.x >= size.x || gid.y >= size.y) {
+    // 全局像素坐标
+    ivec2 gid      = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 imgSize  = imageSize(uDst);      // 或 textureSize(uSrc, 0)，二者大小应该一致
+
+    // 越界直接退出（最后一组 workgroup 可能不满）
+    if (gid.x >= imgSize.x || gid.y >= imgSize.y)
         return;
+
+    ivec2 groupID  = ivec2(gl_WorkGroupID.xy);
+    ivec2 localID  = ivec2(gl_LocalInvocationID.xy);
+
+    // 当前 workgroup 负责的核心区域左上角（不含 halo）
+    ivec2 coreBase = groupID * ivec2(WORK_W, WORK_H);
+
+    // 1. 所有线程协作，把 [TILE_W x TILE_H] 一整块搬进 shared memory
+    //
+    //   tile 坐标 : (tx, ty) ∈ [0, TILE_W) x [0, TILE_H)
+    //   对应的 global 像素 = coreBase + (tx - RADIUS, ty - RADIUS)，随后 clamp 到合法范围
+    for (int ty = localID.y; ty < TILE_H; ty += WORK_H)
+    {
+        for (int tx = localID.x; tx < TILE_W; tx += WORK_W)
+        {
+            ivec2 g = coreBase + ivec2(tx - RADIUS, ty - RADIUS);
+            g = clamp(g, ivec2(0), imgSize - ivec2(1));
+
+            // 用 texelFetch 按整数像素采样（不需要过滤）
+            vec3 c = texelFetch(uSrc, g, 0).rgb;
+            sTile[ty][tx] = c;
+        }
     }
 
-    vec2 uv = (vec2(gid) + 0.5) * pc.texelSize;
+    // 等待整个 tile 加载完毕
+    barrier();
 
-    vec3 color = vec3(0.0);
-    float sumW = 0.0;
+    // 2. 在 shared memory 里做 1D 高斯卷积
 
-    for (int i = -RADIUS; i <= RADIUS; ++i) {
+    // 当前像素在 tile 内的中心位置（加上 halo 偏移）
+    ivec2 localCenter = localID + ivec2(RADIUS, RADIUS);
+
+    // 方向：pc.direction = (1,0) or (0,1)
+    bool horizontal = (pc.direction.x > 0.5);
+
+    vec3  acc   = vec3(0.0);
+    float sumW  = 0.0;
+
+    for (int i = -RADIUS; i <= RADIUS; ++i)
+    {
         float w = kernel[i + RADIUS];
-        vec2 offset = float(i) * pc.direction * pc.texelSize;
-        vec2 sampleUv = uv + offset;
-        color += texture(uSrc, sampleUv).rgb * w;
+
+        ivec2 p = localCenter;
+        if (horizontal)
+        {
+            p.x += i;
+        }
+        else
+        {
+            p.y += i;
+        }
+
+        vec3 sampleColor = sTile[p.y][p.x];
+        acc  += sampleColor * w;
         sumW += w;
     }
 
-    color /= sumW;
+    acc /= sumW;
 
-    imageStore(uDst, gid, vec4(color, 1.0));
+    imageStore(uDst, gid, vec4(acc, 1.0));
 }

@@ -367,7 +367,7 @@ void VulkanEngine::test_render_graph()
         }
     );
     m_blit_pass->registerToGraph(*render_graph, color_image.get(), res1);
-    m_gaussian_blur_pass->registerToGraph(*render_graph, res1, color_image.get());
+    //m_gaussian_blur_pass->registerToGraph(*render_graph, res1, color_image.get());
     RenderGraphContext ctx;
     ctx.vkCtx      = _context;
     ctx.frame_data = &get_current_frame();
@@ -1553,18 +1553,18 @@ void VulkanEngine::init_renderables()
     fmt::print(fg(fmt::color::bisque), "model file path: {}\n", structurePath);
     auto structureFile = loadGltf(this, structurePath);
 
-    //auto root = ImporterRegistry::instance().import(structurePath);
+    auto root = ImporterRegistry::instance().import(structurePath);
 
-    //AssetDB::instance().open();
-    //for (const auto& meta : root.metas)
-    //{
-    //    AssetDB::instance().upsert(meta);
-    //}
-    //// 1 假设导入阶段已写入 metas & raw；此处只加载
-    //ResourceCache  cache;
-    //ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
-    //auto           result = loader.loadMesh(root.metas[0].uuid);
-    //hierarchy_panel.setRoots(root.nodes);
+    AssetDB::instance().open();
+    for (const auto& meta : root.metas)
+    {
+        AssetDB::instance().upsert(meta);
+    }
+    // 1 假设导入阶段已写入 metas & raw；此处只加载
+    ResourceCache  cache;
+    ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
+    auto           result = loader.loadMesh(root.metas[0].uuid);
+    hierarchy_panel.setRoots(root.nodes);
 
     assert(structureFile.has_value());
 

@@ -168,6 +168,10 @@ void RenderGraph::execute(RenderGraphContext& ctx)
 
         if (step.task)
         {
+            for (auto* r : step.task->writes)
+            {
+                
+            }
             step.task->execute(ctx);
         }
 

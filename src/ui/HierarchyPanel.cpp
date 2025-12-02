@@ -24,7 +24,10 @@ void HierarchyPanel::drawNode(const std::shared_ptr<AssetNode>& n)
 
     if (open)
     {
-        for (auto& ch : n->children) drawNode(ch);
+        for (auto& ch : n->children)
+        {
+            drawNode(ch);
+        }
         ImGui::TreePop();
     }
 }
