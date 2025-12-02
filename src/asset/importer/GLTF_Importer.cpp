@@ -288,13 +288,9 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             m.uuid     = uuid;
             m.importer = "gltf";
             m.raw_path = file_name;
-            //fmt::print("materialIndex: {}\n", prim.materialIndex.value_or(-1));
-            if (prim.materialIndex.has_value()) 
-            {
-                auto matIndex = prim.materialIndex.value();
-                m.dependencies.insert_or_assign("material", makeUUID("mat", matIndex));
-            }
-
+            if (prim.materialIndex.has_value())
+                m.dependencies.insert_or_assign(AssetDependencyType::Material,
+                                               makeUUID("mat", prim.materialIndex.value()));
             if (opts.do_hash)
             {
                 m.content_hash = helper::hash_buffer(indices);
@@ -310,6 +306,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     {
         auto&                [data, name] = gltf.images[ii];
         RawImageHeader       raw{};
+        raw.comp_type = PixelDataType::UBYTE;
         std::vector<uint8_t> pixels;
 
         std::visit(
@@ -389,6 +386,12 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             },
             data);
 
+        if (pixels.empty())
+        {
+            fmt::print(stderr, "Failed to decode image {}\n", name);
+            continue;
+        }
+
         UUID        uuid      = makeUUID("img", ii);
         std::string file_name = to_string(uuid) + ".rawimg";
         if (opts.write_raw)
@@ -418,27 +421,27 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         if (mat.pbrData.baseColorTexture)
         {
             raw.base_color_texture = makeUUID("img", mat.pbrData.baseColorTexture->textureIndex);
-            m.dependencies.insert_or_assign("baseColorTexture", raw.base_color_texture);
+            m.dependencies.insert_or_assign(AssetDependencyType::BaseColorTexture, raw.base_color_texture);
         }
         if (mat.pbrData.metallicRoughnessTexture)
         {
             raw.metal_rough_texture = makeUUID("img", mat.pbrData.metallicRoughnessTexture->textureIndex);
-            m.dependencies.insert_or_assign("metallicRoughnessTexture", raw.metal_rough_texture);
+            m.dependencies.insert_or_assign(AssetDependencyType::MetallicRoughnessTexture, raw.metal_rough_texture);
         }
         if (mat.normalTexture)
         {
             raw.normal_texture = makeUUID("img", mat.normalTexture->textureIndex);
-            m.dependencies.insert_or_assign("normalTexture", raw.normal_texture);
+            m.dependencies.insert_or_assign(AssetDependencyType::NormalTexture, raw.normal_texture);
         }
         if (mat.occlusionTexture)
         {
             raw.occlusion_texture = makeUUID("img", mat.occlusionTexture->textureIndex);
-            m.dependencies.insert_or_assign("occlusionTexture", raw.occlusion_texture);
+            m.dependencies.insert_or_assign(AssetDependencyType::OcclusionTexture, raw.occlusion_texture);
         }
         if (mat.emissiveTexture)
         {
             raw.emissive_texture = makeUUID("img", mat.emissiveTexture->textureIndex);
-            m.dependencies.insert_or_assign("emissiveTexture", raw.emissive_texture);
+            m.dependencies.insert_or_assign(AssetDependencyType::EmissiveTexture, raw.emissive_texture);
         }
         UUID uuid = makeUUID("mat", mi);
         //fmt::print("material {}: {}\n", mi, to_string(uuid));
