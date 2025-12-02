@@ -15,7 +15,10 @@ template <typename POD>
 void write_pod(const std::filesystem::path& f, const POD& v)
 {
     std::ofstream os(f, std::ios::binary);
-    if (!os) throw std::runtime_error("open fail: " + f.string());
+    if (!os)
+    {
+        throw std::runtime_error("open fail: " + f.string());
+    }
     os.write(reinterpret_cast<const char*>(&v), sizeof(POD));
 }
 

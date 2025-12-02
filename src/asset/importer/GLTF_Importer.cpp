@@ -56,7 +56,9 @@ auto make_node_recursive =
 
     /* 子节点递归 */
     for (const auto& child : n.children)
+    {
         node->children.push_back(self(self, asset, static_cast<uint32_t>(child)));
+    }
 
     return node;
 };
@@ -136,10 +138,15 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         scene_root->id   = makeUUID("scene", s);
 
         for (const auto& ni : nodeIndices)
+        {
             scene_root->children.push_back(make_node_recursive(make_node_recursive, gltf, static_cast<uint32_t>(ni)));
+        }
 
         result.nodes.push_back(scene_root);
     }
+
+    // 仅生成资源节点树
+    if (opts.only_nodes) return result;
 
     fmt::print("{}\n", std::filesystem::current_path().string());
     create_directories(opts.raw_dir);
@@ -150,7 +157,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         for (size_t pi = 0; pi < gltf.meshes[mi].primitives.size(); ++pi)
         {
             const auto&   prim = gltf.meshes[mi].primitives[pi];
-            RawMeshHeader raw_mesh_header;
+            RawMeshHeader raw_mesh_header{};
 
             std::vector<AttrDesc>             vertex_attributes;
             std::vector<std::vector<uint8_t>> blocks;
@@ -192,8 +199,29 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                         index != prim.attributes.end())
                     {
                         fastgltf::Accessor& accessor = gltf.accessors[index->accessorIndex];
-                        std::vector<float>  tmp(
-                            accessor.count * getElementByteSize(accessor.type, accessor.componentType));
+
+                        auto components = [&]() {
+                            switch (accessor.type) {
+                            case fastgltf::AccessorType::Vec2: 
+                                return 2;
+                            case fastgltf::AccessorType::Vec3: 
+                                return 3;
+                            case fastgltf::AccessorType::Vec4: 
+                                return 4;
+                            case fastgltf::AccessorType::Scalar: 
+                                return 1;
+                            case fastgltf::AccessorType::Invalid:
+                                return 0;
+                            case fastgltf::AccessorType::Mat2:
+                                return 4;
+                            case fastgltf::AccessorType::Mat3:
+                                return 9;
+                            case fastgltf::AccessorType::Mat4:
+                                return 16;
+                            }
+                            }();
+
+                        std::vector<float>  tmp(accessor.count * components);
                         if (accessor.type == fastgltf::AccessorType::Vec2)
                             copyFromAccessor<glm::vec2>(gltf, accessor, tmp.data());
                         else if (accessor.type == fastgltf::AccessorType::Vec3)
@@ -261,7 +289,12 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             m.importer = "gltf";
             m.raw_path = file_name;
             //fmt::print("materialIndex: {}\n", prim.materialIndex.value_or(-1));
-            m.dependencies.insert_or_assign("material", makeUUID("mat", prim.materialIndex.value())); // 关联材质
+            if (prim.materialIndex.has_value()) 
+            {
+                auto matIndex = prim.materialIndex.value();
+                m.dependencies.insert_or_assign("material", makeUUID("mat", matIndex));
+            }
+
             if (opts.do_hash)
             {
                 m.content_hash = helper::hash_buffer(indices);
@@ -276,7 +309,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     for (size_t ii = 0; ii < gltf.images.size(); ++ii)
     {
         auto&                [data, name] = gltf.images[ii];
-        RawImageHeader       raw;
+        RawImageHeader       raw{};
         std::vector<uint8_t> pixels;
 
         std::visit(

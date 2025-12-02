@@ -1,7 +1,7 @@
 {
     "load_file" : 
     {
-        "name" : "girl",
+        "name" : "engine",
         "comment" : "打开文件对应的名字"
     },
     "file_paths": 
@@ -61,6 +61,22 @@
         {
             "name" : "sasha",
             "path" : "E:/code/data/sasha_-_cyberpunk_edgerunners/scene.gltf"
+        },
+        {
+            "name" : "tavern",
+            "path" : "C:/code/data/gltf/the_tavern_under_the_falling_pigeon/scene.gltf"
+        },
+        {
+            "name" : "f1",
+            "path" : "C:/code/data/gltf/amg-w14-s1-wwwvecarzcom/source/f1_2023_mercedes_amg_w14_e_performance_s1.glb"
+        },
+        {
+            "name" : "vr_room",
+            "path" : "C:/code/data/gltf/brutalist-interior-vr-room-baked/source/Untitled.glb"
+        },
+        {
+            "name" : "engine",
+            "path" : "C:/code/data/gltf/tag-_porsche_tte_po1__www.vecarz.com/scene.gltf"
         }
     ]
 }

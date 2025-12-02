@@ -23,10 +23,10 @@ constexpr VertexAttribute weightsN(const int n) { return static_cast<VertexAttri
 
 struct RawMeshHeader
 {
-    uint32_t vertex_count;
-    uint32_t index_count;
-    uint16_t attr_count = 0;
-    uint16_t reserved   = 0;
+    uint32_t vertex_count = 0;
+    uint32_t index_count  = 0;
+    uint16_t attr_count   = 0;
+    uint16_t reserved     = 0;
 };
 
 enum class PixelDataType : uint8_t
@@ -52,7 +52,7 @@ struct AttrDesc
 
 struct RawImageHeader
 {
-    int32_t       width{ 1 }, height{ 1 }, depth{ 1 }, channels;    // channels = 4 (RGBA8) after importer
+    int32_t       width{1}, height{1}, depth{1}, channels{4};    // channels = 4 (RGBA8) after importer
     PixelDataType comp_type;
 };
 
