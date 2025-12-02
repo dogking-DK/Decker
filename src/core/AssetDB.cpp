@@ -2,13 +2,19 @@
 #include <stdexcept>
 
 namespace {
-nlohmann::json deps_to_json(
-    const tsl::robin_map<std::string, dk::UUID>& deps)
+nlohmann::json deps_to_json(const dk::DependencyMap& deps)
 {
     nlohmann::json j = nlohmann::json::object();
     for (auto& [k, v] : deps)
-        j[k] = to_string(v);            // UUID → string
+        j[dk::to_string(k)] = to_string(v);            // UUID → string
     return j;
+}
+
+std::optional<dk::AssetDependencyType> dependency_from_legacy_index(const std::size_t idx)
+{
+    // Historic array format stored only a single material dependency.
+    if (idx == 0) return dk::AssetDependencyType::Material;
+    return std::nullopt;
 }
 }
 
@@ -103,7 +109,7 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
             m.import_opts = nlohmann::json::object();
     }
 
-    /* 3  deps (uuid 数组) ───────── */
+    /* 3  deps (uuid 数组/对象) ───────── */
     if (sqlite3_column_type(st, 3) != SQLITE_NULL)
     {
         auto txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 3));
@@ -116,11 +122,9 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
             for (auto& v : j)
             {
                 auto id = UUID::from_string(v.get<std::string>());
-                if (id.has_value())
-                {
-                    UUID cur_id = id.value();
-                    m.dependencies.emplace(std::to_string(idx++), cur_id);
-                }
+                auto dep_type = dependency_from_legacy_index(idx++);
+                if (id.has_value() && dep_type.has_value())
+                    m.dependencies.emplace(dep_type.value(), id.value());
             }
         }
         /* 新版 object 格式 */
@@ -129,11 +133,9 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
             for (auto& [k, v] : j.items())
             {
                 auto id = UUID::from_string(v.get<std::string>());
-                if (id.has_value())
-                {
-                    UUID cur_id = id.value();
-                    m.dependencies.emplace(k, cur_id);
-                }
+                auto dep_type = dependency_from_string(k);
+                if (id.has_value() && dep_type.has_value())
+                    m.dependencies.emplace(dep_type.value(), id.value());
                 //auto test = v.get<std::string>();
                 //auto uid = uuid_from_string(test);
                 //auto uid = uuid_from_string(test);

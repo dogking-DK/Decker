@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <vector>
+#include <stdexcept>
 
 #include "AssetMeta.hpp"
 #include "AssetNode.hpp"
@@ -60,7 +61,9 @@ public:
     ImportResult import(const std::filesystem::path& file) const
     {
         // 找到第一个支持的 importer 并调用其 import 方法
-        return findImporter(file.extension().string())->import(file);
+        if (auto* importer = findImporter(file.extension().string()))
+            return importer->import(file);
+        throw std::runtime_error("Unsupported import extension: " + file.extension().string());
     }
 
 private:

@@ -39,11 +39,14 @@ std::span<const T> MeshData::get(VertexAttribute s) const
 {
     for (auto& d : table)
         if (d.semantic == static_cast<uint16_t>(s))
+        {
+            const auto base_offset = d.offset_bytes - sizeof(RawMeshHeader) - table.size() * sizeof(AttrDesc);
+            if (base_offset + d.byte_size > blob.size()) return {};
             return {
-                reinterpret_cast<const T*>(blob.data() + d.offset_bytes - sizeof(RawMeshHeader) - table.size() * sizeof(
-                                               AttrDesc)),
+                reinterpret_cast<const T*>(blob.data() + base_offset),
                 d.byte_size / sizeof(T)
             };
+        }
     return {};
 }
 
