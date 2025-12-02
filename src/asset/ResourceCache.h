@@ -1,7 +1,8 @@
 ﻿#pragma once
-#include <unordered_map>
-#include <typeindex>
+#include <functional>
 #include <memory>
+#include <typeindex>
+#include <unordered_map>
 #include "../core/UUID.hpp"
 
 namespace dk {
@@ -26,7 +27,8 @@ std::shared_ptr<Res> ResourceCache::resolve(UUID id, std::function<std::shared_p
 
     // 如果没有找到，则调用加载器函数加载资源
     auto res = loader();
-    perId[std::type_index(typeid(Res))] = res;
+    if (res)
+        perId[std::type_index(typeid(Res))] = res;
     return res;
 }
 
