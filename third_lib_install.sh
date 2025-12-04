@@ -25,5 +25,7 @@ vcpkg install --recurse nlohmann-json
 vcpkg install --recurse meshoptimizer[gltfpack]
 vcpkg install --recurse eigen3
 vcpkg install --recurse robin-map
+vcpkg install --recurse shader-slang
+vcpkg install --recurse spirv-cross
 echo press any button to continue...
 read -n 1
