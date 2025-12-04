@@ -15,6 +15,7 @@
 
 #include "AssetHelpers.hpp"
 #include "RawTypes.hpp"
+#include <optional>
 
 
 namespace {
@@ -74,17 +75,11 @@ dk::VertexAttribute make_sem(const std::string& attr, const int set)
     if (attr == "WEIGHTS") return dk::weightsN(set);
     throw std::runtime_error("Unknown attr");
 }
-}
 
-namespace dk {
-ImportResult GltfImporter::import(const std::filesystem::path& file_path, const ImportOptions& opts)
+std::optional<fastgltf::Asset> load_gltf_asset(const std::filesystem::path& file_path)
 {
     using fastgltf::Asset;
     using fastgltf::Parser;
-
-    ImportResult result;
-
-    fmt::print("Loading GLTF: {}\n", file_path.string());
 
     Parser parser{};
 
@@ -93,7 +88,6 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
 
     auto gltf_data = fastgltf::GltfDataBuffer::FromPath(file_path);
 
-    /*-------------------------------读取原始数据-------------------------------*/
     Asset gltf;
     if (const auto type = determineGltfFileType(gltf_data.get()); type == fastgltf::GltfType::glTF)
     {
@@ -105,7 +99,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         else
         {
             fmt::print(stderr, "Failed to load GLTF: {}\n", to_underlying(load.error()));
-            return {};
+            return std::nullopt;
         }
     }
     else if (type == fastgltf::GltfType::GLB)
@@ -118,22 +112,26 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
         else
         {
             fmt::print(stderr, "Failed to load GLB: {}\n", to_underlying(load.error()));
-            return {};
+            return std::nullopt;
         }
     }
     else
     {
         fmt::print(stderr, "Failed to determine glTF container\n");
-        return {};
+        return std::nullopt;
     }
 
-    /*-------------------------------生成 AssetNode 树-------------------------------*/
+    return gltf;
+}
+
+void build_scene_nodes(const fastgltf::Asset& gltf, dk::ImportResult& result)
+{
     for (size_t s = 0; s < gltf.scenes.size(); ++s)
     {
         const auto& [nodeIndices, name] = gltf.scenes[s];
 
-        auto scene_root  = std::make_shared<AssetNode>();
-        scene_root->kind = AssetKind::Scene;
+        auto scene_root  = std::make_shared<dk::AssetNode>();
+        scene_root->kind = dk::AssetKind::Scene;
         scene_root->name = name.empty() ? "Scene" : name;
         scene_root->id   = makeUUID("scene", s);
 
@@ -144,22 +142,18 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
 
         result.nodes.push_back(scene_root);
     }
+}
 
-    // 仅生成资源节点树
-    if (opts.only_nodes) return result;
-
-    fmt::print("{}\n", std::filesystem::current_path().string());
-    create_directories(opts.raw_dir);
-
-    /* ---------- 导出 RawMesh ---------- */
+void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, dk::ImportResult& result)
+{
     for (size_t mi = 0; mi < gltf.meshes.size(); ++mi)
     {
         for (size_t pi = 0; pi < gltf.meshes[mi].primitives.size(); ++pi)
         {
             const auto&   prim = gltf.meshes[mi].primitives[pi];
-            RawMeshHeader raw_mesh_header{};
+            dk::RawMeshHeader raw_mesh_header{};
 
-            std::vector<AttrDesc>             vertex_attributes;
+            std::vector<dk::AttrDesc>             vertex_attributes;
             std::vector<std::vector<uint8_t>> blocks;
             std::vector<uint32_t>             indices;
 
@@ -178,9 +172,9 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                 count);
 
             /*添加顶点属性*/
-            auto add = [&](const VertexAttribute sem, const uint8_t comp, const uint8_t elems, auto& vec)
+            auto add = [&](const dk::VertexAttribute sem, const uint8_t comp, const uint8_t elems, auto& vec)
             {
-                AttrDesc d;
+                dk::AttrDesc d;
                 d.semantic   = static_cast<uint16_t>(sem);
                 d.comp_type  = comp;
                 d.elem_count = elems;
@@ -202,13 +196,13 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
 
                         auto components = [&]() {
                             switch (accessor.type) {
-                            case fastgltf::AccessorType::Vec2: 
+                            case fastgltf::AccessorType::Vec2:
                                 return 2;
-                            case fastgltf::AccessorType::Vec3: 
+                            case fastgltf::AccessorType::Vec3:
                                 return 3;
-                            case fastgltf::AccessorType::Vec4: 
+                            case fastgltf::AccessorType::Vec4:
                                 return 4;
-                            case fastgltf::AccessorType::Scalar: 
+                            case fastgltf::AccessorType::Scalar:
                                 return 1;
                             case fastgltf::AccessorType::Invalid:
                                 return 0;
@@ -255,13 +249,13 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
                 }
             }
             // 添加带编号的属性
-            visit_set("TEXCOORD", texCoordN);
-            visit_set("COLOR", colorN);
-            visit_set("JOINTS", jointsN);
-            visit_set("WEIGHTS", weightsN);
+            visit_set("TEXCOORD", dk::texCoordN);
+            visit_set("COLOR", dk::colorN);
+            visit_set("JOINTS", dk::jointsN);
+            visit_set("WEIGHTS", dk::weightsN);
 
             uint32_t offset = static_cast<uint32_t>(
-                sizeof(raw_mesh_header) + vertex_attributes.size() * sizeof(AttrDesc));
+                sizeof(raw_mesh_header) + vertex_attributes.size() * sizeof(dk::AttrDesc));
             for (auto& d : vertex_attributes)
             {
                 d.offset_bytes = offset;
@@ -269,44 +263,47 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             }
 
             /* 文件 & meta */
-            UUID        uuid      = makeUUID("meshraw", mi * 10 + pi);
+            dk::UUID        uuid      = makeUUID("meshraw", mi * 10 + pi);
             std::string file_name = to_string(uuid) + ".rawmesh";
             if (opts.write_raw)
             {
                 auto path = opts.raw_dir / file_name;
                 // 先写入mesh 头
-                helper::write_pod(path, raw_mesh_header);
+                dk::helper::write_pod(path, raw_mesh_header);
                 // 再写入属性描述
-                helper::append_blob(path, std::span(vertex_attributes));
+                dk::helper::append_blob(path, std::span(vertex_attributes));
                 // 写入每个顶点属性
                 for (auto& b : blocks)
-                    helper::append_blob(path, std::span(b));
+                    dk::helper::append_blob(path, std::span(b));
                 // 最后写入索引
-                helper::append_blob(path, std::span(indices));
+                dk::helper::append_blob(path, std::span(indices));
             }
-            AssetMeta m;
+            dk::AssetMeta m;
             m.uuid     = uuid;
             m.importer = "gltf";
             m.raw_path = file_name;
             if (prim.materialIndex.has_value())
-                m.dependencies.insert_or_assign(AssetDependencyType::Material,
+                m.dependencies.insert_or_assign(dk::AssetDependencyType::Material,
                                                makeUUID("mat", prim.materialIndex.value()));
             if (opts.do_hash)
             {
-                m.content_hash = helper::hash_buffer(indices);
+                m.content_hash = dk::helper::hash_buffer(indices);
                 for (auto& b : blocks)
-                    m.content_hash ^= helper::hash_buffer(b);
+                    m.content_hash ^= dk::helper::hash_buffer(b);
             }
             result.metas.push_back(std::move(m));
         }
     }
+}
 
-    /* ---------- 3. 导出 RawImage ---------- */
+void export_raw_images(const fastgltf::Asset& gltf, const std::filesystem::path& file_path,
+                       const dk::ImportOptions& opts, dk::ImportResult& result)
+{
     for (size_t ii = 0; ii < gltf.images.size(); ++ii)
     {
         auto&                [data, name] = gltf.images[ii];
-        RawImageHeader       raw{};
-        raw.comp_type = PixelDataType::UBYTE;
+        dk::RawImageHeader       raw{};
+        raw.comp_type = dk::PixelDataType::UBYTE;
         std::vector<uint8_t> pixels;
 
         std::visit(
@@ -392,71 +389,101 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
             continue;
         }
 
-        UUID        uuid      = makeUUID("img", ii);
+        dk::UUID        uuid      = makeUUID("img", ii);
         std::string file_name = to_string(uuid) + ".rawimg";
         if (opts.write_raw)
         {
-            helper::write_pod(opts.raw_dir / file_name, raw);
-            helper::append_blob(opts.raw_dir / file_name, std::span(pixels));
+            dk::helper::write_pod(opts.raw_dir / file_name, raw);
+            dk::helper::append_blob(opts.raw_dir / file_name, std::span(pixels));
         }
 
-        AssetMeta m;
+        dk::AssetMeta m;
         m.uuid     = uuid;
         m.importer = "gltf";
         m.raw_path = file_name;
-        if (opts.do_hash) m.content_hash = helper::hash_buffer(pixels);
+        if (opts.do_hash) m.content_hash = dk::helper::hash_buffer(pixels);
         result.metas.push_back(std::move(m));
     }
+}
 
+void export_raw_materials(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, dk::ImportResult& result)
+{
     fmt::print("---------------------------\n");
-    /* ---------- 4. 导出 RawMaterial ---------- */
     for (size_t mi = 0; mi < gltf.materials.size(); ++mi)
     {
         auto&       mat = gltf.materials[mi];
-        RawMaterial raw{};
-        AssetMeta   m;
+        dk::RawMaterial raw{};
+        dk::AssetMeta   m;
 
         raw.metallic_factor  = mat.pbrData.metallicFactor;
         raw.roughness_factor = mat.pbrData.roughnessFactor;
         if (mat.pbrData.baseColorTexture)
         {
             raw.base_color_texture = makeUUID("img", mat.pbrData.baseColorTexture->textureIndex);
-            m.dependencies.insert_or_assign(AssetDependencyType::BaseColorTexture, raw.base_color_texture);
+            m.dependencies.insert_or_assign(dk::AssetDependencyType::BaseColorTexture, raw.base_color_texture);
         }
         if (mat.pbrData.metallicRoughnessTexture)
         {
             raw.metal_rough_texture = makeUUID("img", mat.pbrData.metallicRoughnessTexture->textureIndex);
-            m.dependencies.insert_or_assign(AssetDependencyType::MetallicRoughnessTexture, raw.metal_rough_texture);
+            m.dependencies.insert_or_assign(dk::AssetDependencyType::MetallicRoughnessTexture, raw.metal_rough_texture);
         }
         if (mat.normalTexture)
         {
             raw.normal_texture = makeUUID("img", mat.normalTexture->textureIndex);
-            m.dependencies.insert_or_assign(AssetDependencyType::NormalTexture, raw.normal_texture);
+            m.dependencies.insert_or_assign(dk::AssetDependencyType::NormalTexture, raw.normal_texture);
         }
         if (mat.occlusionTexture)
         {
             raw.occlusion_texture = makeUUID("img", mat.occlusionTexture->textureIndex);
-            m.dependencies.insert_or_assign(AssetDependencyType::OcclusionTexture, raw.occlusion_texture);
+            m.dependencies.insert_or_assign(dk::AssetDependencyType::OcclusionTexture, raw.occlusion_texture);
         }
         if (mat.emissiveTexture)
         {
             raw.emissive_texture = makeUUID("img", mat.emissiveTexture->textureIndex);
-            m.dependencies.insert_or_assign(AssetDependencyType::EmissiveTexture, raw.emissive_texture);
+            m.dependencies.insert_or_assign(dk::AssetDependencyType::EmissiveTexture, raw.emissive_texture);
         }
-        UUID uuid = makeUUID("mat", mi);
+        dk::UUID uuid = makeUUID("mat", mi);
         //fmt::print("material {}: {}\n", mi, to_string(uuid));
         std::string file_name = to_string(uuid) + ".rawmat";
-        if (opts.write_raw) helper::write_pod(opts.raw_dir / file_name, raw);
+        if (opts.write_raw) dk::helper::write_pod(opts.raw_dir / file_name, raw);
 
         m.uuid     = uuid;
         m.importer = "gltf";
         m.raw_path = file_name;
         if (opts.do_hash)
         {
-            m.content_hash = helper::hash_buffer(std::as_bytes(std::span(&raw, 1)));
+            m.content_hash = dk::helper::hash_buffer(std::as_bytes(std::span(&raw, 1)));
         }
         result.metas.push_back(std::move(m));
     }
+}
+}
+
+namespace dk {
+ImportResult GltfImporter::import(const std::filesystem::path& file_path, const ImportOptions& opts)
+{
+    ImportResult result;
+
+    fmt::print("Loading GLTF: {}\n", file_path.string());
+
+    auto gltf = load_gltf_asset(file_path);
+    if (!gltf) return {};
+
+    /*-------------------------------生成 AssetNode 树-------------------------------*/
+    build_scene_nodes(*gltf, result);
+
+    // 仅生成资源节点树
+    if (opts.only_nodes) return result;
+
+    fmt::print("{}\n", std::filesystem::current_path().string());
+    create_directories(opts.raw_dir);
+
+    /* ---------- 导出 RawMesh ---------- */
+    export_raw_meshes(*gltf, opts, result);
+
+    /* ---------- 3. 导出 RawImage ---------- */
+    export_raw_images(*gltf, file_path, opts, result);
+    export_raw_materials(*gltf, opts, result);
     return result;
 }
 
