@@ -29,43 +29,79 @@ struct ImageDesc
     VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
 };
 
-struct FrameGraphImage
+class FrameGraphImage
 {
-    // 用 unique_ptr 确保销毁顺序：先 view 后 image
-    std::unique_ptr<vkcore::ImageResource>     image{nullptr};
-    std::unique_ptr<vkcore::ImageViewResource> view{nullptr};  // 默认 view（可选）
+public:
+    // 统一对外的取 VkImage / VkImageView 接口
+    vk::Image getVkImage() const
+    {
+        return isExternal
+                   ? externalImage
+                   : (image ? image->getHandle() : VK_NULL_HANDLE);
+    }
 
-    vk::Image     getVkImage() const { return image ? image->getHandle() : VK_NULL_HANDLE; }
-    vk::ImageView getVkImageView() const { return view ? view->getHandle() : VK_NULL_HANDLE; }
+    vk::ImageView getVkImageView() const
+    {
+        return isExternal
+                   ? externalImageView
+                   : (view ? view->getHandle() : VK_NULL_HANDLE);
+    }
 
+    // 只有内部资源才会用到的 helper
     vkcore::ImageResource*           getImage() { return image.get(); }
     const vkcore::ImageResource*     getImage() const { return image.get(); }
     vkcore::ImageViewResource*       getView() { return view.get(); }
     const vkcore::ImageViewResource* getView() const { return view.get(); }
+
+    // 方便构造一个“包了外部句柄”的 FG image
+    static FrameGraphImage makeExternal(vk::Image image, vk::ImageView view)
+    {
+        FrameGraphImage r;
+        r.isExternal        = true;
+        r.externalImage     = image;
+        r.externalImageView = view;
+        return r;
+    }
+
+private:
+    // 标记是否是外部资源
+    bool isExternal = false;
+
+    // ---- FG 自己管理的路径（Transient / Persistent）----
+    // 用 unique_ptr 确保销毁顺序：先 view 后 image
+    std::unique_ptr<vkcore::ImageResource>     image{ nullptr };
+    std::unique_ptr<vkcore::ImageViewResource> view{ nullptr };  // 默认 view（可选）
+
+    // ---- 外部资源路径（swapchain / drawImage 等）----
+    vk::Image     externalImage = VK_NULL_HANDLE;
+    vk::ImageView externalImageView = VK_NULL_HANDLE;
+    friend class Resource<ImageDesc, FrameGraphImage>;
 };
 
-
-
 template <>
-struct Resource<ImageDesc, FrameGraphImage> : ResourceBase
+class Resource<ImageDesc, FrameGraphImage> : public ResourceBase
 {
+public:
     using Desc   = ImageDesc;
     using Actual = FrameGraphImage;
 
-    Desc                    desc{};
-    std::unique_ptr<Actual> actual; // 实际 image + default view
-
     Resource(const std::string& n, const Desc& d, ResourceLifetime life)
     {
-        name     = n;
-        desc     = d;
-        lifetime = life;
+        _name     = n;
+        _desc     = d;
+        _lifetime = life;
     }
 
-    Actual* get() { return actual.get(); }
+    Actual*     get() const { return actual.get(); }
+    const Desc& desc() const { return _desc; }
+    // ★ 新增：把外部 VkImage / VkImageView 塞进来
+    void setExternal(vk::Image image, vk::ImageView view);
 
     void realize(RenderGraphContext& ctx) override;
-
     void derealize(RenderGraphContext& ctx) override;
+
+private:
+    Desc                    _desc{};
+    std::unique_ptr<Actual> actual; // 实际 image + default view 或外部句柄
 };
 } // namespace dk::rg

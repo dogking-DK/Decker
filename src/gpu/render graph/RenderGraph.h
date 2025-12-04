@@ -31,6 +31,8 @@ public:
         typename RenderTask<DataT>::SetupFunc   setup,
         typename RenderTask<DataT>::ExecuteFunc exec)
     {
+        markDirty();   // 新增：一旦有人改 graph，就标记需要重新 compile
+
         auto  task = std::make_unique<RenderTask<DataT>>(name, std::move(setup), std::move(exec));
         auto* t    = task.get();
         t->id      = static_cast<TaskId>(tasks_.size());
@@ -47,13 +49,16 @@ public:
 
     // 执行：按 timeline 顺序 realize -> execute -> derealize
     void execute(RenderGraphContext& ctx);
-
+    void markDirty() { compiled_ = false; }
 private:
     friend class RenderTaskBuilder;
 
     std::vector<std::unique_ptr<RenderTaskBase>> tasks_;
     std::vector<std::unique_ptr<ResourceBase>>   resources_;
     std::vector<TimelineStep>                    timeline_;
+
+    bool compiled_ = false;
+    bool compileLogPrinted_ = false;
 };
 
 
@@ -66,13 +71,14 @@ ResT* RenderTaskBuilder::create(const std::string& name,
     const typename ResT::Desc& desc,
     ResourceLifetime           life)
 {
+    _graph->compiled_ = false;  // 或 _graph->markDirty();
     // ResT 必须继承自 ResourceBase
     static_assert(std::is_base_of_v<ResourceBase, ResT>,
         "ResT must derive from ResourceBase");
 
     auto  res = std::make_unique<ResT>(name, desc, life);
     auto* ptr = res.get();
-    ptr->id = static_cast<ResourceId>(_graph->resources_.size());
+    ptr->_id = static_cast<ResourceId>(_graph->resources_.size());
     ptr->creator = _task;
     _graph->resources_.push_back(std::move(res));
 

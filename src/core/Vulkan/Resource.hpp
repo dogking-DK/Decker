@@ -29,13 +29,28 @@ public:
 protected:
     VulkanContext* _context = nullptr;
     Handle         _handle = VK_NULL_HANDLE;
+    std::string _name;
 };
 
 template <typename Handle, vk::ObjectType Type>
 void Resource<Handle, Type>::setDebugName(const std::string& name)
 {
-    vk::DebugUtilsObjectNameInfoEXT debugNameInfo{Type, _handle, name.c_str()};
+    _name = name;
+    // Handle 是 vk::Image / vk::Buffer / vk::Device 等
+    // Handle::CType 是 VkImage / VkBuffer / VkDevice（C API）
+    auto rawHandle = static_cast<typename Handle::CType>(_handle);
+
+    // 按 Vulkan 规范，把指针或非指针句柄都 reinterpret 成 uint64_t
+    uint64_t handleValue = reinterpret_cast<uint64_t>(rawHandle);
+
+    vk::DebugUtilsObjectNameInfoEXT debugNameInfo{
+        Type,
+        handleValue,
+        name.c_str(),
+        nullptr  // pNext
+    };
 
     _context->getDevice().setDebugUtilsObjectNameEXT(debugNameInfo);
 }
+
 }

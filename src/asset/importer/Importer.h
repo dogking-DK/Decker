@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <vector>
+#include <stdexcept>
 
 #include "AssetMeta.hpp"
 #include "AssetNode.hpp"
@@ -11,7 +12,7 @@
 namespace dk {
 struct ImportOptions
 {
-    bool                  only_nodes = true;                    // 仅节点树
+    bool                  only_nodes = false;                    // 仅节点树
     bool                  write_raw  = true;                   // 写 .raw*
     bool                  do_hash    = true;                    // 计算内容 hash
     std::filesystem::path raw_dir    = "cache/raw";
@@ -60,7 +61,9 @@ public:
     ImportResult import(const std::filesystem::path& file) const
     {
         // 找到第一个支持的 importer 并调用其 import 方法
-        return findImporter(file.extension().string())->import(file);
+        if (auto* importer = findImporter(file.extension().string()))
+            return importer->import(file);
+        throw std::runtime_error("Unsupported import extension: " + file.extension().string());
     }
 
 private:

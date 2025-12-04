@@ -183,7 +183,7 @@ void SpringRenderer::draw(vkcore::CommandBuffer& cmd, const CameraData& camera_d
 
     PushConstantData push_data;
     push_data.modelMatrix = glm::mat4(1.0f);
-    push_data.size   = 1.0f; // 设置线宽
+    push_data.size        = 1.0f; // 设置线宽
     cmd.getHandle().pushConstants(
         _pipeline_layout->getHandle(),
         vk::ShaderStageFlagBits::eMeshEXT,

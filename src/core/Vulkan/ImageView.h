@@ -29,11 +29,34 @@ public:
     }
 
     vk::Format           get_format() const;
-    ImageResource const& get_image() const;
+    const ImageResource& get_image() const;
 
 private:
     vk::Format                _format;
     vk::ImageSubresourceRange _subresource_range;
-    ImageResource* _image{nullptr};
+    ImageResource*            _image{nullptr};
 };
+
+inline vk::DescriptorImageInfo makeCombinedImageInfo(
+    vk::ImageView view,
+    vk::Sampler              sampler,
+    vk::ImageLayout          layout)
+{
+    return vk::DescriptorImageInfo{
+        sampler,
+        view,   // 你基类 Resource<vk::ImageView,...> 应该有 getHandle()
+        layout
+    };
+}
+
+inline vk::DescriptorImageInfo makeStorageImageInfo(
+    vk::ImageView view,
+    vk::ImageLayout          layout)
+{
+    return vk::DescriptorImageInfo{
+        VK_NULL_HANDLE,     // storage image 不需要 sampler
+        view,
+        layout
+    };
+}
 }

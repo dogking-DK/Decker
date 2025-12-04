@@ -122,6 +122,14 @@ void CommandBuffer::transitionImage(const ImageResource& image,
 void CommandBuffer::copyImageToImage(const ImageResource& source, const ImageResource& destination, const vk::Extent2D src_size,
                                      const vk::Extent2D dst_size)
 {
+    copyImageToImage(source.getHandle(), destination.getHandle(), src_size, dst_size);
+}
+
+void CommandBuffer::copyImageToImage(const vk::Image& source, const vk::Image& destination, vk::Extent2D src_size,
+    vk::Extent2D dst_size)
+{
+
+
     vk::ImageBlit2 blit_region;
 
     blit_region.srcOffsets[1].x = static_cast<int32_t>(src_size.width);
@@ -132,24 +140,24 @@ void CommandBuffer::copyImageToImage(const ImageResource& source, const ImageRes
     blit_region.dstOffsets[1].y = static_cast<int32_t>(dst_size.height);
     blit_region.dstOffsets[1].z = 1;
 
-    blit_region.srcSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
+    blit_region.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
     blit_region.srcSubresource.baseArrayLayer = 0;
-    blit_region.srcSubresource.layerCount     = 1;
-    blit_region.srcSubresource.mipLevel       = 0;
+    blit_region.srcSubresource.layerCount = 1;
+    blit_region.srcSubresource.mipLevel = 0;
 
-    blit_region.dstSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
+    blit_region.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
     blit_region.dstSubresource.baseArrayLayer = 0;
-    blit_region.dstSubresource.layerCount     = 1;
-    blit_region.dstSubresource.mipLevel       = 0;
+    blit_region.dstSubresource.layerCount = 1;
+    blit_region.dstSubresource.mipLevel = 0;
 
     vk::BlitImageInfo2 blit_info;
-    blit_info.dstImage       = destination.getHandle();
+    blit_info.dstImage = destination;
     blit_info.dstImageLayout = vk::ImageLayout::eTransferDstOptimal;
-    blit_info.srcImage       = source.getHandle();
+    blit_info.srcImage = source;
     blit_info.srcImageLayout = vk::ImageLayout::eTransferSrcOptimal;
-    blit_info.filter         = vk::Filter::eLinear;
-    blit_info.regionCount    = 1;
-    blit_info.pRegions       = &blit_region;
+    blit_info.filter = vk::Filter::eLinear;
+    blit_info.regionCount = 1;
+    blit_info.pRegions = &blit_region;
 
     _handle.blitImage2(&blit_info);
 }

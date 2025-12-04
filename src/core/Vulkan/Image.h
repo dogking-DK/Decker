@@ -46,6 +46,11 @@ public:
 
     VmaAllocation getAllocation() const { return _allocation; }
 
+    vk::DescriptorImageInfo getDescriptorInfo() const
+    {
+        return vk::DescriptorImageInfo{  };
+    }
+
 private:
     VmaAllocationCreateInfo _allocation_create_info = {};
     VmaAllocation           _allocation = VK_NULL_HANDLE;

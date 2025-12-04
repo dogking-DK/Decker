@@ -141,23 +141,25 @@ void RenderGraph::compile()
         auto* res = resPtr.get();
         if (res->firstUse < 0)
         {
-            std::cout << "  Resource \"" << res->name << "\" not used by any task\n";
+            std::cout << "  Resource \"" << res->_name << "\" not used by any task\n";
         }
         else
         {
-            std::cout << "  Resource \"" << res->name << "\" : firstUse=" << res->firstUse
+            std::cout << "  Resource \"" << res->_name << "\" : firstUse=" << res->firstUse
                 << ", lastUse=" << res->lastUse << "\n";
         }
     }
+
+    compileLogPrinted_ = true;
+    compiled_ = true;
 }
 
 void RenderGraph::execute(RenderGraphContext& ctx)
 {
-    std::cout << "[RG] Execute begin\n";
+    ctx.compiled_ = compileLogPrinted_;
     for (size_t i = 0; i < timeline_.size(); ++i)
     {
         auto& step = timeline_[i];
-        std::cout << "  [Step " << i << "]\n";
 
         for (auto* r : step.toRealize)
         {
@@ -166,8 +168,11 @@ void RenderGraph::execute(RenderGraphContext& ctx)
 
         if (step.task)
         {
-            std::cout << "    Execute task \"" << step.task->name << "\" (id=" << step.task->id << ")\n";
-            step.task->execute();
+            for (auto* r : step.task->writes)
+            {
+                
+            }
+            step.task->execute(ctx);
         }
 
         for (auto* r : step.toDerealize)
@@ -175,6 +180,22 @@ void RenderGraph::execute(RenderGraphContext& ctx)
             r->derealize(ctx);
         }
     }
-    std::cout << "[RG] Execute end\n";
+
+
+    if (compileLogPrinted_)
+    {
+        std::cout << "[RG] Execute begin\n";
+        for (size_t i = 0; i < timeline_.size(); ++i)
+        {
+            auto& step = timeline_[i];
+            std::cout << "  [Step " << i << "]\n";
+            if (step.task)
+            {
+                std::cout << "    Execute task \"" << step.task->name << "\" (id=" << step.task->id << ")\n";
+            }
+        }
+        std::cout << "[RG] Execute end\n";
+    }
+    compileLogPrinted_ = false;
 }
 }

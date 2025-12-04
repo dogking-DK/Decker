@@ -21,89 +21,32 @@
 //#include "render/PointCloudRender.h"
 #include "World.h"
 //#include "render/SpringRender.h"
+#include "vk_base.h"
+#include "render graph/Resource.h"
 #include "Vulkan/CommandPool.h"
 #include "Vulkan/CommandBuffer.h"
+
+namespace dk {
+class GaussianBlurPass;
+}
 
 namespace dk::vkcore {
 class GrowableDescriptorAllocator;
 }
-
-namespace dk {
-class MacGridPointRenderer;
-}
-
-namespace dk {
-class MacGridVectorRenderer;
-}
-
 namespace fastgltf
 {
     struct Mesh;
 }
 
 namespace dk {
+struct ImageDesc;
+class FrameGraphImage;
 class SpringRenderer;
 class PointCloudRenderer;   // ← 前置声明（不需要包含头）
-
-struct DeletionQueue
-{
-    std::deque<std::function<void()>> deletors;
-
-    void push_function(std::function<void()>&& function)
-    {
-        deletors.push_back(function);
-    }
-
-    void flush()
-    {
-        // reverse iterate the deletion queue to execute all the functions
-        for (auto it = deletors.rbegin(); it != deletors.rend(); ++it)
-        {
-            (*it)(); // call functors
-        }
-
-        deletors.clear();
-    }
-};
-
-struct ComputePushConstants
-{
-    glm::vec4 data1;
-    glm::vec4 data2;
-    glm::vec4 data3;
-    glm::vec4 data4;
-};
-
-struct ComputeEffect
-{
-    const char* name;
-
-    VkPipeline pipeline;
-    VkPipelineLayout layout;
-
-    ComputePushConstants data;
-};
-
-
-
-struct FrameData
-{
-    VkSemaphore _swapchainSemaphore, _renderSemaphore;
-    VkFence _renderFence;
-
-    DescriptorAllocatorGrowable _frameDescriptors;
-    std::shared_ptr<vkcore::GrowableDescriptorAllocator> _dynamicDescriptorAllocator{nullptr};
-    DeletionQueue _deletionQueue;
-    vkcore::CommandPool* _command_pool_graphic{ nullptr };
-    vkcore::CommandPool* _command_pool_transfer{nullptr};
-    vkcore::CommandBuffer* command_buffer_graphic;
-    vkcore::CommandBuffer* command_buffer_transfer;
-    VkCommandPool _commandPool;
-    VkCommandBuffer _mainCommandBuffer;
-};
-
-
-
+class BlitPass;
+class MacGridPointRenderer;
+class MacGridVectorRenderer;
+class RenderGraph;
 
 struct EngineStats
 {
@@ -177,7 +120,7 @@ public:
 
     AllocatedBuffer _defaultGLTFMaterialData;
 
-    FrameData _frames[FRAME_OVERLAP];
+    std::array<FrameData, FRAME_OVERLAP> _frames;
 
     VkExtent2D _drawExtent;
     VkDescriptorPool _descriptorPool;
@@ -201,6 +144,8 @@ public:
     // draw resources
     AllocatedImage _drawImage;
     AllocatedImage _depthImage;
+
+    std::shared_ptr<Resource<ImageDesc, FrameGraphImage>> color_image;
 
     // immediate submit structures
     VkFence _immFence;
@@ -235,6 +180,9 @@ public:
     std::shared_ptr<SpringRenderer> m_spring_renderer;
     std::shared_ptr<MacGridVectorRenderer> m_vector_render;
     std::shared_ptr<MacGridPointRenderer> m_grid_point_render;
+    std::shared_ptr<RenderGraph> render_graph;
+    std::shared_ptr<BlitPass> m_blit_pass;
+    std::shared_ptr<GaussianBlurPass> m_gaussian_blur_pass;
 
     std::unique_ptr<World> physic_world;
 
