@@ -46,6 +46,7 @@ file(GLOB_RECURSE UI_SOURCES "ui/*.cpp" "ui/*.hpp" "ui/*.h")         # UI相关
 file(GLOB_RECURSE UTIL_SOURCES "util/*.cpp" "util/*.hpp" "util/*.h") # 工具类
 file(GLOB_RECURSE PHYSIC_SOURCES "physics/*.cpp" "physics/*.hpp" "physics/*.h") # 物理类
 file(GLOB_RECURSE MATH_SOURCES "math/*.cpp" "math/*.hpp" "math/*.h") # 物理类
+file(GLOB_RECURSE RUNTIME_SOURCES "runtime/*.cpp" "math/*.hpp" "math/*.h") # 物理类
 
 # 输出所有的源文件路径
 message(STATUS "Main sources: ${MAIN_SOURCES}")
@@ -67,6 +68,7 @@ set(ALL_SOURCES
     ${UTIL_SOURCES}
     ${PHYSIC_SOURCES}
     ${MATH_SOURCES}
+    ${RUNTIME_SOURCES}
 )
 
 # 设置source_group保持文件夹结构
@@ -86,6 +88,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/util
     ${CMAKE_SOURCE_DIR}/src/physics
     ${CMAKE_SOURCE_DIR}/src/math
+    ${CMAKE_SOURCE_DIR}/src/runtime
     )
 
 # 链接三方库

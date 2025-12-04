@@ -150,10 +150,10 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
     {
         for (size_t pi = 0; pi < gltf.meshes[mi].primitives.size(); ++pi)
         {
-            const auto&   prim = gltf.meshes[mi].primitives[pi];
+            const auto&       prim = gltf.meshes[mi].primitives[pi];
             dk::RawMeshHeader raw_mesh_header{};
 
-            std::vector<dk::AttrDesc>             vertex_attributes;
+            std::vector<dk::AttrDesc>         vertex_attributes;
             std::vector<std::vector<uint8_t>> blocks;
             std::vector<uint32_t>             indices;
 
@@ -192,10 +192,12 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
                     if (const auto index = prim.findAttribute(std::string(base) + "_" + std::to_string(set));
                         index != prim.attributes.end())
                     {
-                        fastgltf::Accessor& accessor = gltf.accessors[index->accessorIndex];
+                        const fastgltf::Accessor& accessor = gltf.accessors[index->accessorIndex];
 
-                        auto components = [&]() {
-                            switch (accessor.type) {
+                        auto components = [&]()
+                        {
+                            switch (accessor.type)
+                            {
                             case fastgltf::AccessorType::Vec2:
                                 return 2;
                             case fastgltf::AccessorType::Vec3:
@@ -213,9 +215,9 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
                             case fastgltf::AccessorType::Mat4:
                                 return 16;
                             }
-                            }();
+                        }();
 
-                        std::vector<float>  tmp(accessor.count * components);
+                        std::vector<float> tmp(accessor.count * components);
                         if (accessor.type == fastgltf::AccessorType::Vec2)
                             copyFromAccessor<glm::vec2>(gltf, accessor, tmp.data());
                         else if (accessor.type == fastgltf::AccessorType::Vec3)
@@ -237,7 +239,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
             {
                 if (prim.findAttribute(attr) != prim.attributes.end())
                 {
-                    fastgltf::Accessor& accessor = gltf.accessors[prim.findAttribute(attr)->accessorIndex];
+                    const fastgltf::Accessor& accessor = gltf.accessors[prim.findAttribute(attr)->accessorIndex];
                     std::vector<float>  tmp(accessor.count * getElementByteSize(accessor.type, accessor.componentType));
                     if (accessor.type == fastgltf::AccessorType::Vec3)
                         copyFromAccessor<glm::vec3>(gltf, accessor, tmp.data());
@@ -263,7 +265,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
             }
 
             /* 文件 & meta */
-            dk::UUID        uuid      = makeUUID("meshraw", mi * 10 + pi);
+            dk::UUID    uuid      = makeUUID("meshraw", mi * 10 + pi);
             std::string file_name = to_string(uuid) + ".rawmesh";
             if (opts.write_raw)
             {
@@ -284,7 +286,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
             m.raw_path = file_name;
             if (prim.materialIndex.has_value())
                 m.dependencies.insert_or_assign(dk::AssetDependencyType::Material,
-                                               makeUUID("mat", prim.materialIndex.value()));
+                                                makeUUID("mat", prim.materialIndex.value()));
             if (opts.do_hash)
             {
                 m.content_hash = dk::helper::hash_buffer(indices);
@@ -296,13 +298,15 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
     }
 }
 
-void export_raw_images(const fastgltf::Asset& gltf, const std::filesystem::path& file_path,
-                       const dk::ImportOptions& opts, dk::ImportResult& result)
+void export_raw_images(const fastgltf::Asset&   gltf, const std::filesystem::path& file_path,
+                       const dk::ImportOptions& opts, dk::ImportResult&            result)
 {
     for (size_t ii = 0; ii < gltf.images.size(); ++ii)
     {
-        auto&                [data, name] = gltf.images[ii];
-        dk::RawImageHeader       raw{};
+        auto& [data, name] = gltf.images[ii];
+
+        std::string image_name{ name };
+        dk::RawImageHeader raw{};
         raw.comp_type = dk::PixelDataType::UBYTE;
         std::vector<uint8_t> pixels;
 
@@ -321,12 +325,11 @@ void export_raw_images(const fastgltf::Asset& gltf, const std::filesystem::path&
 
                     if (name.empty())
                     {
-                        name = filePath.uri.path();
+                        image_name = filePath.uri.path();
                         //fmt::print("generate image name({})\n", name);
                     }
 
-                    unsigned char* image_data = stbi_load(path.generic_string().c_str(), &raw.width, &raw.height,
-                                                          &raw.channels, 4);
+                    unsigned char* image_data = stbi_load(path.generic_string().c_str(), &raw.width, &raw.height, &raw.channels, 4);
                     if (image_data)
                     {
                         pixels.assign(image_data, image_data + raw.width * raw.height * 4);
@@ -385,11 +388,11 @@ void export_raw_images(const fastgltf::Asset& gltf, const std::filesystem::path&
 
         if (pixels.empty())
         {
-            fmt::print(stderr, "Failed to decode image {}\n", name);
+            fmt::print(stderr, "Failed to decode image {}\n", image_name);
             continue;
         }
 
-        dk::UUID        uuid      = makeUUID("img", ii);
+        dk::UUID    uuid      = makeUUID("img", ii);
         std::string file_name = to_string(uuid) + ".rawimg";
         if (opts.write_raw)
         {
@@ -411,7 +414,7 @@ void export_raw_materials(const fastgltf::Asset& gltf, const dk::ImportOptions& 
     fmt::print("---------------------------\n");
     for (size_t mi = 0; mi < gltf.materials.size(); ++mi)
     {
-        auto&       mat = gltf.materials[mi];
+        auto&           mat = gltf.materials[mi];
         dk::RawMaterial raw{};
         dk::AssetMeta   m;
 
@@ -469,21 +472,17 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     auto gltf = load_gltf_asset(file_path);
     if (!gltf) return {};
 
-    /*-------------------------------生成 AssetNode 树-------------------------------*/
-    build_scene_nodes(*gltf, result);
+    build_scene_nodes(*gltf, result); // 生成 AssetNode 树
 
     // 仅生成资源节点树
     if (opts.only_nodes) return result;
 
-    fmt::print("{}\n", std::filesystem::current_path().string());
+    fmt::print("当前目录: {}\n", std::filesystem::current_path().string());
     create_directories(opts.raw_dir);
 
-    /* ---------- 导出 RawMesh ---------- */
-    export_raw_meshes(*gltf, opts, result);
-
-    /* ---------- 3. 导出 RawImage ---------- */
-    export_raw_images(*gltf, file_path, opts, result);
-    export_raw_materials(*gltf, opts, result);
+    export_raw_meshes(*gltf, opts, result); // 导出raw mesh
+    export_raw_images(*gltf, file_path, opts, result); // 导出raw image
+    export_raw_materials(*gltf, opts, result); // 导出raw material
     return result;
 }
 

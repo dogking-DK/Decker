@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "../core/AssetDB.h"
+#include "AssetDB.h"
 #include "ResourceCache.h"
 #include "MeshLoader.h"          // 读取 rawmesh
 #include "TextureLoader.h"
