@@ -3,7 +3,7 @@ cmake_uninstall.cmake
 
 lib/
 bin/
-assets/shaders/spv/
+
 
 *.pc
 *.conf
@@ -76,3 +76,6 @@ local.properties
 
 # 排除 install 文件夹
 /install/
+
+/assets/shaders/spv/*.spv
+/assets/shaders/spv/
