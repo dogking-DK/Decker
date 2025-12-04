@@ -46,7 +46,7 @@ file(GLOB_RECURSE UI_SOURCES "ui/*.cpp" "ui/*.hpp" "ui/*.h")         # UI相关
 file(GLOB_RECURSE UTIL_SOURCES "util/*.cpp" "util/*.hpp" "util/*.h") # 工具类
 file(GLOB_RECURSE PHYSIC_SOURCES "physics/*.cpp" "physics/*.hpp" "physics/*.h") # 物理类
 file(GLOB_RECURSE MATH_SOURCES "math/*.cpp" "math/*.hpp" "math/*.h") # 物理类
-file(GLOB_RECURSE RUNTIME_SOURCES "runtime/*.cpp" "math/*.hpp" "math/*.h") # 物理类
+file(GLOB_RECURSE RUNTIME_SOURCES "runtime/*.cpp" "runtime/*.hpp" "runtime/*.h") # 运行时类
 
 # 输出所有的源文件路径
 message(STATUS "Main sources: ${MAIN_SOURCES}")
