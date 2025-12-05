@@ -1,8 +1,12 @@
 #pragma once
 #include <filesystem>
 #include <memory>
+#include <string>
+#include <typeindex>
 #include <unordered_map>
 #include <utility>
+
+#include <fmt/base.h>
 
 #include "AssetDB.h"
 #include "MaterialLoader.h"
@@ -34,35 +38,6 @@ public:
     virtual std::shared_ptr<Res> load(UUID id) = 0;
 };
 
-namespace detail {
-template <typename Res>
-struct AssetTypeTraits
-{
-    static constexpr bool defined = false;
-};
-
-template <>
-struct AssetTypeTraits<MeshData>
-{
-    static constexpr bool   defined = true;
-    static constexpr AssetType type = AssetType::Mesh;
-};
-
-template <>
-struct AssetTypeTraits<TextureData>
-{
-    static constexpr bool   defined = true;
-    static constexpr AssetType type = AssetType::Image;
-};
-
-template <>
-struct AssetTypeTraits<MaterialData>
-{
-    static constexpr bool   defined = true;
-    static constexpr AssetType type = AssetType::Material;
-};
-} // namespace detail
-
 class ResourceLoader
 {
 public:
@@ -72,41 +47,68 @@ public:
     std::shared_ptr<Res> load(UUID id);
 
 private:
-    template <typename Res>
-    static constexpr AssetType assetTypeFor();
+    struct RegisteredType
+    {
+        AssetType    type;
+        std::string  name;
+        std::type_index type_id;
+    };
 
     template <typename Res, typename Loader, typename... Args>
-    void registerLoader(Args&&... args);
+    void registerLoader(AssetType type, std::string name, Args&&... args);
+
+    template <typename Res>
+    RegisteredType* registeredType();
 
     std::filesystem::path _dir;
     AssetDB&              _db;
     ResourceCache&        _cache;
     std::unordered_map<AssetType, std::unique_ptr<IResourceLoaderBase>> _loaders;
+    std::unordered_map<std::type_index, RegisteredType>                 _typeRegistry;
 };
-
-template <typename Res>
-constexpr AssetType ResourceLoader::assetTypeFor()
-{
-    static_assert(detail::AssetTypeTraits<Res>::defined, "Asset type not registered for this resource");
-    return detail::AssetTypeTraits<Res>::type;
-}
 
 template <typename Res>
 std::shared_ptr<Res> ResourceLoader::load(UUID id)
 {
-    auto it = _loaders.find(assetTypeFor<Res>());
-    if (it == _loaders.end()) return {};
+    auto* info = registeredType<Res>();
+    if (!info) return {};
+
+    auto it = _loaders.find(info->type);
+    if (it == _loaders.end())
+    {
+        fmt::print(stderr, "ResourceLoader: loader for type {} ({}) missing\n", info->name, typeid(Res).name());
+        return {};
+    }
 
     auto* loader = dynamic_cast<IResourceLoader<Res>*>(it->second.get());
-    if (!loader) return {};
+    if (!loader)
+    {
+        fmt::print(stderr, "ResourceLoader: loader for type {} ({}) has incompatible interface\n", info->name, typeid(Res).name());
+        return {};
+    }
 
     return _cache.resolve<Res>(id, [&] { return loader->load(id); });
 }
 
 template <typename Res, typename Loader, typename... Args>
-void ResourceLoader::registerLoader(Args&&... args)
+void ResourceLoader::registerLoader(AssetType type, std::string name, Args&&... args)
 {
-    _loaders.emplace(assetTypeFor<Res>(), std::make_unique<Loader>(std::forward<Args>(args)...));
+    auto type_id = std::type_index(typeid(Res));
+    _typeRegistry.emplace(type_id, RegisteredType{type, std::move(name), type_id});
+    _loaders.emplace(type, std::make_unique<Loader>(std::forward<Args>(args)...));
+}
+
+template <typename Res>
+ResourceLoader::RegisteredType* ResourceLoader::registeredType()
+{
+    auto type_id = std::type_index(typeid(Res));
+    auto it      = _typeRegistry.find(type_id);
+    if (it == _typeRegistry.end())
+    {
+        fmt::print(stderr, "ResourceLoader: loader for type {} not registered\n", typeid(Res).name());
+        return nullptr;
+    }
+    return &it->second;
 }
 
 } // namespace dk

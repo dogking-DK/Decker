@@ -129,9 +129,9 @@ private:
 ResourceLoader::ResourceLoader(const std::string& rawDir, AssetDB& db, ResourceCache& cache)
     : _dir(rawDir), _db(db), _cache(cache)
 {
-    registerLoader<MeshData, MeshResourceLoader>(_dir, _db, *this);
-    registerLoader<TextureData, TextureResourceLoader>(_dir, _db);
-    registerLoader<MaterialData, MaterialResourceLoader>(_dir, _db, *this);
+    registerLoader<MeshData, MeshResourceLoader>(AssetType::Mesh, "Mesh", _dir, _db, *this);
+    registerLoader<TextureData, TextureResourceLoader>(AssetType::Image, "Image", _dir, _db);
+    registerLoader<MaterialData, MaterialResourceLoader>(AssetType::Material, "Material", _dir, _db, *this);
 }
 
 } // namespace dk
