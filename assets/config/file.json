@@ -1,7 +1,7 @@
 {
     "load_file" : 
     {
-        "name" : "engine",
+        "name" : "girl_pc",
         "comment" : "打开文件对应的名字"
     },
     "file_paths": 
@@ -61,6 +61,10 @@
         {
             "name" : "sasha",
             "path" : "E:/code/data/sasha_-_cyberpunk_edgerunners/scene.gltf"
+        },
+        {
+            "name" : "girl_pc",
+            "path" : "E:/code/data/just_a_girl/scene.gltf"
         },
         {
             "name" : "tavern",
