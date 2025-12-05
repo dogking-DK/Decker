@@ -3,7 +3,8 @@
 #include <memory>
 #include <typeindex>
 #include <unordered_map>
-#include "../core/UUID.hpp"
+
+#include "UUID.hpp"
 
 namespace dk {
 class ResourceCache

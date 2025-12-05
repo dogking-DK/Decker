@@ -14,7 +14,6 @@ enum class AssetKind : uint8_t
     Material,
     Image,
     Primitive,
-
 };
 
 struct AssetNode

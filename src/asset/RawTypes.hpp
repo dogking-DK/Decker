@@ -29,6 +29,8 @@ struct RawMeshHeader
     uint16_t reserved     = 0;
 };
 
+
+
 enum class PixelDataType : uint8_t
 {
     UBYTE,                // unsigned byte
@@ -43,11 +45,19 @@ enum class PixelDataType : uint8_t
 
 struct AttrDesc
 {
-    uint16_t semantic;      // VertexSemantic
+    VertexAttribute semantic;      // VertexSemantic
     uint8_t  elem_count;     // 1–4
     uint8_t  comp_type;      // 0=float32, 1=uint16, 2=uint8_norm …
     uint32_t offset_bytes;   // 相对文件起始
     uint32_t byte_size;      // 属性数据大小
+};
+
+struct RawMeshData
+{
+    RawMeshHeader          header;
+    std::vector<AttrDesc>  table;
+    std::vector<std::byte> blob;     // 仅在转换时使用
+    std::vector<uint32_t>  indices;
 };
 
 struct RawImageHeader

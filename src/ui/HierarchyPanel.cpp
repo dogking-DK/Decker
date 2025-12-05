@@ -13,14 +13,17 @@ void HierarchyPanel::onGui(const std::string& title)
 void HierarchyPanel::drawNode(const std::shared_ptr<AssetNode>& n)
 {
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
-    bool               open  = ImGui::TreeNodeEx(&n->id, flags,
-                                  "%s  [%s]", n->name.c_str(),
-                                  to_string(n->id).c_str());
-
+    //bool               open  = ImGui::TreeNodeEx(&n->id, flags,
+    //                              "%s  [%s]", n->name.c_str(),
+    //                              to_string(n->id).c_str());
+    bool               open = ImGui::TreeNodeEx(&n->id, flags, "%s", n->name.c_str());
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         ImGui::SetItemDefaultFocus();               // 简单高亮演示
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+    {
+        //fmt::print("Double-clicked {} ({})\n", n->name.c_str(), to_string(n->id).c_str());
         fmt::print("Double-clicked {} ({})\n", n->name.c_str(), to_string(n->id).c_str());
+    }
 
     if (open)
     {

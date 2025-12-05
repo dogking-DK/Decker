@@ -47,6 +47,7 @@
 # include <vk_mem_alloc.h>
 
 #include "render graph/renderpass/GaussianBlurPass.h"
+#include "resource/cpu/MeshLoader.h"
 
 // 定义全局默认分发器的存储（只在一个 TU 里写！）
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE

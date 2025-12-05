@@ -175,7 +175,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
             auto add = [&](const dk::VertexAttribute sem, const uint8_t comp, const uint8_t elems, auto& vec)
             {
                 dk::AttrDesc d;
-                d.semantic   = static_cast<uint16_t>(sem);
+                d.semantic   = sem;
                 d.comp_type  = comp;
                 d.elem_count = elems;
                 d.byte_size  = static_cast<uint32_t>(vec.size());

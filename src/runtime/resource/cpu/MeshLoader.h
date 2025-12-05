@@ -1,24 +1,44 @@
 ﻿// runtime/MeshLoaderFlex.hpp
 #pragma once
-#include "../asset/RawTypes.hpp"
+#include <filesystem>
 #include <span>
 #include <memory>
 #include <vector>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+
+#include "RawTypes.hpp"
 
 namespace dk {
     struct MaterialData;                  // fwd
-struct MeshData
-{
-    uint32_t               vertex_count, index_count;
-    std::vector<AttrDesc>  table;     // 属性表
-    std::vector<std::byte> blob;      // 整个属性区 (pos/norm/…)
-    std::vector<uint32_t>  indices;
-    std::shared_ptr<MaterialData> material{nullptr};  // 材质（可选）
+    struct MeshData
+    {
+        uint32_t               vertex_count = 0;
+        uint32_t               index_count = 0;
 
-    /* 便利视图 */
-    template <typename T>
-    std::span<const T> get(VertexAttribute sem) const;   // 下例实现
-};
+        std::vector<uint32_t>  indices;
 
-std::shared_ptr<MeshData> load_raw_mesh(const std::filesystem::path& f);
+        // 常用属性
+        std::vector<glm::vec3> positions;
+        std::vector<glm::vec3> normals;
+        std::vector<glm::vec4> tangents;
+
+        // 多套 UV / 颜色可以用 vector-of-vector 或 map
+        std::vector<std::vector<glm::vec2>> texcoords; // texcoords[set][i]
+        std::vector<std::vector<glm::vec4>> colors;    // colors[set][i]
+
+        // 骨骼权重等以后再加
+        // std::vector<glm::uvec4> joints;
+        // std::vector<glm::vec4>  weights;
+
+        std::shared_ptr<MaterialData> material{ nullptr };
+    };
+
+
+std::shared_ptr<RawMeshData> read_raw_mesh(const std::filesystem::path& f);
+
+std::shared_ptr<MeshData> load_mesh(const std::filesystem::path& f);
+
+
 }

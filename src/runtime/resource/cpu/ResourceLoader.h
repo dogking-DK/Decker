@@ -9,14 +9,9 @@
 #include <fmt/base.h>
 
 #include "AssetDB.h"
-#include "MaterialLoader.h"
-#include "MeshLoader.h"          // 读取 rawmesh
-#include "RawTypes.hpp"
 #include "ResourceCache.h"
-#include "TextureLoader.h"
 
 namespace dk {
-
 enum class AssetType
 {
     Mesh,
@@ -34,7 +29,7 @@ template <typename Res>
 class IResourceLoader : public IResourceLoaderBase
 {
 public:
-    virtual ~IResourceLoader() = default;
+    ~IResourceLoader() override = default;
     virtual std::shared_ptr<Res> load(UUID id) = 0;
 };
 
@@ -49,8 +44,8 @@ public:
 private:
     struct RegisteredType
     {
-        AssetType    type;
-        std::string  name;
+        AssetType       type;
+        std::string     name;
         std::type_index type_id;
     };
 
@@ -60,9 +55,9 @@ private:
     template <typename Res>
     RegisteredType* registeredType();
 
-    std::filesystem::path _dir;
-    AssetDB&              _db;
-    ResourceCache&        _cache;
+    std::filesystem::path                                               _dir;
+    AssetDB&                                                            _db;
+    ResourceCache&                                                      _cache;
     std::unordered_map<AssetType, std::unique_ptr<IResourceLoaderBase>> _loaders;
     std::unordered_map<std::type_index, RegisteredType>                 _typeRegistry;
 };
@@ -83,7 +78,8 @@ std::shared_ptr<Res> ResourceLoader::load(UUID id)
     auto* loader = dynamic_cast<IResourceLoader<Res>*>(it->second.get());
     if (!loader)
     {
-        fmt::print(stderr, "ResourceLoader: loader for type {} ({}) has incompatible interface\n", info->name, typeid(Res).name());
+        fmt::print(stderr, "ResourceLoader: loader for type {} ({}) has incompatible interface\n", info->name,
+                   typeid(Res).name());
         return {};
     }
 
@@ -110,5 +106,4 @@ ResourceLoader::RegisteredType* ResourceLoader::registeredType()
     }
     return &it->second;
 }
-
 } // namespace dk
