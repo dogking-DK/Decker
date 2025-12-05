@@ -27,73 +27,65 @@ namespace {
         mesh->texcoords.clear();
         mesh->colors.clear();
 
-        // 遍历每个属性描述
+        auto load_attr = [&]<typename T0>(T0& target_vector, const AttrDesc& desc)
+        {
+            // 获取源数据指针
+            const size_t offsetInBlob = attr_data_offset_bytes(raw.header, raw.header.attr_count, desc);
+            if (offsetInBlob + desc.byte_size > raw.blob.size()) return; // 安全检查
+
+            const void*  src_ptr    = raw.blob.data() + offsetInBlob;
+            const size_t vert_count = raw.header.vertex_count;
+
+            // 目标类型 T 的维度 (比如 vec3 = 3)
+            // 注意：这里假设 glm::vec3 是 3 个 float 紧密排列
+            using T                            = typename std::decay_t<T0>::value_type;
+            constexpr size_t target_elem_count = sizeof(T) / sizeof(float);
+
+            // 检查：只有当文件里的 float 数量和目标类型的 float 数量一致时，才能直接 memcpy
+            // 比如文件里是 vec3，目标也是 vec3。
+            if (desc.elem_count == target_elem_count && desc.comp_type == 0 /*Float32*/)
+            {
+                target_vector.resize(vert_count);
+                // 直接内存拷贝，速度最快
+                std::memcpy(target_vector.data(), src_ptr, vert_count * sizeof(T));
+            }
+            else
+            {
+                // 慢速路径：如果维度不匹配（例如文件存了 vec4 但 runtime 只要 vec3），或者类型不是 float
+                // 这里可以处理，或者直接报错。为了高性能引擎，通常要求 Asset Importer 阶段就对齐数据。
+                assert(false && "Mismatch in attribute element count or type! Please fix Importer.");
+            }
+        };
+
+        // 3. 遍历属性表，只需要做简单的路由分发
         for (const auto& d : raw.table)
         {
-            // 只支持我们当前导出的 float 属性
-            const size_t offsetInBlob = attr_data_offset_bytes(raw.header,
-                                                               raw.header.attr_count,
-                                                               d);
-            if (offsetInBlob + d.byte_size > raw.blob.size())
-                continue; // 防御
-
-            auto data = reinterpret_cast<const float*>(
-                raw.blob.data() + offsetInBlob);
-            const size_t elemCount = d.elem_count;            // 多少个 float 一个顶点
-            const size_t vertCount = raw.header.vertex_count;
-
-            // 语义解析：和 GLTF_Importer 里 make_sem 对应 :contentReference[oaicite:6]{index=6}
-            const VertexAttribute sem = d.semantic;
-
-            auto fill_vec3 = [&](std::vector<glm::vec3>& dst)
-            {
-                dst.resize(vertCount);
-                for (size_t i = 0; i < vertCount; ++i)
-                {
-                    const float* src = data + i * elemCount;
-                    dst[i]           = glm::vec3(src[0], src[1], src[2]);
-                }
-            };
-
-            auto fill_vec4 = [&](std::vector<glm::vec4>& dst)
-            {
-                dst.resize(vertCount);
-                for (size_t i = 0; i < vertCount; ++i)
-                {
-                    const float* src = data + i * elemCount;
-                    dst[i]           = glm::vec4(src[0], src[1], src[2], src[3]);
-                }
-            };
-
-            auto fill_vec2 = [&](std::vector<glm::vec2>& dst)
-            {
-                dst.resize(vertCount);
-                for (size_t i = 0; i < vertCount; ++i)
-                {
-                    const float* src = data + i * elemCount;
-                    dst[i]           = glm::vec2(src[0], src[1]);
-                }
-            };
-
-            switch (sem)
+            switch (static_cast<VertexAttribute>(d.semantic))
             {
             case Position:
-                if (elemCount >= 3) fill_vec3(mesh->positions);
+                load_attr(mesh->positions, d); // 自动推导为 glm::vec3
                 break;
             case Normal:
-                if (elemCount >= 3) fill_vec3(mesh->normals);
+                load_attr(mesh->normals, d);   // 自动推导为 glm::vec3
                 break;
             case Tangent:
-                if (elemCount >= 4) fill_vec4(mesh->tangents);
+                load_attr(mesh->tangents, d);  // 自动推导为 glm::vec4
                 break;
+            // 处理 UV (可能支持多套)
             case Texcoord0:
-                //if (elemCount)
+                // 假设 mesh->texcoords 是 vector<vec2>，如果是 vector<vector<vec2>> 需要调整逻辑
+                //load_attr(mesh->texcoords0, d);
                 break;
             case Color0:
+                //load_attr(mesh->colors, d);    // 自动推导为 glm::vec4
                 break;
+
             case Joints0:
+                // 骨骼索引通常是整数，不能用 float 处理逻辑，需要单独写一个 load_int_attr
+                // load_int_attr(mesh->joints, d);
                 break;
             case Weights0:
+                //load_attr(mesh->weights, d);
                 break;
             }
         }

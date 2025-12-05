@@ -1565,6 +1565,7 @@ void VulkanEngine::init_renderables()
     ResourceCache  cache;
     ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
     auto           result = loader.load<MeshData>(root.metas[0].uuid);
+    auto           result1 = loader.load<MeshData>(root.metas[0].uuid);
     hierarchy_panel.setRoots(root.nodes);
 
     assert(structureFile.has_value());
