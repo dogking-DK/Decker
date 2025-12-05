@@ -45,7 +45,6 @@ def compile_shaders(shader_dir, output_dir,
                 "-V",                          # Vulkan 语义
                 "-S", stage,                   # ★ 显式指定阶段（mesh/task 必须）
                 "--target-env", target_env,    # 例如 vulkan1.2 / vulkan1.3
-                "--target-spv", target_spv,    # 例如 1.5 / 1.6
                 "-o", str(spv_path),
                 str(src_path)
             ]

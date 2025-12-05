@@ -227,7 +227,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
                         else if (accessor.type == fastgltf::AccessorType::Scalar)
                             copyFromAccessor<float>(gltf, accessor, tmp.data());
 
-                        add(sem_of(set), 0, accessor.type == fastgltf::AccessorType::Vec3 ? 3 : 4, tmp);
+                        add(sem_of(set), 0, static_cast<uint8_t>(components), tmp);
                         ++raw_mesh_header.attr_count;
                     }
                     else break;

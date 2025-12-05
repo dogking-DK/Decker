@@ -35,9 +35,6 @@ namespace dk {
         std::shared_ptr<MaterialData> material{ nullptr };
     };
 
-
-std::shared_ptr<RawMeshData> read_raw_mesh(const std::filesystem::path& f);
-
 std::shared_ptr<MeshData> load_mesh(const std::filesystem::path& f);
 
 

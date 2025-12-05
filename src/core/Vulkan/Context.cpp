@@ -16,7 +16,7 @@ void VulkanContext::initVulkan(const uint32_t width, const uint32_t height)
 {
     _window = new core::SDLWindow({.title{"Vulkan"}, .extent{width, height}});
     initInstance();
-    vk::SurfaceKHR surface = _window->create_surface(reinterpret_cast<vk::Instance&>(_instance));
+    vk::SurfaceKHR surface = _window->create_surface(_instance);
 
     initDevice(surface);
 
@@ -120,15 +120,26 @@ void VulkanContext::initDevice(vk::SurfaceKHR& surface)
     meshFeat.primitiveFragmentShadingRateMeshShader = VK_FALSE;
     meshFeat.meshShaderQueries                      = VK_FALSE;
 
+    // 添加shader保持原始可读信息
+    VkPhysicalDeviceShaderRelaxedExtendedInstructionFeaturesKHR relaxedFeat{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_RELAXED_EXTENDED_INSTRUCTION_FEATURES_KHR
+    };
+    relaxedFeat.shaderRelaxedExtendedInstruction = VK_TRUE;
+
     // --- 选择物理设备 ---
     auto phys_ret = vkb::PhysicalDeviceSelector{_vkb_inst}
                    .set_surface(surface)
                    .set_minimum_version(1, 3)
                    .set_required_features(coreFeat)
                    .set_required_features_12(features12)
-                   .set_required_features_13(features13)                 // ★ 有了它，就不要再把 Maintenance4Features 放 pNext
+                   .set_required_features_13(features13)
+                    // 设备扩展
                    .add_required_extension(VK_EXT_MESH_SHADER_EXTENSION_NAME)
-                   .add_required_extension_features(meshFeat)            // ★ 只传 meshFeat，不要把 maint4 当成“扩展特性”传
+                   .add_required_extension(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME)
+                   .add_required_extension(VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME)
+                    // 扩展 feature
+                   .add_required_extension_features(meshFeat)
+                   .add_required_extension_features(relaxedFeat)
                    .select();
 
     if (!phys_ret)
