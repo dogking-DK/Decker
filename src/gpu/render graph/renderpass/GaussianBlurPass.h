@@ -22,8 +22,8 @@ public:
     // input: 上一阶段的场景颜色（比如 blit 过来的）
     // output: 模糊结果
     void registerToGraph(RenderGraph&                          graph,
-                         Resource<ImageDesc, FrameGraphImage>* input,
-                         Resource<ImageDesc, FrameGraphImage>* output);
+                         RGResource<ImageDesc, FrameGraphImage>* input,
+                         RGResource<ImageDesc, FrameGraphImage>* output);
 
 private:
     void recordBlur(RenderGraphContext& ctx,

@@ -313,7 +313,7 @@ void VulkanEngine::init_default_data()
 
 void VulkanEngine::test_render_graph()
 {
-    using MyRes = Resource<ImageDesc, FrameGraphImage>;
+    using MyRes = RGResource<ImageDesc, FrameGraphImage>;
 
     MyRes* res1 = nullptr;
     MyRes* res2 = nullptr;

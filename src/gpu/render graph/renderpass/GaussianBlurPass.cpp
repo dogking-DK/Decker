@@ -18,8 +18,8 @@ using namespace vk; // 如果你在用 Vulkan-Hpp
 namespace dk {
 struct BlurPassData
 {
-    Resource<ImageDesc, FrameGraphImage>* src = nullptr;
-    Resource<ImageDesc, FrameGraphImage>* dst = nullptr;
+    RGResource<ImageDesc, FrameGraphImage>* src = nullptr;
+    RGResource<ImageDesc, FrameGraphImage>* dst = nullptr;
 };
 
 void GaussianBlurPass::init(vkcore::VulkanContext* ctx)
@@ -77,10 +77,10 @@ void GaussianBlurPass::init(vkcore::VulkanContext* ctx)
 
 
 void GaussianBlurPass::registerToGraph(RenderGraph&                          graph,
-                                       Resource<ImageDesc, FrameGraphImage>* input,
-                                       Resource<ImageDesc, FrameGraphImage>* output)
+                                       RGResource<ImageDesc, FrameGraphImage>* input,
+                                       RGResource<ImageDesc, FrameGraphImage>* output)
 {
-    using Res = Resource<ImageDesc, FrameGraphImage>;
+    using Res = RGResource<ImageDesc, FrameGraphImage>;
 
     // 1. 创建一个临时的 ping-pong image（Transient）
     Res* tempRes = nullptr;

@@ -17,8 +17,8 @@ struct  RenderTaskBase
     TaskId      id = ~0u;
     std::string name;
 
-    std::vector<ResourceBase*> reads;
-    std::vector<ResourceBase*> writes;
+    std::vector<RGResourceBase*> reads;
+    std::vector<RGResourceBase*> writes;
 
     virtual      ~RenderTaskBase() = default;
     virtual void execute(RenderGraphContext& ctx) = 0;

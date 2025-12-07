@@ -75,17 +75,17 @@ private:
     // ---- 外部资源路径（swapchain / drawImage 等）----
     vk::Image     externalImage = VK_NULL_HANDLE;
     vk::ImageView externalImageView = VK_NULL_HANDLE;
-    friend class Resource<ImageDesc, FrameGraphImage>;
+    friend class RGResource<ImageDesc, FrameGraphImage>;
 };
 
 template <>
-class Resource<ImageDesc, FrameGraphImage> : public ResourceBase
+class RGResource<ImageDesc, FrameGraphImage> : public RGResourceBase
 {
 public:
     using Desc   = ImageDesc;
     using Actual = FrameGraphImage;
 
-    Resource(const std::string& n, const Desc& d, ResourceLifetime life)
+    RGResource(const std::string& n, const Desc& d, ResourceLifetime life)
     {
         _name     = n;
         _desc     = d;

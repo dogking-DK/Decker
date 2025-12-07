@@ -13,8 +13,8 @@ namespace dk {
 struct TimelineStep
 {
     RenderTaskBase*            task = nullptr;
-    std::vector<ResourceBase*> toRealize;
-    std::vector<ResourceBase*> toDerealize;
+    std::vector<RGResourceBase*> toRealize;
+    std::vector<RGResourceBase*> toDerealize;
 };
 
 // ---------------------------------------------
@@ -54,7 +54,7 @@ private:
     friend class RenderTaskBuilder;
 
     std::vector<std::unique_ptr<RenderTaskBase>> tasks_;
-    std::vector<std::unique_ptr<ResourceBase>>   resources_;
+    std::vector<std::unique_ptr<RGResourceBase>>   resources_;
     std::vector<TimelineStep>                    timeline_;
 
     bool compiled_ = false;
@@ -72,9 +72,9 @@ ResT* RenderTaskBuilder::create(const std::string& name,
     ResourceLifetime           life)
 {
     _graph->compiled_ = false;  // 或 _graph->markDirty();
-    // ResT 必须继承自 ResourceBase
-    static_assert(std::is_base_of_v<ResourceBase, ResT>,
-        "ResT must derive from ResourceBase");
+    // ResT 必须继承自 RGResourceBase
+    static_assert(std::is_base_of_v<RGResourceBase, ResT>,
+        "ResT must derive from RGResourceBase");
 
     auto  res = std::make_unique<ResT>(name, desc, life);
     auto* ptr = res.get();
@@ -89,8 +89,8 @@ ResT* RenderTaskBuilder::create(const std::string& name,
 template <typename ResT>
 ResT* RenderTaskBuilder::read(ResT* res)
 {
-    static_assert(std::is_base_of_v<ResourceBase, ResT>,
-        "ResT must derive from ResourceBase");
+    static_assert(std::is_base_of_v<RGResourceBase, ResT>,
+        "ResT must derive from RGResourceBase");
     if (!res) return nullptr;
     _task->reads.push_back(res);
     res->readers.push_back(_task);
@@ -100,8 +100,8 @@ ResT* RenderTaskBuilder::read(ResT* res)
 template <typename ResT>
 ResT* RenderTaskBuilder::write(ResT* res)
 {
-    static_assert(std::is_base_of_v<ResourceBase, ResT>,
-        "ResT must derive from ResourceBase");
+    static_assert(std::is_base_of_v<RGResourceBase, ResT>,
+        "ResT must derive from RGResourceBase");
     if (!res) return nullptr;
     _task->writes.push_back(res);
     res->writers.push_back(_task);

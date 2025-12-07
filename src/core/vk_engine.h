@@ -145,7 +145,7 @@ public:
     AllocatedImage _drawImage;
     AllocatedImage _depthImage;
 
-    std::shared_ptr<Resource<ImageDesc, FrameGraphImage>> color_image;
+    std::shared_ptr<RGResource<ImageDesc, FrameGraphImage>> color_image;
 
     // immediate submit structures
     VkFence _immFence;

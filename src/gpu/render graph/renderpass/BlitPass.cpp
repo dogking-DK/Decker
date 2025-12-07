@@ -21,7 +21,7 @@ void BlitPass::init(vkcore::VulkanContext& ctx)
 void BlitPass::destroy(vkcore::VulkanContext& ctx)
 {
 }
-void BlitPass::registerToGraph(RenderGraph& graph, Resource<ImageDesc, FrameGraphImage>* sceneColor, Resource<ImageDesc, FrameGraphImage>* swapchainColor)
+void BlitPass::registerToGraph(RenderGraph& graph, RGResource<ImageDesc, FrameGraphImage>* sceneColor, RGResource<ImageDesc, FrameGraphImage>* swapchainColor)
 {
     _sceneRes = sceneColor;
     _swapRes = swapchainColor;

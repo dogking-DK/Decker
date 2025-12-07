@@ -44,12 +44,12 @@ enum class ResourceLifetime : std::uint8_t
 };
 
 // ---------------------------------------------
-// ResourceBase：所有资源的公共信息
+// RGResourceBase：所有资源的公共信息
 // ---------------------------------------------
-class ResourceBase
+class RGResourceBase
 {
 public:
-    virtual ~ResourceBase() = default;
+    virtual ~RGResourceBase() = default;
 
     virtual void realize(RenderGraphContext& ctx)
     {
@@ -84,16 +84,16 @@ protected:
 };
 
 // ---------------------------------------------
-// 模板 Resource：挂上描述和实际对象类型
+// 模板 RGResource：挂上描述和实际对象类型
 // ---------------------------------------------
 template <typename DescT, typename ActualT>
-class Resource : public ResourceBase
+class RGResource : public RGResourceBase
 {
 public:
     using Desc   = DescT;
     using Actual = ActualT;
 
-    Resource(const std::string& n, const Desc& d,
+    RGResource(const std::string& n, const Desc& d,
              ResourceLifetime   life = ResourceLifetime::Transient)
     {
         _name     = n;

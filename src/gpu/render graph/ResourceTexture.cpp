@@ -1,7 +1,7 @@
 ﻿#include "ResourceTexture.h"
 
 namespace dk {
-void Resource<ImageDesc, FrameGraphImage>::setExternal(vk::Image image, vk::ImageView view)
+void RGResource<ImageDesc, FrameGraphImage>::setExternal(vk::Image image, vk::ImageView view)
 {
     if (!actual)
     {
@@ -17,7 +17,7 @@ void Resource<ImageDesc, FrameGraphImage>::setExternal(vk::Image image, vk::Imag
     actual->view.reset();
 }
 
-void Resource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
+void RGResource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
 {
     // ★ 外部资源：FG 不创建 / 管理，只是个占位 + debug 打印
     if (_lifetime == ResourceLifetime::External)
@@ -64,7 +64,7 @@ void Resource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
     }
 }
 
-void Resource<ImageDesc, FrameGraphImage>::derealize(RenderGraphContext& ctx)
+void RGResource<ImageDesc, FrameGraphImage>::derealize(RenderGraphContext& ctx)
 {
     (void)ctx;
     if (_lifetime == ResourceLifetime::Transient)

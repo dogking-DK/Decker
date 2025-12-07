@@ -19,8 +19,8 @@ class BlitPass
 public:
     struct BlitPassData
     {
-        Resource<ImageDesc, FrameGraphImage>* src;
-        Resource<ImageDesc, FrameGraphImage>* dst;
+        RGResource<ImageDesc, FrameGraphImage>* src;
+        RGResource<ImageDesc, FrameGraphImage>* dst;
     };
 
     void init(vkcore::VulkanContext& ctx);  // 创建 shader module / pipeline / layout / sampler 等
@@ -29,10 +29,10 @@ public:
     // 把 FXAA 作为一个 Task 注册进 RenderGraph
     void registerToGraph(
         RenderGraph& graph,
-        Resource<ImageDesc, FrameGraphImage>* sceneColor,
-        Resource<ImageDesc, FrameGraphImage>* swapchainColor
+        RGResource<ImageDesc, FrameGraphImage>* sceneColor,
+        RGResource<ImageDesc, FrameGraphImage>* swapchainColor
     );
-    void setSrc(Resource<ImageDesc, FrameGraphImage>* src) { _sceneRes = src; }
+    void setSrc(RGResource<ImageDesc, FrameGraphImage>* src) { _sceneRes = src; }
 private:
     void record(dk::RenderGraphContext& ctx, BlitPassData const& data);
     void createBuffers();
@@ -42,8 +42,8 @@ private:
     vkcore::VulkanContext* _context{nullptr};
 
 
-    Resource<ImageDesc, FrameGraphImage>* _sceneRes{nullptr};
-    Resource<ImageDesc, FrameGraphImage>* _swapRes{nullptr};
+    RGResource<ImageDesc, FrameGraphImage>* _sceneRes{nullptr};
+    RGResource<ImageDesc, FrameGraphImage>* _swapRes{nullptr};
 
     // GPU 资源
     std::unique_ptr<vkcore::BufferResource> _particle_data_ssbo; // 存储所有粒子的位置和颜色

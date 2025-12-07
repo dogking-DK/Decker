@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <fstream>
 
-#include "Resource.hpp" // 你的 Resource 基类
+#include "Resource.hpp" // 你的 RGResource 基类
 #include <vector>
 
 namespace dk::vkcore {

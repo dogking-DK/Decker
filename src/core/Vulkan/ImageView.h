@@ -44,7 +44,7 @@ inline vk::DescriptorImageInfo makeCombinedImageInfo(
 {
     return vk::DescriptorImageInfo{
         sampler,
-        view,   // 你基类 Resource<vk::ImageView,...> 应该有 getHandle()
+        view,   // 你基类 RGResource<vk::ImageView,...> 应该有 getHandle()
         layout
     };
 }
