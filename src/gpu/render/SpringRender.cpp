@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <filesystem>
 
+#include "Vulkan/ShaderModule.h"
+
 namespace dk {
 SpringRenderer::SpringRenderer(vkcore::VulkanContext* context)
     : _context(context)
@@ -65,7 +67,7 @@ void SpringRenderer::createBuffers()
     _max_particle_count = 2000000;
     _max_spring_count   = 10000000;
 
-    auto ssbo_builder = vkcore::BufferBuilder();
+    auto ssbo_builder = vkcore::BufferResource::Builder();
 
     // 为粒子数据创建 SSBO
     _particle_data_ssbo = ssbo_builder.setSize(sizeof(GPUParticle) * _max_particle_count)
@@ -82,7 +84,7 @@ void SpringRenderer::createBuffers()
                                      .buildUnique(*_context);
 
     // 创建相机 UBO
-    auto ubo_builder = vkcore::BufferBuilder();
+    auto ubo_builder = vkcore::BufferResource::Builder();
     _camera_ubo      = ubo_builder.setSize(sizeof(CameraData))
                                   .setUsage(vk::BufferUsageFlagBits::eUniformBuffer)
                                   .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)

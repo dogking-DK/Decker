@@ -6,8 +6,6 @@
 #include "vk_engine.h"
 #include "Vulkan/Context.h"
 #include "Vulkan/Buffer.h"
-#include "Vulkan/BufferBuilder.h"
-#include "Vulkan/CommandBuffer.h"
 #include "Vulkan/DescriptorSetLayout.h"
 #include "Vulkan/DescriptorSet.h"
 #include "Vulkan/DescriptorSetPool.h"

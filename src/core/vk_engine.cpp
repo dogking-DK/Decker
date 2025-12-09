@@ -56,7 +56,6 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include "resource/cpu/ResourceCache.h"
 #include "resource/cpu/ResourceLoader.h"
 #include "vk_debug_util.h"
-#include "Vulkan/BufferBuilder.h"
 #include "Vulkan/CommandBuffer.h"
 #include <Vulkan/DescriptorSetLayout.h>
 #include <Vulkan/DescriptorSetPool.h>

@@ -9,15 +9,12 @@
 #include "vk_engine.h"
 #include "Vulkan/Context.h"
 #include "Vulkan/Buffer.h"
-#include "Vulkan/BufferBuilder.h"
-#include "Vulkan/CommandBuffer.h"
 #include "Vulkan/DescriptorSetLayout.h"
 #include "Vulkan/DescriptorSet.h"
 #include "Vulkan/DescriptorSetPool.h"
 #include "Vulkan/DescriptorWriter.h"
 #include "Vulkan/Pipeline.h"
 #include "Vulkan/PipelineLayout.h"
-#include "Vulkan/ShaderModule.h"
 
 // 引入我们物理模拟的数据结构
 #include "data/Particle.h" // 包含 ParticleData

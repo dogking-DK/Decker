@@ -41,7 +41,7 @@ void RGResource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
         actual = std::make_unique<Actual>();
 
         // 1. 用你的 ImageBuilder 创建 ImageResource
-        vkcore::ImageBuilder builder;
+        vkcore::ImageResource::Builder builder;
         builder.setFormat(_desc.format)
                .setExtent(vk::Extent3D{_desc.width, _desc.height, _desc.depth})
                .setUsage(_desc.usage)

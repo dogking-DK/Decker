@@ -1,6 +1,8 @@
 ﻿#include "PointCloudRender.h"
 #include <stdexcept>
 
+#include "Vulkan/ShaderModule.h"
+
 namespace dk {
 
 
@@ -42,7 +44,7 @@ void PointCloudRenderer::createBuffers()
     _point_count           = 0;
     VkDeviceSize ssbo_size = sizeof(PointData) * _max_point_count;
 
-    auto ssbo_builder = dk::vkcore::BufferBuilder();
+    auto ssbo_builder = dk::vkcore::BufferResource::Builder();
     _point_cloud_ssbo = ssbo_builder.setSize(ssbo_size)
                                     .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
                                     .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)
@@ -51,7 +53,7 @@ void PointCloudRenderer::createBuffers()
     //_point_cloud_ssbo = std::make_unique<dk::vkcore::BufferResource>(_context);
     //_point_cloud_ssbo->create(ssbo_size, vk::BufferUsageFlagBits::eStorageBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-    auto ubo_builder = dk::vkcore::BufferBuilder();
+    auto ubo_builder = dk::vkcore::BufferResource::Builder();
     _camera_ubo      = ssbo_builder.setSize(sizeof(CameraData))
                               .setUsage(vk::BufferUsageFlagBits::eUniformBuffer)
                               .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)

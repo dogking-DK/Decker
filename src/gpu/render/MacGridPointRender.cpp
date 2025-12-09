@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <stdexcept>
 
+#include "Vulkan/ShaderModule.h"
+
 namespace dk {
 
     void MacGridPointRenderer::init(vk::Format color_format, vk::Format depth_format)
@@ -16,21 +18,21 @@ namespace dk {
     {
         _capacity = 4'000'000; // 足够大，可按需调整
 
-        auto bb = vkcore::BufferBuilder();
+        auto bb = vkcore::BufferResource::Builder();
         _points_ssbo = bb.setSize(sizeof(GPUPoint) * _capacity)
             .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
             .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)
             .withVmaUsage(VMA_MEMORY_USAGE_CPU_TO_GPU)
             .buildUnique(*_ctx);
 
-        _camera_ubo = vkcore::BufferBuilder()
+        _camera_ubo = vkcore::BufferResource::Builder()
             .setSize(sizeof(CameraData))
             .setUsage(vk::BufferUsageFlagBits::eUniformBuffer)
             .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)
             .withVmaUsage(VMA_MEMORY_USAGE_CPU_TO_GPU)
             .buildUnique(*_ctx);
 
-        _params_ubo = vkcore::BufferBuilder()
+        _params_ubo = vkcore::BufferResource::Builder()
             .setSize(sizeof(DrawParamsPoints))
             .setUsage(vk::BufferUsageFlagBits::eUniformBuffer)
             .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)

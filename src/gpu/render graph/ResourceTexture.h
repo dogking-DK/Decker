@@ -2,7 +2,6 @@
 #include "Resource.h"
 #include "Vulkan/Context.h"
 #include "Vulkan/Image.h"
-#include "Vulkan/ImageBuilder.h"
 #include "Vulkan/ImageView.h"
 #include "Vulkan/ImageViewBuilder.h"
 

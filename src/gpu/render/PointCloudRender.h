@@ -8,7 +8,6 @@
 #include "vk_engine.h"
 #include "Vulkan/Context.h"
 #include "Vulkan/Buffer.h" // 假设有 BufferResource 类
-#include "Vulkan/BufferBuilder.h" // 假设有 BufferResource 类
 #include "Vulkan/Image.h"  // 假设有 ImageResource 类
 #include "Vulkan/CommandBuffer.h"
 #include "Vulkan/DescriptorSetLayout.h"
@@ -17,7 +16,6 @@
 #include "Vulkan/DescriptorWriter.h"
 #include "Vulkan/Pipeline.h"
 #include "Vulkan/PipelineLayout.h"
-#include "Vulkan/ShaderModule.h"
 
 namespace dk {
 // --- GLSL/C++ 共享数据结构 (必须与 Slang 中的定义匹配) ---

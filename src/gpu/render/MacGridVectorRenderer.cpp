@@ -18,7 +18,7 @@ void MacGridVectorRenderer::createBuffers()
     _max_vectors = 2'000'000; // 可按需调整
 
     // SSBO: vectors
-    _vector_ssbo = vkcore::BufferBuilder()
+    _vector_ssbo = vkcore::BufferResource::Builder()
                   .setSize(sizeof(GPUVector) * _max_vectors)
                   .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
                   .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)
@@ -26,7 +26,7 @@ void MacGridVectorRenderer::createBuffers()
                   .buildUnique(*_context);
 
     // UBO: camera
-    _camera_ubo = vkcore::BufferBuilder()
+    _camera_ubo = vkcore::BufferResource::Builder()
                  .setSize(sizeof(CameraData))
                  .setUsage(vk::BufferUsageFlagBits::eUniformBuffer)
                  .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eHostVisible)
