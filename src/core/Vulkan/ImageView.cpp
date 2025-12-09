@@ -1,28 +1,54 @@
 ﻿#include "ImageView.h"
-
-#include "ImageViewBuilder.h"
+#include <fmt/color.h>
 
 namespace dk::vkcore {
-ImageViewResource::ImageViewResource(VulkanContext& context, ImageViewBuilder& builder)
-    : Resource(&context, nullptr), _image(&builder.getImage())
+ImageViewResource::ImageViewResource(
+    VulkanContext&       context,
+    ImageResource&       image,
+    vk::ImageViewType    viewType,
+    vk::Format           format,
+    vk::ImageAspectFlags aspectFlags,
+    uint32_t             baseMipLevel,
+    uint32_t             levelCount,
+    uint32_t             baseArrayLayer,
+    uint32_t             layerCount)
+    : Resource(&context, nullptr)
+    , _image(&image)
 {
-    _handle = _context->getDevice().createImageView(builder.getImageViewCreateInfo());
-    if (_handle == nullptr)
+    vk::ImageViewCreateInfo ci{};
+    ci.image    = _image->getHandle();
+    ci.viewType = viewType;
+    ci.format   = format;
+
+    ci.subresourceRange.aspectMask     = aspectFlags;
+    ci.subresourceRange.baseMipLevel   = baseMipLevel;
+    ci.subresourceRange.levelCount     = levelCount;
+    ci.subresourceRange.baseArrayLayer = baseArrayLayer;
+    ci.subresourceRange.layerCount     = layerCount;
+
+    _handle = _context->getDevice().createImageView(ci);
+    if (!_handle)
     {
-        fmt::print(fmt::fg(fmt::color::red), "vulkan image view create fail\n");
+        print(fg(fmt::color::red), "vulkan image view create fail\n");
     }
+
     _image->getImageViews().insert(this);
-    _format = builder.getImageViewCreateInfo().format;
-    _subresource_range = builder.getImageViewCreateInfo().subresourceRange;
+    _format            = ci.format;
+    _subresource_range = ci.subresourceRange;
 }
 
-vk::Format ImageViewResource::get_format() const
+std::unique_ptr<ImageViewResource> ImageViewResource::create2D(
+    VulkanContext&       context,
+    ImageResource&       image,
+    vk::Format           format,
+    vk::ImageAspectFlags aspectFlags)
 {
-    return _format;
-}
-
-ImageResource const& ImageViewResource::get_image() const
-{
-    return *_image;
+    // 默认视图：整张 2D 贴图、单 mip、单 layer
+    return std::make_unique<ImageViewResource>(
+        context, image,
+        vk::ImageViewType::e2D,
+        format,
+        aspectFlags,
+        0, 1, 0, 1);
 }
 }

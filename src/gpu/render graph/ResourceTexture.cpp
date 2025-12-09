@@ -52,10 +52,11 @@ void RGResource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
         actual->image = builder.buildUnique(*ctx.vkCtx);
         actual->image->setDebugName(_name);
         // 2. 创建一个默认的 ImageViewResource（比如 color attachment / sampled view）
-        vkcore::ImageViewBuilder viewBuilder(*actual->image);
-        viewBuilder.setFormat(_desc.format)
-                   .setAspectFlags(_desc.aspectMask);
-        actual->view = std::make_unique<vkcore::ImageViewResource>(*ctx.vkCtx, viewBuilder);
+        if (_desc.type == vk::ImageType::e2D)
+        {
+            actual->view = vkcore::ImageViewResource::create2D(*ctx.vkCtx, *actual->image, _desc.format, _desc.aspectMask);
+        }
+        
     }
     if (ctx.compiled_)
     {
