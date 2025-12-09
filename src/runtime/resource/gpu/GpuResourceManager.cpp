@@ -7,36 +7,22 @@
 
 #include <glm/vec4.hpp>
 
-#include "CommandBuffer.h"
-#include "MaterialLoader.h"
-#include "MeshLoader.h"
-#include "TextureLoader.h"
+#include "resource/cpu/MaterialLoader.h"
+#include "resource/cpu/MeshLoader.h"
+#include "resource/cpu/ResourceLoader.h"
+#include "resource/cpu/TextureLoader.h"
+#include "Vulkan/Buffer.h"
+#include "Vulkan/CommandBuffer.h"
+#include "Vulkan/CommandPool.h"
+#include "Vulkan/Context.h"
+#include "Vulkan/ImageView.h"
+#include "Vulkan/Sampler.h"
 
 using namespace dk::vkcore;
 
 namespace dk {
 namespace {
-std::unique_ptr<BufferResource> createBuffer(VulkanContext& context, vk::DeviceSize size, vk::BufferUsageFlags usage,
-                                             VmaMemoryUsage memory_usage,
-                                             vk::MemoryPropertyFlags required = {})
-{
-    BufferResource::Builder builder;
-    builder.setSize(size).setUsage(usage).withVmaUsage(memory_usage);
-    if (required)
-        builder.withVmaRequiredFlags(required);
 
-    return builder.buildUnique(context);
-}
-
-void submitAndWait(VulkanContext& context, CommandPool& pool, const std::function<void(CommandBuffer&)>& record)
-{
-    CommandBuffer cmd(&context, &pool);
-    cmd.begin();
-    record(cmd);
-    cmd.end();
-    cmd.submit(context.getGraphicsQueue());
-    context.getGraphicsQueue().waitIdle();
-}
 } // namespace
 
 GpuResourceManager::GpuResourceManager(vkcore::VulkanContext& context, vkcore::CommandPool& command_pool,

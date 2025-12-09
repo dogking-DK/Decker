@@ -2,14 +2,22 @@
 
 #include <memory>
 
-#include "CommandPool.h"
 #include "GPUMaterial.h"
 #include "GPUMesh.h"
 #include "GPUTexture.h"
-#include "ResourceCache.h"
-#include "ResourceLoader.h"
+#include "UUID.hpp"
+#include "resource/cpu/ResourceCache.h"
 
 namespace dk {
+struct TextureData;
+struct MeshData;
+class ResourceLoader;
+
+namespace vkcore {
+    class CommandPool;
+    class VulkanContext;
+}
+
 class GpuResourceManager
 {
 public:

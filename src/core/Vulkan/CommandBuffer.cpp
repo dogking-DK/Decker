@@ -7,6 +7,7 @@
 #include "vk_initializers.h"
 
 #include <Eigen/Eigen>
+
 namespace dk::vkcore {
 void CommandBuffer::generateMipmaps(const ImageResource& image, vk::Extent2D image_size)
 {
@@ -87,10 +88,41 @@ void CommandBuffer::copyBuffer(const BufferResource& src, const BufferResource& 
     _handle.copyBuffer2(info);
 }
 
-void CommandBuffer::transitionImage(const ImageResource& image,
-    vk::ImageLayout         current_layout, vk::ImageLayout new_layout,
-    vk::PipelineStageFlags2 src_stage, vk::AccessFlags2     src_access,
-    vk::PipelineStageFlags2 dst_stage, vk::AccessFlags2     dst_access)
+void CommandBuffer::copyBufferToImage(const BufferResource& src,
+                                      const ImageResource&  dst,
+                                      vk::Extent3D          extent,
+                                      uint32_t              mipLevel,
+                                      uint32_t              baseArrayLayer,
+                                      uint32_t              layerCount)
+{
+    vk::BufferImageCopy2 region{};
+    region.bufferOffset      = 0;
+    region.bufferRowLength   = 0; // 0 = 紧凑排列
+    region.bufferImageHeight = 0;
+
+    region.imageSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
+    region.imageSubresource.mipLevel       = mipLevel;
+    region.imageSubresource.baseArrayLayer = baseArrayLayer;
+    region.imageSubresource.layerCount     = layerCount;
+
+    region.imageOffset = vk::Offset3D{0, 0, 0};
+    region.imageExtent = extent;
+
+    vk::CopyBufferToImageInfo2 info{};
+    info.srcBuffer      = src.getHandle();
+    info.dstImage       = dst.getHandle();
+    info.dstImageLayout = vk::ImageLayout::eTransferDstOptimal;
+    info.regionCount    = 1;
+    info.pRegions       = &region;
+
+    _handle.copyBufferToImage2(info);
+}
+
+
+void CommandBuffer::transitionImage(const ImageResource&    image,
+                                    vk::ImageLayout         current_layout, vk::ImageLayout new_layout,
+                                    vk::PipelineStageFlags2 src_stage, vk::AccessFlags2     src_access,
+                                    vk::PipelineStageFlags2 dst_stage, vk::AccessFlags2     dst_access)
 {
     vk::ImageMemoryBarrier2 image_barrier;
     image_barrier.pNext = nullptr;
@@ -119,17 +151,16 @@ void CommandBuffer::transitionImage(const ImageResource& image,
     _handle.pipelineBarrier2(&dep_info);
 }
 
-void CommandBuffer::copyImageToImage(const ImageResource& source, const ImageResource& destination, const vk::Extent2D src_size,
-                                     const vk::Extent2D dst_size)
+void CommandBuffer::copyImageToImage(const ImageResource& source, const ImageResource& destination,
+                                     const vk::Extent2D   src_size,
+                                     const vk::Extent2D   dst_size)
 {
     copyImageToImage(source.getHandle(), destination.getHandle(), src_size, dst_size);
 }
 
 void CommandBuffer::copyImageToImage(const vk::Image& source, const vk::Image& destination, vk::Extent2D src_size,
-    vk::Extent2D dst_size)
+                                     vk::Extent2D     dst_size)
 {
-
-
     vk::ImageBlit2 blit_region;
 
     blit_region.srcOffsets[1].x = static_cast<int32_t>(src_size.width);
@@ -140,24 +171,24 @@ void CommandBuffer::copyImageToImage(const vk::Image& source, const vk::Image& d
     blit_region.dstOffsets[1].y = static_cast<int32_t>(dst_size.height);
     blit_region.dstOffsets[1].z = 1;
 
-    blit_region.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+    blit_region.srcSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
     blit_region.srcSubresource.baseArrayLayer = 0;
-    blit_region.srcSubresource.layerCount = 1;
-    blit_region.srcSubresource.mipLevel = 0;
+    blit_region.srcSubresource.layerCount     = 1;
+    blit_region.srcSubresource.mipLevel       = 0;
 
-    blit_region.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+    blit_region.dstSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
     blit_region.dstSubresource.baseArrayLayer = 0;
-    blit_region.dstSubresource.layerCount = 1;
-    blit_region.dstSubresource.mipLevel = 0;
+    blit_region.dstSubresource.layerCount     = 1;
+    blit_region.dstSubresource.mipLevel       = 0;
 
     vk::BlitImageInfo2 blit_info;
-    blit_info.dstImage = destination;
+    blit_info.dstImage       = destination;
     blit_info.dstImageLayout = vk::ImageLayout::eTransferDstOptimal;
-    blit_info.srcImage = source;
+    blit_info.srcImage       = source;
     blit_info.srcImageLayout = vk::ImageLayout::eTransferSrcOptimal;
-    blit_info.filter = vk::Filter::eLinear;
-    blit_info.regionCount = 1;
-    blit_info.pRegions = &blit_region;
+    blit_info.filter         = vk::Filter::eLinear;
+    blit_info.regionCount    = 1;
+    blit_info.pRegions       = &blit_region;
 
     _handle.blitImage2(&blit_info);
 }

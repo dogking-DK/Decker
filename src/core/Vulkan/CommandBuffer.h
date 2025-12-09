@@ -178,11 +178,20 @@ public:
                           vk::Extent2D         dst_size);
 
     void copyImageToImage(const vk::Image& source, const vk::Image& destination, vk::Extent2D src_size,
-        vk::Extent2D         dst_size);
+                          vk::Extent2D     dst_size);
 
     void generateMipmaps(const ImageResource& image, vk::Extent2D image_size);
 
     void copyBuffer(const BufferResource& src, const BufferResource& dst, vk::BufferCopy2 copy);
+
+    // 新增：从 buffer 拷贝到 image（假定 image 已处于 eTransferDstOptimal）
+    void copyBufferToImage(const BufferResource& src,
+                           const ImageResource&  dst,
+                           vk::Extent3D          extent,
+                           uint32_t              mipLevel       = 0,
+                           uint32_t              baseArrayLayer = 0,
+                           uint32_t              layerCount     = 1);
+
 
     // 提交命令缓冲区到队列
     void submit(const vk::Queue& queue, const vk::Fence& fence = nullptr)
@@ -278,6 +287,74 @@ inline void copyBufferImmediate(VulkanContext*                        ctx,
             // 直接在同一 CB 末尾做可见性转换
             cmd.getHandle().pipelineBarrier2(dep);
         }
+    });
+}
+
+inline void uploadBufferDataImmediate(VulkanContext*          ctx,
+                                      CommandPool*            pool,
+                                      const vk::Queue&        queue,
+                                      BufferResource&         staging,          // host-visible + transfer-src
+                                      const void*             srcData,
+                                      vk::DeviceSize          size,
+                                      BufferResource&         dst,              // device-local + transfer-dst
+                                      vk::DeviceSize          dstOffset = 0,
+                                      bool                    prepForShaderRead = false,
+                                      vk::PipelineStageFlags2 dstStages = vk::PipelineStageFlagBits2::eAllCommands,
+                                      vk::AccessFlags2        dstAccess = vk::AccessFlagBits2::eShaderStorageRead)
+{
+    // 1. 先把 CPU 数据写进 staging buffer（它应该是 HOST_VISIBLE）
+    staging.update(srcData, size);
+
+    // 2. 录制一次性 copy 命令并提交
+    vk::BufferCopy2 region{};
+    region.srcOffset = 0;
+    region.dstOffset = dstOffset;
+    region.size      = size;
+
+    copyBufferImmediate(ctx, pool, queue,
+                        staging, dst,
+                        {region},
+                        prepForShaderRead, dstStages, dstAccess);
+}
+
+
+inline void uploadImageDataImmediate(VulkanContext*   ctx,
+                                     CommandPool*     pool,
+                                     const vk::Queue& queue,
+                                     BufferResource&  staging,        // HOST_VISIBLE + TRANSFER_SRC
+                                     const void*      srcPixels,
+                                     size_t           dataSize,
+                                     ImageResource&   dstImage,       // DEVICE_LOCAL + TRANSFER_DST | SAMPLED
+                                     vk::Extent3D     extent,
+                                     vk::ImageLayout  initialLayout = vk::ImageLayout::eUndefined,
+                                     vk::ImageLayout  finalLayout   = vk::ImageLayout::eShaderReadOnlyOptimal)
+{
+    // 1. 先把像素写入 staging buffer
+    staging.update(srcPixels, dataSize);
+
+    // 2. 一次性 command buffer：layout 转换 + 拷贝 + 再转换
+    executeImmediate(ctx, pool, queue, [&](CommandBuffer& cmd)
+    {
+        // (1) old -> TRANSFER_DST_OPTIMAL
+        cmd.transitionImage(dstImage,
+                            initialLayout,
+                            vk::ImageLayout::eTransferDstOptimal,
+                            vk::PipelineStageFlagBits2::eTopOfPipe,
+                            vk::AccessFlagBits2::eNone,
+                            vk::PipelineStageFlagBits2::eTransfer,
+                            vk::AccessFlagBits2::eTransferWrite);
+
+        // (2) buffer -> image
+        cmd.copyBufferToImage(staging, dstImage, extent);
+
+        // (3) TRANSFER_DST_OPTIMAL -> finalLayout（通常是 SHADER_READ_ONLY_OPTIMAL）
+        cmd.transitionImage(dstImage,
+                            vk::ImageLayout::eTransferDstOptimal,
+                            finalLayout,
+                            vk::PipelineStageFlagBits2::eTransfer,
+                            vk::AccessFlagBits2::eTransferWrite,
+                            vk::PipelineStageFlagBits2::eFragmentShader,
+                            vk::AccessFlagBits2::eShaderRead);
     });
 }
 }

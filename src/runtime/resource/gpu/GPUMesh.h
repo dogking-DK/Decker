@@ -8,9 +8,14 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
-#include "Buffer.h"
-
 namespace dk {
+struct MeshData;
+
+namespace vkcore {
+    class VulkanContext;
+    class BufferResource;
+}
+
 struct GPUVertex
 {
     glm::vec3 position{0.0f};
@@ -27,4 +32,11 @@ struct GPUMesh
     uint32_t                                vertex_count{0};
     uint32_t                                index_count{0};
 };
+
+GPUMesh create_gpu_mesh_buffers(
+    vkcore::VulkanContext& context,
+    const MeshData& mesh);
+
+
+
 } // namespace dk
