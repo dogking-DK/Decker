@@ -293,49 +293,71 @@ inline void copyBufferImmediate(VulkanContext*                        ctx,
 inline void uploadBufferDataImmediate(VulkanContext*          ctx,
                                       CommandPool*            pool,
                                       const vk::Queue&        queue,
-                                      BufferResource&         staging,          // host-visible + transfer-src
                                       const void*             srcData,
                                       vk::DeviceSize          size,
-                                      BufferResource&         dst,              // device-local + transfer-dst
+                                      BufferResource&         dst,
                                       vk::DeviceSize          dstOffset = 0,
-                                      bool                    prepForShaderRead = false,
                                       vk::PipelineStageFlags2 dstStages = vk::PipelineStageFlagBits2::eAllCommands,
                                       vk::AccessFlags2        dstAccess = vk::AccessFlagBits2::eShaderStorageRead)
 {
-    // 1. 先把 CPU 数据写进 staging buffer（它应该是 HOST_VISIBLE）
-    staging.update(srcData, size);
+    // 1. 内部创建临时的 Staging Buffer
+    //    使用 VMA_MEMORY_USAGE_CPU_ONLY 或 CPU_TO_GPU 确保 host 可写
+    BufferResource::Builder builder;
+    builder.setSize(size)
+           .setUsage(vk::BufferUsageFlagBits::eTransferSrc)
+           .withVmaUsage(VMA_MEMORY_USAGE_AUTO)
+           .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                         VMA_ALLOCATION_CREATE_MAPPED_BIT); // 自动映射，方便 update
 
-    // 2. 录制一次性 copy 命令并提交
+    auto staging = builder.buildUnique(*ctx);
+
+    // 2. 写入数据 (staging 是 host visible 的)
+    staging->update(srcData, size);
+
+    // 3. 执行拷贝
     vk::BufferCopy2 region{};
     region.srcOffset = 0;
     region.dstOffset = dstOffset;
     region.size      = size;
 
     copyBufferImmediate(ctx, pool, queue,
-                        staging, dst,
+                        *staging, dst,
                         {region},
-                        prepForShaderRead, dstStages, dstAccess);
+                        true,        // prepForShaderRead (自动加 Barrier)
+                        dstStages,
+                        dstAccess);
+
+    // 函数结束，staging 智能指针析构，临时 Buffer 自动释放
 }
 
 
 inline void uploadImageDataImmediate(VulkanContext*   ctx,
                                      CommandPool*     pool,
                                      const vk::Queue& queue,
-                                     BufferResource&  staging,        // HOST_VISIBLE + TRANSFER_SRC
                                      const void*      srcPixels,
                                      size_t           dataSize,
-                                     ImageResource&   dstImage,       // DEVICE_LOCAL + TRANSFER_DST | SAMPLED
+                                     ImageResource&   dstImage,
                                      vk::Extent3D     extent,
                                      vk::ImageLayout  initialLayout = vk::ImageLayout::eUndefined,
                                      vk::ImageLayout  finalLayout   = vk::ImageLayout::eShaderReadOnlyOptimal)
 {
-    // 1. 先把像素写入 staging buffer
-    staging.update(srcPixels, dataSize);
+    // 1. 内部创建临时的 Staging Buffer
+    BufferResource::Builder builder;
+    builder.setSize(dataSize)
+           .setUsage(vk::BufferUsageFlagBits::eTransferSrc)
+           .withVmaUsage(VMA_MEMORY_USAGE_AUTO)
+           .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                         VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-    // 2. 一次性 command buffer：layout 转换 + 拷贝 + 再转换
+    auto staging = builder.buildUnique(*ctx);
+
+    // 2. 写入像素数据
+    staging->update(srcPixels, dataSize);
+
+    // 3. 录制命令：转换布局 -> 拷贝 -> 转换布局
     executeImmediate(ctx, pool, queue, [&](CommandBuffer& cmd)
     {
-        // (1) old -> TRANSFER_DST_OPTIMAL
+        // (A) 转为 TransferDst
         cmd.transitionImage(dstImage,
                             initialLayout,
                             vk::ImageLayout::eTransferDstOptimal,
@@ -344,16 +366,16 @@ inline void uploadImageDataImmediate(VulkanContext*   ctx,
                             vk::PipelineStageFlagBits2::eTransfer,
                             vk::AccessFlagBits2::eTransferWrite);
 
-        // (2) buffer -> image
-        cmd.copyBufferToImage(staging, dstImage, extent);
+        // (B) 拷贝 Buffer -> Image
+        cmd.copyBufferToImage(*staging, dstImage, extent);
 
-        // (3) TRANSFER_DST_OPTIMAL -> finalLayout（通常是 SHADER_READ_ONLY_OPTIMAL）
+        // (C) 转为 ShaderRead
         cmd.transitionImage(dstImage,
                             vk::ImageLayout::eTransferDstOptimal,
                             finalLayout,
                             vk::PipelineStageFlagBits2::eTransfer,
                             vk::AccessFlagBits2::eTransferWrite,
-                            vk::PipelineStageFlagBits2::eFragmentShader,
+                            vk::PipelineStageFlagBits2::eFragmentShader, // 或者 eAllCommands
                             vk::AccessFlagBits2::eShaderRead);
     });
 }

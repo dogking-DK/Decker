@@ -118,7 +118,7 @@ target_link_libraries(${PROJECT_NAME}
     glslang::glslang
     glslang::glslang-default-resource-limits
     glslang::SPIRV
-    glslang::SPVRemapper
+    # glslang::SPVRemapper
     implot::implot
     imgui::imgui
     tsl::robin_map
