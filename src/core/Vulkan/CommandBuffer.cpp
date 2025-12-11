@@ -17,6 +17,12 @@ struct StageAccess
     vk::AccessFlags2        access;
 };
 
+struct BufferStageAccess
+{
+    vk::PipelineStageFlags2 stage;
+    vk::AccessFlags2        access;
+};
+
 vk::ImageLayout layout_for_usage(const ImageUsage& usage)
 {
     switch (usage)
@@ -85,6 +91,59 @@ StageAccess stage_access_for_usage(const ImageUsage& usage, const bool is_src)
     return {
         vk::PipelineStageFlagBits2::eTopOfPipe,
         vk::AccessFlagBits2::eNone
+    };
+}
+
+
+BufferStageAccess stage_access_for_buffer(BufferUsage usage, bool isSrc)
+{
+    switch (usage)
+    {
+    case BufferUsage::VertexBuffer:
+        return {
+            vk::PipelineStageFlagBits2::eVertexInput,
+            vk::AccessFlagBits2::eVertexAttributeRead
+        };
+    case BufferUsage::IndexBuffer:
+        return {
+            vk::PipelineStageFlagBits2::eVertexInput,
+            vk::AccessFlagBits2::eIndexRead
+        };
+    case BufferUsage::UniformBuffer:
+        return {
+            vk::PipelineStageFlagBits2::eVertexShader |
+            vk::PipelineStageFlagBits2::eFragmentShader |
+            vk::PipelineStageFlagBits2::eComputeShader,
+            vk::AccessFlagBits2::eUniformRead
+        };
+    case BufferUsage::StorageBuffer:
+        return {
+            vk::PipelineStageFlagBits2::eComputeShader |
+            vk::PipelineStageFlagBits2::eFragmentShader,
+            isSrc
+                ? vk::AccessFlagBits2::eShaderStorageWrite
+                : (vk::AccessFlagBits2::eShaderStorageRead |
+                   vk::AccessFlagBits2::eShaderStorageWrite)
+        };
+    case BufferUsage::IndirectBuffer:
+        return {
+            vk::PipelineStageFlagBits2::eDrawIndirect,
+            vk::AccessFlagBits2::eIndirectCommandRead
+        };
+    case BufferUsage::TransferSrcOnly:
+        return {
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eTransferRead
+        };
+    case BufferUsage::TransferDstOnly:
+        return {
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eTransferWrite
+        };
+    }
+    return {
+        vk::PipelineStageFlagBits2::eAllCommands,
+        vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite
     };
 }
 }
@@ -195,7 +254,7 @@ void CommandBuffer::copyBufferToImage(const BufferResource& src,
     vk::CopyBufferToImageInfo2 info{};
     info.srcBuffer      = src.getHandle();
     info.dstImage       = dst.getHandle();
-    info.dstImageLayout = vk::ImageLayout::eTransferDstOptimal;
+    info.dstImageLayout = dst.getCurrentLayout();
     info.regionCount    = 1;
     info.pRegions       = &region;
 
@@ -313,45 +372,43 @@ void CommandBuffer::copyImageToImage(const ImageResource& source, const ImageRes
     _handle.blitImage2(&blit_info);
 }
 
-void copy_buffer_immediate(VulkanContext* ctx, CommandPool* pool, const vk::Queue& queue, const BufferResource& src,
+void copy_buffer_immediate(UploadContext&        ctx, const BufferResource&                 src,
                            const BufferResource& dst, vk::ArrayProxy<const vk::BufferCopy2> regions,
-                           bool prepForShaderRead, vk::PipelineStageFlags2 dstStages, vk::AccessFlags2 dstAccess)
+                           BufferUsage           dst_usage)
 {
-    execute_immediate(ctx, pool, queue, [&](CommandBuffer& cmd)
+    const auto sa = stage_access_for_buffer(dst_usage, false);
+    execute_immediate(ctx, [&](CommandBuffer& cmd)
     {
         // copy2（你已有封装）
         for (const auto& r : regions)
         {
-            cmd.copyBuffer(src, dst, r); // 内部用 vk::CopyBufferInfo2 + copyBuffer2 ✅
+            cmd.copyBuffer(src, dst, r); // 内部用 vk::CopyBufferInfo2 + copyBuffer2
         }
 
-        if (prepForShaderRead)
-        {
-            vk::BufferMemoryBarrier2 b{};
-            b.srcStageMask  = vk::PipelineStageFlagBits2::eTransfer;
-            b.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
-            b.dstStageMask  = dstStages;   // 例如 eComputeShader / eMeshShaderEXT / eFragmentShader
-            b.dstAccessMask = dstAccess;   // 例如 eShaderStorageRead / eUniformRead
-            b.buffer        = dst.getHandle();
-            b.offset        = 0;
-            b.size          = VK_WHOLE_SIZE;
+        vk::BufferMemoryBarrier2 b{};
+        b.srcStageMask  = vk::PipelineStageFlagBits2::eTransfer;
+        b.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
+        b.dstStageMask  = sa.stage;   // 例如 eComputeShader / eMeshShaderEXT / eFragmentShader
+        b.dstAccessMask = sa.access;   // 例如 eShaderStorageRead / eUniformRead
+        b.buffer        = dst.getHandle();
+        b.offset        = 0;
+        b.size          = dst.getSize();
 
-            vk::DependencyInfo dep{};
-            dep.bufferMemoryBarrierCount = 1;
-            dep.pBufferMemoryBarriers    = &b;
+        vk::DependencyInfo dep{};
+        dep.bufferMemoryBarrierCount = 1;
+        dep.pBufferMemoryBarriers    = &b;
 
-            // 直接在同一 CB 末尾做可见性转换
-            cmd.getHandle().pipelineBarrier2(dep);
-        }
+        // 直接在同一 CB 末尾做可见性转换
+        cmd.getHandle().pipelineBarrier2(dep);
     });
 }
 
-void upload_buffer_data_immediate(VulkanContext* ctx, CommandPool* pool, const vk::Queue& queue, const void* srcData,
-                                  vk::DeviceSize size, BufferResource& dst, vk::DeviceSize dstOffset,
-                                  vk::PipelineStageFlags2 dstStages,
-                                  vk::AccessFlags2 dstAccess)
+void upload_buffer_data_immediate(UploadContext& ctx, const void* srcData, vk::DeviceSize size, BufferResource& dst,
+                                  vk::DeviceSize dstOffset, BufferUsage dst_usage)
 
 {
+    const auto sa = stage_access_for_buffer(dst_usage, false);
+
     // 1. 内部创建临时的 Staging Buffer
     //    使用 VMA_MEMORY_USAGE_CPU_ONLY 或 CPU_TO_GPU 确保 host 可写
     BufferResource::Builder builder;
@@ -361,7 +418,7 @@ void upload_buffer_data_immediate(VulkanContext* ctx, CommandPool* pool, const v
            .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
                          VMA_ALLOCATION_CREATE_MAPPED_BIT); // 自动映射，方便 update
 
-    auto staging = builder.buildUnique(*ctx);
+    auto staging = builder.buildUnique(*ctx.ctx);
 
     // 2. 写入数据 (staging 是 host visible 的)
     staging->update(srcData, size);
@@ -372,23 +429,19 @@ void upload_buffer_data_immediate(VulkanContext* ctx, CommandPool* pool, const v
     region.dstOffset = dstOffset;
     region.size      = size;
 
-    copy_buffer_immediate(ctx, pool, queue,
+    copy_buffer_immediate(ctx,
                           *staging, dst,
                           {region},
-                          true,        // prepForShaderRead (自动加 Barrier)
-                          dstStages,
-                          dstAccess);
+                          dst_usage);
 
     // 函数结束，staging 智能指针析构，临时 Buffer 自动释放
 }
 
-void upload_image_data_immediate(VulkanContext*   ctx,
-                                 CommandPool*     pool,
-                                 const vk::Queue& queue,
-                                 const void*      srcPixels,
-                                 size_t           dataSize,
-                                 ImageResource&   dstImage,
-                                 ImageUsage       finalUsage)
+void upload_image_data_immediate(UploadContext& ctx,
+                                 const void*    srcPixels,
+                                 size_t         dataSize,
+                                 ImageResource& dstImage,
+                                 ImageUsage     finalUsage)
 {
     // 1. 临时 staging buffer
     BufferResource::Builder builder;
@@ -398,13 +451,13 @@ void upload_image_data_immediate(VulkanContext*   ctx,
            .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
                          VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-    auto staging = builder.buildUnique(*ctx);
+    auto staging = builder.buildUnique(*ctx.ctx);
 
     // 2. 写入像素数据
     staging->update(srcPixels, dataSize);
 
     // 3. 录制：Undefined/当前状态 -> TransferDst -> 拷贝 -> finalUsage
-    execute_immediate(ctx, pool, queue, [&](CommandBuffer& cmd)
+    execute_immediate(ctx, [&](CommandBuffer& cmd)
     {
         // 确保 CPU 侧状态从一个合理的起点开始
         // 如果你知道创建时就是 UNDEFINED，可以这里重置一下：

@@ -9,6 +9,7 @@
 #include "Window/SDLWindow.h"
 
 namespace dk::vkcore {
+class CommandPool;
 
 enum class VulkanContextType
 {
@@ -20,7 +21,7 @@ enum class VulkanContextType
 class VulkanContext
 {
 public:
-    VulkanContext(const uint32_t width = 1920, const uint32_t height = 1080);
+    VulkanContext(uint32_t width = 1920, uint32_t height = 1080);
     ~VulkanContext();
 
     vk::Device               getDevice() const { return _device; }
@@ -62,7 +63,7 @@ private:
     void initInstance();
     void initDevice(vk::SurfaceKHR& surface);
 
-    void initVulkan(const uint32_t width = 1920, const uint32_t height = 1080);
+    void initVulkan(uint32_t width = 1920, uint32_t height = 1080);
     void initVma();
 
     void initVkhppDispatchers(vk::Instance& instance, vk::Device& device);
@@ -70,5 +71,33 @@ private:
     void deleteVma();
 
     void cleanup();
+};
+
+struct UploadContext
+{
+    VulkanContext* ctx{};
+    CommandPool*   pool{};
+    vk::Queue      queue{};
+    vk::Fence      fence{};  // 常驻 fence
+
+    void init(VulkanContext* c, CommandPool* p, const vk::Queue& q)
+    {
+        ctx   = c;
+        pool  = p;
+        queue = q;
+
+        VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        fi.flags = VK_FENCE_CREATE_SIGNALED_BIT; // 先置为 signaled，第一次用前不用等
+        fence    = ctx->getDevice().createFence(fi, nullptr);
+    }
+
+    void shutdown()
+    {
+        if (fence)
+        {
+            vkDestroyFence(ctx->getDevice(), fence, nullptr);
+            fence = VK_NULL_HANDLE;
+        }
+    }
 };
 } // vkcore

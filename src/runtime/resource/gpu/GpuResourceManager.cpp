@@ -22,12 +22,11 @@ using namespace dk::vkcore;
 
 namespace dk {
 namespace {
-
 } // namespace
 
-GpuResourceManager::GpuResourceManager(vkcore::VulkanContext& context, vkcore::CommandPool& command_pool,
+GpuResourceManager::GpuResourceManager(VulkanContext&  ctx, UploadContext& upload_ctx,
                                        ResourceLoader& cpu_loader)
-    : _context(context), _command_pool(command_pool), _cpu_loader(cpu_loader)
+    : _context(ctx), _upload_ctx(upload_ctx), _cpu_loader(cpu_loader)
 {
 }
 
@@ -49,88 +48,60 @@ std::shared_ptr<GPUMesh> GpuResourceManager::uploadMeshData(const MeshData& mesh
         gpu_vertices[i] = v;
     }
 
-    auto staging = createBuffer(_context, sizeof(GPUVertex) * gpu_vertices.size(),
-                                vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU,
-                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    auto gpu_mesh = std::make_shared<GPUMesh>();
 
-    staging->update(gpu_vertices.data(), sizeof(GPUVertex) * gpu_vertices.size());
+    gpu_mesh->vertex_buffer = BufferResource::Builder()
+                             .setSize(sizeof(GPUVertex) * gpu_vertices.size())
+                             .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
+                             .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eDeviceLocal)
+                             .withVmaUsage(VMA_MEMORY_USAGE_AUTO)
+                             .buildUnique(_context);
+    upload_buffer_data_immediate(_upload_ctx, gpu_vertices.data(), sizeof(GPUVertex) * gpu_vertices.size(), *gpu_mesh->
+                                 vertex_buffer, 0, BufferUsage::StorageBuffer);
 
-    auto vertex_buffer = createBuffer(_context, sizeof(GPUVertex) * gpu_vertices.size(),
-                                      vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-                                      VMA_MEMORY_USAGE_GPU_ONLY);
+    gpu_mesh->index_buffer = BufferResource::Builder()
+                            .setSize(sizeof(uint32_t) * mesh.indices.size())
+                            .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
+                            .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eDeviceLocal)
+                            .withVmaUsage(VMA_MEMORY_USAGE_AUTO)
+                            .buildUnique(_context);
+    upload_buffer_data_immediate(_upload_ctx, mesh.indices.data(), sizeof(uint32_t) * mesh.indices.size(), *gpu_mesh->
+                                 index_buffer, 0, BufferUsage::StorageBuffer);
 
-    auto index_staging = createBuffer(_context, sizeof(uint32_t) * mesh.indices.size(),
-                                      vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU,
-                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    index_staging->update(mesh.indices.data(), sizeof(uint32_t) * mesh.indices.size());
-
-    auto index_buffer = createBuffer(_context, sizeof(uint32_t) * mesh.indices.size(),
-                                     vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-                                     VMA_MEMORY_USAGE_GPU_ONLY);
-
-    submitAndWait(_context, _command_pool, [&](CommandBuffer& cmd) {
-        vk::BufferCopy2 vertex_copy{0, 0, sizeof(GPUVertex) * gpu_vertices.size()};
-        cmd.copyBuffer(*staging, *vertex_buffer, vertex_copy);
-
-        vk::BufferCopy2 index_copy{0, 0, sizeof(uint32_t) * mesh.indices.size()};
-        cmd.copyBuffer(*index_staging, *index_buffer, index_copy);
-    });
-
-    auto gpu_mesh           = std::make_shared<GPUMesh>();
-    gpu_mesh->vertex_buffer = std::move(vertex_buffer);
-    gpu_mesh->index_buffer  = std::move(index_buffer);
-    gpu_mesh->vertex_count  = vertex_count;
-    gpu_mesh->index_count   = index_count;
+    gpu_mesh->vertex_count = vertex_count;
+    gpu_mesh->index_count  = index_count;
     return gpu_mesh;
 }
 
 std::shared_ptr<GPUTexture> GpuResourceManager::uploadTextureData(const TextureData& texture)
 {
-    const vk::DeviceSize image_size = texture.width * texture.height * texture.channels;
-    auto staging                   = createBuffer(_context, image_size, vk::BufferUsageFlagBits::eTransferSrc,
-                                                 VMA_MEMORY_USAGE_CPU_TO_GPU,
-                                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    staging->update(texture.pixels.data(), image_size);
+    const vk::DeviceSize image_size = texture.width * texture.height * texture.depth;
 
     ImageResource::Builder image_builder;
-    image_builder.setFormat(vk::Format::eR8G8B8A8Unorm)
-        .setExtent({texture.width, texture.height, 1})
-        .setUsage(vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled);
-    auto image = image_builder.buildUnique(_context);
+    auto                   image = image_builder.setFormat(vk::Format::eR8G8B8A8Unorm)
+                                                .setExtent({texture.width, texture.height, 1})
+                                                .setUsage(
+                                                     vk::ImageUsageFlagBits::eTransferDst |
+                                                     vk::ImageUsageFlagBits::eSampled)
+                                                .buildUnique(_context);
 
-    submitAndWait(_context, _command_pool, [&](CommandBuffer& cmd) {
-        cmd.transitionImage(*image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal,
-                            vk::PipelineStageFlagBits2::eTopOfPipe, {},
-                            vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+    upload_image_data_immediate(_upload_ctx, texture.pixels.data(), image_size, *image, ImageUsage::Sampled);
 
-        vk::BufferImageCopy region{};
-        region.imageExtent = vk::Extent3D(texture.width, texture.height, 1);
-        region.imageSubresource.setAspectMask(vk::ImageAspectFlagBits::eColor);
-        region.imageSubresource.setLayerCount(1);
+    auto view    = ImageViewResource::create2D(_context, *image, vk::Format::eR8G8B8A8Unorm);
+    auto sampler = std::make_unique<SamplerResource>(_context, makeLinearClampSamplerInfo());
 
-        cmd.getHandle().copyBufferToImage(staging->getHandle(), image->getHandle(), vk::ImageLayout::eTransferDstOptimal,
-                                          1, &region);
-
-        cmd.transitionImage(*image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal,
-                            vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite,
-                            vk::PipelineStageFlagBits2::eFragmentShader,
-                            vk::AccessFlagBits2::eShaderRead);
-    });
-
-    auto view = ImageViewResource::create2D(_context, *image, vk::Format::eR8G8B8A8Unorm);
-    auto samp = std::make_unique<SamplerResource>(_context, makeLinearClampSamplerInfo());
-
-    auto gpu_tex   = std::make_shared<GPUTexture>();
-    gpu_tex->image = std::move(image);
-    gpu_tex->view  = std::move(view);
-    gpu_tex->sampler = std::move(samp);
+    auto gpu_tex     = std::make_shared<GPUTexture>();
+    gpu_tex->image   = std::move(image);
+    gpu_tex->view    = std::move(view);
+    gpu_tex->sampler = std::move(sampler);
     gpu_tex->layout  = vk::ImageLayout::eShaderReadOnlyOptimal;
     return gpu_tex;
 }
 
 std::shared_ptr<GPUMesh> GpuResourceManager::loadMesh(UUID id)
 {
-    return _cache.resolve<GPUMesh>(id, [&] {
+    return _cache.resolve<GPUMesh>(id, [&]
+    {
         auto cpu = _cpu_loader.load<MeshData>(id);
         if (!cpu) return std::shared_ptr<GPUMesh>{};
         return uploadMeshData(*cpu);
@@ -139,7 +110,8 @@ std::shared_ptr<GPUMesh> GpuResourceManager::loadMesh(UUID id)
 
 std::shared_ptr<GPUTexture> GpuResourceManager::loadTexture(UUID id)
 {
-    return _cache.resolve<GPUTexture>(id, [&] {
+    return _cache.resolve<GPUTexture>(id, [&]
+    {
         auto cpu = _cpu_loader.load<TextureData>(id);
         if (!cpu) return std::shared_ptr<GPUTexture>{};
         return uploadTextureData(*cpu);
@@ -148,11 +120,12 @@ std::shared_ptr<GPUTexture> GpuResourceManager::loadTexture(UUID id)
 
 std::shared_ptr<GPUMaterial> GpuResourceManager::loadMaterial(UUID id)
 {
-    return _cache.resolve<GPUMaterial>(id, [&] {
+    return _cache.resolve<GPUMaterial>(id, [&]
+    {
         auto cpu = _cpu_loader.load<MaterialData>(id);
         if (!cpu) return std::shared_ptr<GPUMaterial>{};
 
-        auto gpu = std::make_shared<GPUMaterial>();
+        auto gpu        = std::make_shared<GPUMaterial>();
         gpu->metallic   = cpu->metallic;
         gpu->roughness  = cpu->roughness;
         gpu->base_color = glm::vec4(

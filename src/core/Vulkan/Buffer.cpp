@@ -31,6 +31,8 @@ BufferResource::BufferResource(VulkanContext& context, Builder& builder)
         _data         = _allocation_info.pMappedData;
         _owns_mapping = false; // 不是我们调用 map 得到的
     }
+    _size = builder.getCreateInfo().size;
+
 }
 
 // 下面这些函数保持不变

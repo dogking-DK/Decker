@@ -6,6 +6,18 @@
 namespace dk::vkcore {
 class VulkanContext;
 
+enum class BufferUsage
+{
+    VertexBuffer,
+    IndexBuffer,
+    UniformBuffer,
+    StorageBuffer,       // SSBO
+    IndirectBuffer,
+    TransferSrcOnly,     // 只作为后续 copy 源
+    TransferDstOnly      // 只作为后续 copy 目标
+};
+
+
 // 使用 vk::Buffer 封装的 Buffer 资源类
 class BufferResource : public Resource<vk::Buffer, vk::ObjectType::eBuffer>
 {
@@ -93,6 +105,7 @@ public:
         return vk::DescriptorBufferInfo{_handle, offset, VK_WHOLE_SIZE};
     }
 
+    vk::DeviceSize getSize() const { return _size; }
 private:
     VmaAllocation     _allocation{};
     VmaAllocationInfo _allocation_info{};
@@ -102,5 +115,6 @@ private:
     bool         _host_visible  = false;
     bool         _host_coherent = false;
     VkDeviceSize _atom_size     = 8;  // 由物理设备属性 limits.nonCoherentAtomSize 传入
+    vk::DeviceSize _size = 0;
 };
 }

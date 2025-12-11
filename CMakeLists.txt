@@ -18,6 +18,34 @@ project(Decker
         LANGUAGES CXX C
 )
 
+
+# ===================== MSVC 全局编译/链接优化 =====================
+if (MSVC)
+    # 1. 所有配置都开启多核编译
+    add_compile_options(/MP)
+
+    # 2. 针对不同配置做定制
+    # Debug：强调可调试，优化关，链接快
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi")
+    set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} /Zi")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG    "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /DEBUG:FASTLINK")
+    set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} /DEBUG:FASTLINK")
+
+    # RelWithDebInfo：开优化+带调试符号，用于“跑起来 + 看栈”
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /Zi")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO   "${CMAKE_C_FLAGS_RELWITHDEBINFO} /Zi")
+    set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
+        "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /DEBUG:FASTLINK")
+    set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO
+        "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /DEBUG:FASTLINK")
+
+    # Release：只关心优化和体积，通常不需要 PDB（按需）
+    # 如果你希望 Release 也带一点调试信息，可以类似加上 /Zi /DEBUG:FASTLINK
+    # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+    # set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG:FASTLINK")
+endif ()
+# ===================== MSVC 优化结束 =====================
+
 # build all examples into the bin directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 

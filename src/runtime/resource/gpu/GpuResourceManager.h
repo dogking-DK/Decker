@@ -21,7 +21,7 @@ namespace vkcore {
 class GpuResourceManager
 {
 public:
-    GpuResourceManager(vkcore::VulkanContext& context, vkcore::CommandPool& command_pool, ResourceLoader& cpu_loader);
+    GpuResourceManager(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx, ResourceLoader& cpu_loader);
 
     std::shared_ptr<GPUMesh>     loadMesh(UUID id);
     std::shared_ptr<GPUTexture>  loadTexture(UUID id);
@@ -32,7 +32,7 @@ private:
     std::shared_ptr<GPUTexture> uploadTextureData(const TextureData& texture);
 
     vkcore::VulkanContext& _context;
-    vkcore::CommandPool&   _command_pool;
+    vkcore::UploadContext& _upload_ctx;
     ResourceLoader&        _cpu_loader;
     ResourceCache          _cache;
 };

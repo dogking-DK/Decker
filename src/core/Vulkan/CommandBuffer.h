@@ -204,52 +204,40 @@ private:
 
 // C++20 约束（可选）：只有能以 (CommandBuffer&) 调用的才匹配
 template <std::invocable<CommandBuffer&> Func>
-void execute_immediate(VulkanContext*   ctx,
-                       CommandPool*     pool,
-                       const vk::Queue& queue,
-                       Func&&           record)          // ⭐ 转发引用，保留值类别与可变性
+void execute_immediate(UploadContext& ctx,
+                       Func&&         record)          // ⭐ 转发引用，保留值类别与可变性
 {
-    CommandBuffer cmd(ctx, pool);
+    CommandBuffer cmd(ctx.ctx, ctx.pool);
     cmd.begin(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
     std::invoke(std::forward<Func>(record), cmd);  // ⭐ 完美转发调用
 
     cmd.end();
 
-    vk::UniqueFence fence = ctx->getDevice().createFenceUnique({});
-    cmd.submit2(queue, fence.get());
-    (void)ctx->getDevice().waitForFences({fence.get()}, VK_TRUE, UINT64_MAX);
+    vk::UniqueFence fence = ctx.ctx->getDevice().createFenceUnique({});
+    cmd.submit2(ctx.queue, fence.get());
+    (void)ctx.ctx->getDevice().waitForFences({fence.get()}, VK_TRUE, UINT64_MAX);
 
     // 视你的实现可 reset 复用或直接销毁
     cmd.reset();
 }
 
-inline void copy_buffer_immediate(VulkanContext*                        ctx,
-                                  CommandPool*                          pool,
-                                  const vk::Queue&                      queue,
-                                  const BufferResource&                 src,
-                                  const BufferResource&                 dst,
-                                  vk::ArrayProxy<const vk::BufferCopy2> regions,
-                                  // 可选：把目标准备成 Shader 读
-                                  bool                    prepForShaderRead = true,
-                                  vk::PipelineStageFlags2 dstStages         = vk::PipelineStageFlagBits2::eAllCommands,
-                                  vk::AccessFlags2        dstAccess         = vk::AccessFlagBits2::eShaderStorageRead);
+void copy_buffer_immediate(UploadContext&                        ctx,
+                           const BufferResource&                 src,
+                           const BufferResource&                 dst,
+                           vk::ArrayProxy<const vk::BufferCopy2> regions,
+                           BufferUsage                           dst_usage);
 
-inline void upload_buffer_data_immediate(VulkanContext*          ctx,
-                                         CommandPool*            pool,
-                                         const vk::Queue&        queue,
-                                         const void*             srcData,
-                                         vk::DeviceSize          size,
-                                         BufferResource&         dst,
-                                         vk::DeviceSize          dstOffset = 0,
-                                         vk::PipelineStageFlags2 dstStages = vk::PipelineStageFlagBits2::eAllCommands,
-                                         vk::AccessFlags2        dstAccess = vk::AccessFlagBits2::eShaderStorageRead);
+void upload_buffer_data_immediate(UploadContext&  ctx,
+                                  const void*     srcData,
+                                  vk::DeviceSize  size,
+                                  BufferResource& dst,
+                                  vk::DeviceSize  dstOffset = 0,
+                                  BufferUsage     dst_usage = BufferUsage::StorageBuffer);
 
-inline void upload_image_data_immediate(VulkanContext*   ctx,
-                                        CommandPool*     pool,
-                                        const vk::Queue& queue,
-                                        const void*      srcPixels,
-                                        size_t           dataSize,
-                                        ImageResource&   dstImage,
-                                        ImageUsage       finalUsage = ImageUsage::Sampled);
+void upload_image_data_immediate(UploadContext& ctx,
+                                 const void*    srcPixels,
+                                 size_t         dataSize,
+                                 ImageResource& dstImage,
+                                 ImageUsage     finalUsage = ImageUsage::Sampled);
 }
