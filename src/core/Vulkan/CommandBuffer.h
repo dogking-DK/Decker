@@ -5,8 +5,10 @@
 #include "CommandPool.h"
 #include "Resource.hpp"
 #include "Buffer.h"
+#include "Image.h"
 
 namespace dk::vkcore {
+enum class ImageUsage;
 class ImageResource;
 }
 
@@ -164,9 +166,7 @@ public:
         setScissor(0, 0, width, height);
     }
 
-
-    void transitionImage(const ImageResource&    image,
-                         vk::ImageLayout         current_layout,
+    void transitionImage(ImageResource&          image,
                          vk::ImageLayout         new_layout,
                          vk::PipelineStageFlags2 src_stage  = vk::PipelineStageFlagBits2::eAllCommands,
                          vk::AccessFlags2        src_access = vk::AccessFlagBits2::eMemoryWrite,
@@ -174,55 +174,29 @@ public:
                          vk::AccessFlags2        dst_access =
                              vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite);
 
-    void copyImageToImage(const ImageResource& source, const ImageResource& destination, vk::Extent2D src_size,
-                          vk::Extent2D         dst_size);
+    void transitionImage(ImageResource& image, const ImageUsage& new_usage);
 
-    void copyImageToImage(const vk::Image& source, const vk::Image& destination, vk::Extent2D src_size,
-                          vk::Extent2D     dst_size);
+    void copyImageToImage(const ImageResource& source, const ImageResource& destination);
 
-    void generateMipmaps(const ImageResource& image, vk::Extent2D image_size);
+    void generateMipmaps(ImageResource& image, vk::Extent2D image_size);
 
     void copyBuffer(const BufferResource& src, const BufferResource& dst, vk::BufferCopy2 copy);
 
     // 新增：从 buffer 拷贝到 image（假定 image 已处于 eTransferDstOptimal）
     void copyBufferToImage(const BufferResource& src,
                            const ImageResource&  dst,
-                           vk::Extent3D          extent,
                            uint32_t              mipLevel       = 0,
                            uint32_t              baseArrayLayer = 0,
                            uint32_t              layerCount     = 1);
 
-
     // 提交命令缓冲区到队列
-    void submit(const vk::Queue& queue, const vk::Fence& fence = nullptr)
-    {
-        vk::SubmitInfo submitInfo;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers    = &_handle;
-        queue.submit(submitInfo, fence);
-    }
+    void submit(const vk::Queue& queue, const vk::Fence& fence = nullptr);
 
     // 单个 CommandBuffer 的封装方法
     void submit2(const vk::Queue&                              queue,
                  vk::Fence                                     fence   = {},
                  vk::ArrayProxy<const vk::SemaphoreSubmitInfo> waits   = {},
-                 vk::ArrayProxy<const vk::SemaphoreSubmitInfo> signals = {}) const
-    {
-        // 本方法封装的是“只有这一个 _handle”的提交
-        vk::CommandBufferSubmitInfo cmdBufInfo{_handle};
-
-        vk::SubmitInfo2 si{};
-        si.waitSemaphoreInfoCount   = waits.size();
-        si.pWaitSemaphoreInfos      = waits.data();
-        si.commandBufferInfoCount   = 1;
-        si.pCommandBufferInfos      = &cmdBufInfo;
-        si.signalSemaphoreInfoCount = signals.size();
-        si.pSignalSemaphoreInfos    = signals.data();
-
-        // Vulkan 1.3 同步2：queue.submit2(...)
-        // 如果你走扩展而非 1.3，请改为 queue.submit2KHR(si, fence);
-        queue.submit2(si, fence);
-    }
+                 vk::ArrayProxy<const vk::SemaphoreSubmitInfo> signals = {}) const;
 
 private:
     CommandPool* _command_pool;
@@ -230,10 +204,10 @@ private:
 
 // C++20 约束（可选）：只有能以 (CommandBuffer&) 调用的才匹配
 template <std::invocable<CommandBuffer&> Func>
-void executeImmediate(VulkanContext*   ctx,
-                      CommandPool*     pool,
-                      const vk::Queue& queue,
-                      Func&&           record)          // ⭐ 转发引用，保留值类别与可变性
+void execute_immediate(VulkanContext*   ctx,
+                       CommandPool*     pool,
+                       const vk::Queue& queue,
+                       Func&&           record)          // ⭐ 转发引用，保留值类别与可变性
 {
     CommandBuffer cmd(ctx, pool);
     cmd.begin(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
@@ -250,133 +224,32 @@ void executeImmediate(VulkanContext*   ctx,
     cmd.reset();
 }
 
-inline void copyBufferImmediate(VulkanContext*                        ctx,
-                                CommandPool*                          pool,
-                                const vk::Queue&                      queue,
-                                const BufferResource&                 src,
-                                const BufferResource&                 dst,
-                                vk::ArrayProxy<const vk::BufferCopy2> regions,
-                                // 可选：把目标准备成 Shader 读
-                                bool                    prepForShaderRead = true,
-                                vk::PipelineStageFlags2 dstStages         = vk::PipelineStageFlagBits2::eAllCommands,
-                                vk::AccessFlags2        dstAccess         = vk::AccessFlagBits2::eShaderStorageRead)
-{
-    executeImmediate(ctx, pool, queue, [&](CommandBuffer& cmd)
-    {
-        // copy2（你已有封装）
-        for (const auto& r : regions)
-        {
-            cmd.copyBuffer(src, dst, r); // 内部用 vk::CopyBufferInfo2 + copyBuffer2 ✅
-        }
+inline void copy_buffer_immediate(VulkanContext*                        ctx,
+                                  CommandPool*                          pool,
+                                  const vk::Queue&                      queue,
+                                  const BufferResource&                 src,
+                                  const BufferResource&                 dst,
+                                  vk::ArrayProxy<const vk::BufferCopy2> regions,
+                                  // 可选：把目标准备成 Shader 读
+                                  bool                    prepForShaderRead = true,
+                                  vk::PipelineStageFlags2 dstStages         = vk::PipelineStageFlagBits2::eAllCommands,
+                                  vk::AccessFlags2        dstAccess         = vk::AccessFlagBits2::eShaderStorageRead);
 
-        if (prepForShaderRead)
-        {
-            vk::BufferMemoryBarrier2 b{};
-            b.srcStageMask  = vk::PipelineStageFlagBits2::eTransfer;
-            b.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
-            b.dstStageMask  = dstStages;   // 例如 eComputeShader / eMeshShaderEXT / eFragmentShader
-            b.dstAccessMask = dstAccess;   // 例如 eShaderStorageRead / eUniformRead
-            b.buffer        = dst.getHandle();
-            b.offset        = 0;
-            b.size          = VK_WHOLE_SIZE;
+inline void upload_buffer_data_immediate(VulkanContext*          ctx,
+                                         CommandPool*            pool,
+                                         const vk::Queue&        queue,
+                                         const void*             srcData,
+                                         vk::DeviceSize          size,
+                                         BufferResource&         dst,
+                                         vk::DeviceSize          dstOffset = 0,
+                                         vk::PipelineStageFlags2 dstStages = vk::PipelineStageFlagBits2::eAllCommands,
+                                         vk::AccessFlags2        dstAccess = vk::AccessFlagBits2::eShaderStorageRead);
 
-            vk::DependencyInfo dep{};
-            dep.bufferMemoryBarrierCount = 1;
-            dep.pBufferMemoryBarriers    = &b;
-
-            // 直接在同一 CB 末尾做可见性转换
-            cmd.getHandle().pipelineBarrier2(dep);
-        }
-    });
-}
-
-inline void uploadBufferDataImmediate(VulkanContext*          ctx,
-                                      CommandPool*            pool,
-                                      const vk::Queue&        queue,
-                                      const void*             srcData,
-                                      vk::DeviceSize          size,
-                                      BufferResource&         dst,
-                                      vk::DeviceSize          dstOffset = 0,
-                                      vk::PipelineStageFlags2 dstStages = vk::PipelineStageFlagBits2::eAllCommands,
-                                      vk::AccessFlags2        dstAccess = vk::AccessFlagBits2::eShaderStorageRead)
-{
-    // 1. 内部创建临时的 Staging Buffer
-    //    使用 VMA_MEMORY_USAGE_CPU_ONLY 或 CPU_TO_GPU 确保 host 可写
-    BufferResource::Builder builder;
-    builder.setSize(size)
-           .setUsage(vk::BufferUsageFlagBits::eTransferSrc)
-           .withVmaUsage(VMA_MEMORY_USAGE_AUTO)
-           .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-                         VMA_ALLOCATION_CREATE_MAPPED_BIT); // 自动映射，方便 update
-
-    auto staging = builder.buildUnique(*ctx);
-
-    // 2. 写入数据 (staging 是 host visible 的)
-    staging->update(srcData, size);
-
-    // 3. 执行拷贝
-    vk::BufferCopy2 region{};
-    region.srcOffset = 0;
-    region.dstOffset = dstOffset;
-    region.size      = size;
-
-    copyBufferImmediate(ctx, pool, queue,
-                        *staging, dst,
-                        {region},
-                        true,        // prepForShaderRead (自动加 Barrier)
-                        dstStages,
-                        dstAccess);
-
-    // 函数结束，staging 智能指针析构，临时 Buffer 自动释放
-}
-
-
-inline void uploadImageDataImmediate(VulkanContext*   ctx,
-                                     CommandPool*     pool,
-                                     const vk::Queue& queue,
-                                     const void*      srcPixels,
-                                     size_t           dataSize,
-                                     ImageResource&   dstImage,
-                                     vk::Extent3D     extent,
-                                     vk::ImageLayout  initialLayout = vk::ImageLayout::eUndefined,
-                                     vk::ImageLayout  finalLayout   = vk::ImageLayout::eShaderReadOnlyOptimal)
-{
-    // 1. 内部创建临时的 Staging Buffer
-    BufferResource::Builder builder;
-    builder.setSize(dataSize)
-           .setUsage(vk::BufferUsageFlagBits::eTransferSrc)
-           .withVmaUsage(VMA_MEMORY_USAGE_AUTO)
-           .withVmaFlags(VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-                         VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-    auto staging = builder.buildUnique(*ctx);
-
-    // 2. 写入像素数据
-    staging->update(srcPixels, dataSize);
-
-    // 3. 录制命令：转换布局 -> 拷贝 -> 转换布局
-    executeImmediate(ctx, pool, queue, [&](CommandBuffer& cmd)
-    {
-        // (A) 转为 TransferDst
-        cmd.transitionImage(dstImage,
-                            initialLayout,
-                            vk::ImageLayout::eTransferDstOptimal,
-                            vk::PipelineStageFlagBits2::eTopOfPipe,
-                            vk::AccessFlagBits2::eNone,
-                            vk::PipelineStageFlagBits2::eTransfer,
-                            vk::AccessFlagBits2::eTransferWrite);
-
-        // (B) 拷贝 Buffer -> Image
-        cmd.copyBufferToImage(*staging, dstImage, extent);
-
-        // (C) 转为 ShaderRead
-        cmd.transitionImage(dstImage,
-                            vk::ImageLayout::eTransferDstOptimal,
-                            finalLayout,
-                            vk::PipelineStageFlagBits2::eTransfer,
-                            vk::AccessFlagBits2::eTransferWrite,
-                            vk::PipelineStageFlagBits2::eFragmentShader, // 或者 eAllCommands
-                            vk::AccessFlagBits2::eShaderRead);
-    });
-}
+inline void upload_image_data_immediate(VulkanContext*   ctx,
+                                        CommandPool*     pool,
+                                        const vk::Queue& queue,
+                                        const void*      srcPixels,
+                                        size_t           dataSize,
+                                        ImageResource&   dstImage,
+                                        ImageUsage       finalUsage = ImageUsage::Sampled);
 }

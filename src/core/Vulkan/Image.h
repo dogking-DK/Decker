@@ -8,6 +8,25 @@
 namespace dk::vkcore {
 class ImageViewResource;
 
+enum class ImageUsage
+{
+    Undefined,
+    TransferDst,
+    TransferSrc,
+    Sampled,             // Fragment/compute 采样
+    ColorAttachment,
+    DepthStencilAttachment,
+    Present
+};
+class Extent
+{
+public:
+    uint32_t width = {};
+    uint32_t height = {};
+    uint32_t depth = {};
+};
+
+
 class ImageResource : public Resource<vk::Image, vk::ObjectType::eImage>
 {
 public:
@@ -59,9 +78,15 @@ public:
             return *this;
         }
 
+        Builder& setInitialLayout(vk::ImageLayout layout)
+        {
+            _create_info.initialLayout = layout;
+            return *this;
+        }
+
         ImageResource build(VulkanContext& context)
         {
-            return ImageResource(context, *this);
+            return { context, *this };
         }
 
         std::unique_ptr<ImageResource> buildUnique(VulkanContext& context)
@@ -89,10 +114,21 @@ public:
 
     VmaAllocation getAllocation() const { return _allocation; }
 
+    vk::ImageLayout getCurrentLayout() const { return _current_layout; }
+
+    void setCurrentLayout(const vk::ImageLayout& layout) { _current_layout = layout; }
+
+    ImageUsage      getUsage() const { return _usage; }
+    void            setUsage(ImageUsage u) { _usage = u; }
+    Extent getExtent() const { return _extent; }
 private:
-    VmaAllocationCreateInfo            _allocation_create_info{};
     VmaAllocation                      _allocation = VK_NULL_HANDLE;
     VmaAllocationInfo                  _allocation_info{};
     tsl::robin_set<ImageViewResource*> _image_views;
+
+    vk::ImageLayout _current_layout = vk::ImageLayout::eUndefined;
+    ImageUsage      _usage = ImageUsage::Undefined;
+    Extent _extent;
+
 };
 }

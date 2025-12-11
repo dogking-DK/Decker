@@ -13,8 +13,10 @@ ImageResource::ImageResource(VulkanContext& context, Builder& builder)
         &_allocation,
         &_allocation_info
     );
-
-    _allocation_create_info = builder.getAllocationCreateInfo();
+    const auto& create_info = builder.getCreateInfo();
+    _current_layout         = create_info.initialLayout;
+    _usage                  = ImageUsage::Undefined;
+    _extent                 = {create_info.extent.width, create_info.extent.height, create_info.extent.depth};
 
     if (result != VK_SUCCESS)
     {
