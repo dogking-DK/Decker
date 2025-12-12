@@ -11,7 +11,6 @@
 #include "UUID.hpp"
 
 namespace dk {
-
 /// @brief 基础位姿结构，负责描述节点的局部变换。
 struct Transform
 {
@@ -52,12 +51,12 @@ struct LightComponent final : SceneComponent
         Spot,
     };
 
-    Type       type       = Type::Directional;
-    glm::vec3  color      = glm::vec3(1.0f);
-    float      intensity  = 1.0f; ///< 物理单位留待实现时确定
-    float      range      = 10.0f;
-    float      inner_cone = 0.0f;
-    float      outer_cone = 0.0f;
+    Type      type       = Type::Directional;
+    glm::vec3 color      = glm::vec3(1.0f);
+    float     intensity  = 1.0f; ///< 物理单位留待实现时确定
+    float     range      = 10.0f;
+    float     inner_cone = 0.0f;
+    float     outer_cone = 0.0f;
 };
 
 /// @brief 环境组件，描述天空盒或 IBL 入口。
@@ -69,16 +68,14 @@ struct EnvironmentComponent final : SceneComponent
 /// @brief 场景节点，连接资源层与场景层。
 struct SceneNode
 {
-    UUID                                      id{};            ///< 运行时节点句柄。
-    std::string                               name;            ///< 便于调试的名称。
-    Transform                                 local_transform; ///< 与父节点的变换关系。
-    std::weak_ptr<SceneNode>                  parent;
-    std::vector<std::shared_ptr<SceneNode>>   children;
+    UUID                                         id{};            ///< 运行时节点句柄。
+    std::string                                  name;            ///< 便于调试的名称。
+    Transform                                    local_transform; ///< 与父节点的变换关系。
+    std::weak_ptr<SceneNode>                     parent;
+    std::vector<std::shared_ptr<SceneNode>>      children;
     std::vector<std::unique_ptr<SceneComponent>> components;
 
     /// 与 Asset 层的关联，便于从 AssetNode 回写或重建。
     std::optional<UUID> asset_id;
 };
-
 } // namespace dk
-

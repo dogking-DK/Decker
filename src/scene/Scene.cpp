@@ -1,71 +1,72 @@
-#include "scene/Scene.h"
+#include "Scene.h"
 
 #include <algorithm>
 #include <optional>
 #include <stack>
 #include <string_view>
 
-#include "runtime/resource/cpu/MaterialLoader.h"
-#include "runtime/resource/cpu/MeshLoader.h"
-#include "runtime/resource/cpu/TextureLoader.h"
+#include "importer/Importer.h"
+#include "resource/cpu/MaterialLoader.h"
+#include "resource/cpu/MeshLoader.h"
+#include "resource/cpu/TextureLoader.h"
 
 namespace dk {
-
 namespace {
-/// @brief 深度优先遍历工具。
-template <class Fn>
-void traverse(const std::shared_ptr<SceneNode>& root, Fn&& fn)
-{
-    if (!root) return;
-
-    std::stack<std::shared_ptr<SceneNode>> stack;
-    stack.push(root);
-    while (!stack.empty())
+    /// @brief 深度优先遍历工具。
+    template <class Fn>
+    void traverse(const std::shared_ptr<SceneNode>& root, Fn&& fn)
     {
-        auto node = stack.top();
-        stack.pop();
-        fn(*node);
+        if (!root) return;
 
-        for (auto it = node->children.rbegin(); it != node->children.rend(); ++it)
-            stack.push(*it);
+        std::stack<std::shared_ptr<SceneNode>> stack;
+        stack.push(root);
+        while (!stack.empty())
+        {
+            auto node = stack.top();
+            stack.pop();
+            fn(*node);
+
+            for (auto it = node->children.rbegin(); it != node->children.rend(); ++it)
+                stack.push(*it);
+        }
     }
-}
 
-std::optional<AssetType> guess_asset_type(std::string_view raw_path)
-{
-    if (raw_path.ends_with(".rawmesh")) return AssetType::Mesh;
-    if (raw_path.ends_with(".rawimg")) return AssetType::Image;
-    if (raw_path.ends_with(".rawmat")) return AssetType::Material;
-    return std::nullopt;
-}
-
+    std::optional<AssetType> guess_asset_type(std::string_view raw_path)
+    {
+        if (raw_path.ends_with(".rawmesh")) return AssetType::Mesh;
+        if (raw_path.ends_with(".rawimg")) return AssetType::Image;
+        if (raw_path.ends_with(".rawmat")) return AssetType::Material;
+        return std::nullopt;
+    }
 } // namespace
 
-DefaultScene::DefaultScene(std::string name) : _name(std::move(name)) {}
+Scene::Scene(std::string name) : _name(std::move(name))
+{
+}
 
-void DefaultScene::setRoot(std::shared_ptr<SceneNode> root)
+void Scene::setRoot(std::shared_ptr<SceneNode> root)
 {
     _root = std::move(root);
 }
 
-std::shared_ptr<SceneNode> DefaultScene::getRoot()
+std::shared_ptr<SceneNode> Scene::getRoot()
 {
     return _root;
 }
 
-void DefaultScene::forEachNode(const std::function<void(SceneNode&)>& visitor)
+void Scene::forEachNode(const std::function<void(SceneNode&)>& visitor)
 {
     if (!visitor) return;
     traverse(_root, visitor);
 }
 
-std::shared_ptr<SceneNode> DefaultSceneBuilder::cloneAssetNode(const std::shared_ptr<AssetNode>& src,
-                                                               const std::shared_ptr<SceneNode>& parent)
+std::shared_ptr<SceneNode> SceneBuilder::cloneAssetNode(const std::shared_ptr<AssetNode>& src,
+                                                        const std::shared_ptr<SceneNode>& parent)
 {
     auto dst      = std::make_shared<SceneNode>();
     dst->name     = src ? src->name : "Node";
     dst->id       = src ? src->id : uuid_from_string(dst->name);
-    dst->asset_id = src ? std::optional<UUID>{ src->id } : std::nullopt;
+    dst->asset_id = src ? std::optional<UUID>{src->id} : std::nullopt;
     dst->parent   = parent;
 
     if (src)
@@ -78,7 +79,7 @@ std::shared_ptr<SceneNode> DefaultSceneBuilder::cloneAssetNode(const std::shared
     return dst;
 }
 
-std::shared_ptr<SceneNode> DefaultSceneBuilder::build(const ImportResult& result)
+std::shared_ptr<SceneNode> SceneBuilder::build(const ImportResult& result)
 {
     if (result.nodes.empty()) return {};
 
@@ -99,16 +100,15 @@ std::shared_ptr<SceneNode> DefaultSceneBuilder::build(const ImportResult& result
     return root;
 }
 
-DefaultSceneResourceBinder::DefaultSceneResourceBinder(std::vector<AssetMeta> catalog)
+SceneResourceBinder::SceneResourceBinder(std::vector<AssetMeta> catalog)
     : _catalog(std::move(catalog))
 {
 }
 
-void DefaultSceneResourceBinder::preloadCPU(Scene& scene, ResourceLoader& loader, ResourceCache& cache)
+void SceneResourceBinder::preloadCPU(Scene& scene, ResourceLoader& loader, ResourceCache& cache)
 {
     (void)scene;
     (void)cache; // 缓存由 loader 持有的 ResourceCache 注入
-
     for (const auto& meta : _catalog)
     {
         auto type = guess_asset_type(meta.raw_path);
@@ -116,52 +116,55 @@ void DefaultSceneResourceBinder::preloadCPU(Scene& scene, ResourceLoader& loader
 
         switch (*type)
         {
-        case AssetType::Mesh: loader.load<MeshData>(meta.uuid); break;
-        case AssetType::Image: loader.load<TextureData>(meta.uuid); break;
-        case AssetType::Material: loader.load<MaterialData>(meta.uuid); break;
+        case AssetType::Mesh: loader.load<MeshData>(meta.uuid);
+            break;
+        case AssetType::Image: loader.load<TextureData>(meta.uuid);
+            break;
+        case AssetType::Material: loader.load<MaterialData>(meta.uuid);
+            break;
         }
     }
 }
 
-void DefaultSceneResourceBinder::preloadGPU(Scene& scene)
+void SceneResourceBinder::preloadGPU(Scene& scene)
 {
     (void)scene;
     // GPU 资源管理尚未接入，留空实现便于后续扩展。
 }
 
-void DefaultSceneResourceBinder::setCatalog(std::vector<AssetMeta> catalog)
+void SceneResourceBinder::setCatalog(std::vector<AssetMeta> catalog)
 {
     _catalog = std::move(catalog);
 }
 
-DefaultSceneSystem::DefaultSceneSystem(std::unique_ptr<SceneBuilder>        builder,
-                                       std::unique_ptr<SceneResourceBinder> binder)
+SceneSystem::SceneSystem(std::unique_ptr<SceneBuilder>        builder,
+                         std::unique_ptr<SceneResourceBinder> binder)
     : _builder(std::move(builder)), _binder(std::move(binder))
 {
 }
 
-std::shared_ptr<Scene> DefaultSceneSystem::createScene(const std::string& name)
+std::shared_ptr<Scene> SceneSystem::createScene(const std::string& name)
 {
-    _current = std::make_shared<DefaultScene>(name);
+    _current = std::make_shared<Scene>(name);
     return _current;
 }
 
-std::shared_ptr<Scene> DefaultSceneSystem::currentScene()
+std::shared_ptr<Scene> SceneSystem::currentScene()
 {
     return _current;
 }
 
-void DefaultSceneSystem::tick(double)
+void SceneSystem::tick(double)
 {
     // 预留：动画、脚本、物理等逐帧更新逻辑
 }
 
-std::shared_ptr<Scene> DefaultSceneSystem::buildSceneFromImport(const std::string& name,
-                                                                const ImportResult&  result)
+std::shared_ptr<Scene> SceneSystem::buildSceneFromImport(const std::string&  name,
+                                                         const ImportResult& result)
 {
     if (!_builder) return {};
 
-    auto scene = std::make_shared<DefaultScene>(name);
+    auto scene = std::make_shared<Scene>(name);
     scene->setRoot(_builder->build(result));
     _current = scene;
 
@@ -173,7 +176,7 @@ std::shared_ptr<Scene> DefaultSceneSystem::buildSceneFromImport(const std::strin
     return _current;
 }
 
-void DefaultSceneSystem::preloadResources(ResourceLoader& loader, ResourceCache& cache)
+void SceneSystem::preloadResources(ResourceLoader& loader, ResourceCache& cache)
 {
     if (_binder && _current)
     {
@@ -181,6 +184,4 @@ void DefaultSceneSystem::preloadResources(ResourceLoader& loader, ResourceCache&
         _binder->preloadGPU(*_current);
     }
 }
-
 } // namespace dk
-
