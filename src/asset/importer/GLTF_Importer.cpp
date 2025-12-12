@@ -4,8 +4,10 @@
 
 #include <span>
 #include <filesystem>
+#include <cstdint>
 
 #include "AssetNode.hpp"
+#include "Prefab.hpp"
 #include "UUID.hpp"
 #include "GLTF_Importer.h"
 
@@ -15,6 +17,7 @@
 
 #include "AssetHelpers.hpp"
 #include "RawTypes.hpp"
+#include <fstream>
 #include <optional>
 
 
@@ -59,6 +62,44 @@ auto make_node_recursive =
     for (const auto& child : n.children)
     {
         node->children.push_back(self(self, asset, static_cast<uint32_t>(child)));
+    }
+
+    return node;
+};
+
+auto make_prefab_node_recursive =
+    [](auto self, const fastgltf::Asset& asset, const uint32_t node_idx) -> dk::PrefabNode
+{
+    const auto& n  = asset.nodes[node_idx];
+    dk::PrefabNode node{};
+    node.kind      = dk::AssetKind::Node;
+    node.name      = n.name.empty() ? "Node" : n.name;
+    node.id        = makeUUID("node", node_idx);
+
+    if (n.meshIndex.has_value())
+    {
+        const uint32_t mi       = static_cast<uint32_t>(n.meshIndex.value());
+        const auto&    gltf_mesh = asset.meshes[mi];
+
+        dk::PrefabNode mesh{};
+        mesh.kind = dk::AssetKind::Mesh;
+        mesh.name = gltf_mesh.name.empty() ? "Mesh" : gltf_mesh.name;
+        mesh.id   = makeUUID("mesh", mi);
+
+        for (size_t pi = 0; pi < gltf_mesh.primitives.size(); ++pi)
+        {
+            dk::PrefabNode primitive{};
+            primitive.kind = dk::AssetKind::Primitive;
+            primitive.name = fmt::format("Surface {}", pi);
+            primitive.id   = makeUUID("primitive", mi * 100 + pi);
+            mesh.children.push_back(std::move(primitive));
+        }
+        node.children.push_back(std::move(mesh));
+    }
+
+    for (const auto& child : n.children)
+    {
+        node.children.push_back(self(self, asset, static_cast<uint32_t>(child)));
     }
 
     return node;
@@ -141,6 +182,49 @@ void build_scene_nodes(const fastgltf::Asset& gltf, dk::ImportResult& result)
         }
 
         result.nodes.push_back(scene_root);
+    }
+}
+
+void export_prefabs(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, dk::ImportResult& result)
+{
+    for (size_t s = 0; s < gltf.scenes.size(); ++s)
+    {
+        const auto& [nodeIndices, name] = gltf.scenes[s];
+
+        dk::PrefabNode scene_root{};
+        scene_root.kind = dk::AssetKind::Scene;
+        scene_root.name = name.empty() ? "Scene" : name;
+        scene_root.id   = makeUUID("scene", s);
+
+        for (const auto& ni : nodeIndices)
+        {
+            scene_root.children.push_back(
+                make_prefab_node_recursive(make_prefab_node_recursive, gltf, static_cast<uint32_t>(ni)));
+        }
+
+        dk::UUID    uuid      = makeUUID("prefab", s);
+        std::string file_name = to_string(uuid) + ".prefab";
+
+        if (opts.write_raw)
+        {
+            nlohmann::json j = scene_root;
+            std::ofstream   os(opts.raw_dir / file_name);
+            os << j.dump(2);
+        }
+
+        dk::AssetMeta m;
+        m.uuid     = uuid;
+        m.importer = "gltf";
+        m.raw_path = file_name;
+
+        if (opts.do_hash)
+        {
+            nlohmann::json j = scene_root;
+            const auto     dump = j.dump();
+            m.content_hash     = dk::helper::hash_buffer(reinterpret_cast<const uint8_t*>(dump.data()), dump.size());
+        }
+
+        result.metas.push_back(std::move(m));
     }
 }
 
@@ -466,6 +550,7 @@ namespace dk {
 ImportResult GltfImporter::import(const std::filesystem::path& file_path, const ImportOptions& opts)
 {
     ImportResult result;
+    result.raw_dir = opts.raw_dir;
 
     fmt::print("Loading GLTF: {}\n", file_path.string());
 
@@ -480,6 +565,7 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     fmt::print("当前目录: {}\n", std::filesystem::current_path().string());
     create_directories(opts.raw_dir);
 
+    export_prefabs(*gltf, opts, result); // 导出 prefab
     export_raw_meshes(*gltf, opts, result); // 导出raw mesh
     export_raw_images(*gltf, file_path, opts, result); // 导出raw image
     export_raw_materials(*gltf, opts, result); // 导出raw material

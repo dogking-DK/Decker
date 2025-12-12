@@ -1,11 +1,16 @@
 #include "Scene.h"
 
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <optional>
 #include <stack>
 #include <string_view>
 
+#include <nlohmann/json.hpp>
+
 #include "importer/Importer.h"
+#include "asset/Prefab.hpp"
 #include "resource/cpu/MaterialLoader.h"
 #include "resource/cpu/MeshLoader.h"
 #include "resource/cpu/TextureLoader.h"
@@ -37,6 +42,42 @@ namespace {
         if (raw_path.ends_with(".rawimg")) return AssetType::Image;
         if (raw_path.ends_with(".rawmat")) return AssetType::Material;
         return std::nullopt;
+    }
+
+    std::vector<PrefabNode> load_prefabs(const ImportResult& result)
+    {
+        std::vector<PrefabNode> prefabs;
+        const auto              base_dir = result.raw_dir.empty() ? std::filesystem::path("cache/raw") : result.raw_dir;
+
+        for (const auto& meta : result.metas)
+        {
+            if (!meta.raw_path.ends_with(".prefab")) continue;
+
+            const auto path = base_dir / meta.raw_path;
+            std::ifstream is(path);
+            if (!is) continue;
+
+            nlohmann::json j;
+            is >> j;
+            prefabs.push_back(j.get<PrefabNode>());
+        }
+
+        return prefabs;
+    }
+
+    std::shared_ptr<SceneNode> clonePrefabNode(const PrefabNode& src, const std::shared_ptr<SceneNode>& parent)
+    {
+        auto dst      = std::make_shared<SceneNode>();
+        dst->name     = src.name.empty() ? "Node" : src.name;
+        dst->id       = src.id;
+        dst->asset_id = src.id;
+        dst->parent   = parent;
+
+        for (const auto& child : src.children)
+        {
+            dst->children.push_back(clonePrefabNode(child, dst));
+        }
+        return dst;
     }
 } // namespace
 
@@ -81,6 +122,26 @@ std::shared_ptr<SceneNode> SceneBuilder::cloneAssetNode(const std::shared_ptr<As
 
 std::shared_ptr<SceneNode> SceneBuilder::build(const ImportResult& result)
 {
+    auto prefabs = load_prefabs(result);
+    if (!prefabs.empty())
+    {
+        if (prefabs.size() == 1)
+        {
+            return clonePrefabNode(prefabs.front(), {});
+        }
+
+        auto root      = std::make_shared<SceneNode>();
+        root->name     = "SceneRoot";
+        root->id       = uuid_from_string(root->name);
+        root->asset_id = {};
+
+        for (const auto& prefab : prefabs)
+        {
+            root->children.push_back(clonePrefabNode(prefab, root));
+        }
+        return root;
+    }
+
     if (result.nodes.empty()) return {};
 
     if (result.nodes.size() == 1)

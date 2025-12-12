@@ -22,6 +22,7 @@ struct ImportResult
 {
     std::vector<std::shared_ptr<AssetNode>> nodes;   // Hierarchy 用
     std::vector<AssetMeta>                  metas;   // Build / DB 用
+    std::filesystem::path                   raw_dir; // 原始资源输出路径
 };
 
 class Importer
