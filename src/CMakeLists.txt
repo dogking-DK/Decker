@@ -47,6 +47,7 @@ file(GLOB_RECURSE UTIL_SOURCES "util/*.cpp" "util/*.hpp" "util/*.h") # 工具类
 file(GLOB_RECURSE PHYSIC_SOURCES "physics/*.cpp" "physics/*.hpp" "physics/*.h") # 物理类
 file(GLOB_RECURSE MATH_SOURCES "math/*.cpp" "math/*.hpp" "math/*.h") # 物理类
 file(GLOB_RECURSE RUNTIME_SOURCES "runtime/*.cpp" "runtime/*.hpp" "runtime/*.h") # 运行时类
+file(GLOB_RECURSE SCENE_SOURCES "scene/*.cpp" "scene/*.hpp" "scene/*.h") # 场景层
 
 # 输出所有的源文件路径
 message(STATUS "Main sources: ${MAIN_SOURCES}")
@@ -56,6 +57,7 @@ message(STATUS "GPU sources: ${GPU_SOURCES}")
 message(STATUS "IO sources: ${IO_SOURCES}")
 message(STATUS "UI sources: ${UI_SOURCES}")
 message(STATUS "Util sources: ${UTIL_SOURCES}")
+message(STATUS "Scene sources: ${SCENE_SOURCES}")
 
 # 将所有的源文件加入到一个列表
 set(ALL_SOURCES
@@ -69,6 +71,7 @@ set(ALL_SOURCES
     ${PHYSIC_SOURCES}
     ${MATH_SOURCES}
     ${RUNTIME_SOURCES}
+    ${SCENE_SOURCES}
 )
 
 # 设置source_group保持文件夹结构
@@ -89,6 +92,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/physics
     ${CMAKE_SOURCE_DIR}/src/math
     ${CMAKE_SOURCE_DIR}/src/runtime
+    ${CMAKE_SOURCE_DIR}/src/scene
     )
 
 # 链接三方库
