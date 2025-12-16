@@ -28,5 +28,6 @@ vcpkg install --recurse robin-map
 vcpkg install --recurse shader-slang
 vcpkg install --recurse spirv-cross
 vcpkg install --recurse sqlite3
+vcpkg install --recurse entt
 echo press any button to continue...
 read -n 1

@@ -34,6 +34,7 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(Freetype REQUIRED)
+find_package(EnTT CONFIG REQUIRED)
 
 
 # 查找所有源文件 (.cpp 和 .hpp)
@@ -142,6 +143,7 @@ target_link_libraries(${PROJECT_NAME}
     slang::slang
     # slang::slang-llvm
     # slang::slang-glslang
+    EnTT::EnTT
     # third_lib # 手动管理的三方库
     )
 
