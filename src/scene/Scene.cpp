@@ -10,7 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include "importer/Importer.h"
-#include "asset/Prefab.hpp"
+#include "Prefab.hpp"
 #include "resource/cpu/MaterialLoader.h"
 #include "resource/cpu/MeshLoader.h"
 #include "resource/cpu/TextureLoader.h"
