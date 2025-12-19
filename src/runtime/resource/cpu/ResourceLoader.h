@@ -4,6 +4,7 @@
 #include <string>
 #include <typeindex>
 #include <unordered_map>
+#include <vector>
 #include <utility>
 
 #include <fmt/base.h>
@@ -12,13 +13,6 @@
 #include "ResourceCache.h"
 
 namespace dk {
-enum class AssetType
-{
-    Mesh,
-    Image,
-    Material,
-};
-
 class IResourceLoaderBase
 {
 public:
@@ -40,6 +34,9 @@ public:
 
     template <typename Res>
     std::shared_ptr<Res> load(UUID id);
+
+    template <typename Res>
+    std::vector<std::shared_ptr<Res>> loadBatch(const std::vector<UUID>& ids);
 
 private:
     struct RegisteredType
@@ -83,7 +80,24 @@ std::shared_ptr<Res> ResourceLoader::load(UUID id)
         return {};
     }
 
-    return _cache.resolve<Res>(id, [&] { return loader->load(id); });
+    auto result = _cache.resolve<Res>(id, [&] { return loader->load(id); });
+    if (!result)
+    {
+        fmt::print(stderr, "ResourceLoader: failed to load {} ({})\n", to_string(id), info->name);
+    }
+    return result;
+}
+
+template <typename Res>
+std::vector<std::shared_ptr<Res>> ResourceLoader::loadBatch(const std::vector<UUID>& ids)
+{
+    std::vector<std::shared_ptr<Res>> results;
+    results.reserve(ids.size());
+    for (const auto& id : ids)
+    {
+        results.push_back(load<Res>(id));
+    }
+    return results;
 }
 
 template <typename Res, typename Loader, typename... Args>

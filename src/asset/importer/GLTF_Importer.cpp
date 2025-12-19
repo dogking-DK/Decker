@@ -153,6 +153,7 @@ void export_prefabs(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, 
 
         dk::AssetMeta m;
         m.uuid     = uuid;
+        m.asset_type = dk::AssetType::Prefab;
         m.importer = "gltf";
         m.raw_path = file_name;
 
@@ -305,6 +306,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
             }
             dk::AssetMeta m;
             m.uuid     = uuid;
+            m.asset_type = dk::AssetType::Mesh;
             m.importer = "gltf";
             m.raw_path = file_name;
             if (prim.materialIndex.has_value())
@@ -425,6 +427,7 @@ void export_raw_images(const fastgltf::Asset&   gltf, const std::filesystem::pat
 
         dk::AssetMeta m;
         m.uuid     = uuid;
+        m.asset_type = dk::AssetType::Image;
         m.importer = "gltf";
         m.raw_path = file_name;
         if (opts.do_hash) m.content_hash = dk::helper::hash_buffer(pixels);
@@ -474,6 +477,7 @@ void export_raw_materials(const fastgltf::Asset& gltf, const dk::ImportOptions& 
         if (opts.write_raw) dk::helper::write_pod(opts.raw_dir / file_name, raw);
 
         m.uuid     = uuid;
+        m.asset_type = dk::AssetType::Material;
         m.importer = "gltf";
         m.raw_path = file_name;
         if (opts.do_hash)
