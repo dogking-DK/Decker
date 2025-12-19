@@ -6,6 +6,7 @@
 #include <optional>
 #include <stack>
 #include <string_view>
+#include <unordered_set>
 
 #include <nlohmann/json.hpp>
 
@@ -65,17 +66,22 @@ namespace {
         return prefabs;
     }
 
-    std::shared_ptr<SceneNode> clonePrefabNode(const PrefabNode& src, const std::shared_ptr<SceneNode>& parent)
+    std::shared_ptr<SceneNode> clonePrefabNode(const PrefabNode&                     src,
+                                               const std::shared_ptr<SceneNode>&     parent,
+                                               std::unordered_set<UUID>&             runtime_ids)
     {
         auto dst      = std::make_shared<SceneNode>();
         dst->name     = src.name.empty() ? "Node" : src.name;
-        dst->id       = src.id;
+        dst->id       = uuid_generate();
         dst->asset_id = src.id;
         dst->parent   = parent;
 
+        const auto [_, inserted] = runtime_ids.insert(dst->id);
+        assert(inserted && "Prefab instance should have a unique runtime UUID");
+
         for (const auto& child : src.children)
         {
-            dst->children.push_back(clonePrefabNode(child, dst));
+            dst->children.push_back(clonePrefabNode(child, dst, runtime_ids));
         }
         return dst;
     }
@@ -106,19 +112,21 @@ std::shared_ptr<SceneNode> SceneBuilder::build(const ImportResult& result)
     auto prefabs = load_prefabs(result);
     if (!prefabs.empty())
     {
+        std::unordered_set<UUID> runtime_ids;
         if (prefabs.size() == 1)
         {
-            return clonePrefabNode(prefabs.front(), {});
+            return clonePrefabNode(prefabs.front(), {}, runtime_ids);
         }
 
         auto root      = std::make_shared<SceneNode>();
         root->name     = "SceneRoot";
         root->id       = uuid_from_string(root->name);
         root->asset_id = {};
+        runtime_ids.insert(root->id);
 
         for (const auto& prefab : prefabs)
         {
-            root->children.push_back(clonePrefabNode(prefab, root));
+            root->children.push_back(clonePrefabNode(prefab, root, runtime_ids));
         }
         return root;
     }
