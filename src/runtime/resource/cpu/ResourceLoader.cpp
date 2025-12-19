@@ -53,6 +53,11 @@ namespace {
                 fmt::print(stderr, "ResourceLoader: Mesh {} not found in DB\n", to_string(id));
                 return std::shared_ptr<MeshData>{};
             }
+            if (meta->asset_type && *meta->asset_type != AssetType::Mesh)
+            {
+                fmt::print(stderr, "ResourceLoader: Mesh {} has mismatched asset_type {}\n", to_string(id),
+                           to_string(*meta->asset_type));
+            }
             auto m = decode_mesh_from_raw(_dir / meta->raw_path);
 
             if (auto it = meta->dependencies.find(AssetDependencyType::Material); it != meta->dependencies.end())
@@ -60,7 +65,6 @@ namespace {
                 m->material = _owner.load<MaterialData>(it->second);
             }
             return m;
-            return {};
         }
 
     private:
@@ -83,6 +87,11 @@ namespace {
             {
                 fmt::print(stderr, "ResourceLoader: Image {} not found in DB\n", to_string(id));
                 return std::shared_ptr<TextureData>{};
+            }
+            if (meta->asset_type && *meta->asset_type != AssetType::Image)
+            {
+                fmt::print(stderr, "ResourceLoader: Image {} has mismatched asset_type {}\n", to_string(id),
+                           to_string(*meta->asset_type));
             }
             return decode_image_from_raw(_dir / meta->raw_path);
         }
@@ -107,6 +116,11 @@ namespace {
             {
                 fmt::print(stderr, "ResourceLoader: Material {} not found in DB\n", to_string(id));
                 return std::shared_ptr<MaterialData>{};
+            }
+            if (meta->asset_type && *meta->asset_type != AssetType::Material)
+            {
+                fmt::print(stderr, "ResourceLoader: Material {} has mismatched asset_type {}\n", to_string(id),
+                           to_string(*meta->asset_type));
             }
             auto raw        = decode_material_from_raw(_dir / meta->raw_path);
             auto mat        = std::make_shared<MaterialData>();
