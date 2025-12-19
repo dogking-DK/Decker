@@ -6,8 +6,10 @@
 #include <optional>
 #include <stack>
 #include <string_view>
+#include <unordered_map>
 
 #include <nlohmann/json.hpp>
+#include <fmt/core.h>
 
 #include "importer/Importer.h"
 #include "Prefab.hpp"
@@ -41,7 +43,14 @@ namespace {
         if (raw_path.ends_with(".rawmesh")) return AssetType::Mesh;
         if (raw_path.ends_with(".rawimg")) return AssetType::Image;
         if (raw_path.ends_with(".rawmat")) return AssetType::Material;
+        if (raw_path.ends_with(".prefab")) return AssetType::Prefab;
         return std::nullopt;
+    }
+
+    std::optional<AssetType> resolve_asset_type(const AssetMeta& meta)
+    {
+        if (meta.asset_type) return meta.asset_type;
+        return guess_asset_type(meta.raw_path);
     }
 
     std::vector<PrefabNode> load_prefabs(const ImportResult& result)
@@ -51,7 +60,9 @@ namespace {
 
         for (const auto& meta : result.metas)
         {
-            if (!meta.raw_path.ends_with(".prefab")) continue;
+            const bool is_prefab = (meta.asset_type && *meta.asset_type == AssetType::Prefab) ||
+                                   meta.raw_path.ends_with(".prefab");
+            if (!is_prefab) continue;
 
             const auto path = base_dir / meta.raw_path;
             std::ifstream is(path);
@@ -140,21 +151,27 @@ void SceneResourceBinder::preloadCPU(Scene& scene, ResourceLoader& loader, Resou
 {
     (void)scene;
     (void)cache; // 缓存由 loader 持有的 ResourceCache 注入
+    std::unordered_map<AssetType, std::vector<UUID>> batch_ids;
     for (const auto& meta : _catalog)
     {
-        auto type = guess_asset_type(meta.raw_path);
-        if (!type) continue;
-
-        switch (*type)
+        auto type = resolve_asset_type(meta);
+        if (!type)
         {
-        case AssetType::Mesh: loader.load<MeshData>(meta.uuid);
-            break;
-        case AssetType::Image: loader.load<TextureData>(meta.uuid);
-            break;
-        case AssetType::Material: loader.load<MaterialData>(meta.uuid);
-            break;
+            fmt::print(stderr, "SceneResourceBinder: unrecognized asset type for {} (raw_path={})\n",
+                       to_string(meta.uuid), meta.raw_path);
+            continue;
         }
+
+        batch_ids[*type].push_back(meta.uuid);
     }
+
+    if (auto it = batch_ids.find(AssetType::Mesh); it != batch_ids.end())
+        loader.loadBatch<MeshData>(it->second);
+    if (auto it = batch_ids.find(AssetType::Image); it != batch_ids.end())
+        loader.loadBatch<TextureData>(it->second);
+    if (auto it = batch_ids.find(AssetType::Material); it != batch_ids.end())
+        loader.loadBatch<MaterialData>(it->second);
+}
 }
 
 void SceneResourceBinder::preloadGPU(Scene& scene)
