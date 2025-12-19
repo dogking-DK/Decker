@@ -6,7 +6,6 @@
 #include <filesystem>
 #include <cstdint>
 
-#include "AssetNode.hpp"
 #include "Prefab.hpp"
 #include "UUID.hpp"
 #include "GLTF_Importer.h"
@@ -26,46 +25,6 @@ dk::UUID makeUUID(const std::string& tag, size_t idx)
 {
     return dk::uuid_from_string(tag + std::to_string(idx));
 }
-
-auto make_node_recursive =
-    [](auto self, const fastgltf::Asset& asset, const uint32_t node_idx) -> std::shared_ptr<dk::AssetNode>
-{
-    const auto& n    = asset.nodes[node_idx];
-    auto        node = std::make_shared<dk::AssetNode>();
-    node->kind       = dk::AssetKind::Node;
-    node->name       = n.name.empty() ? "Node" : n.name;
-    node->id         = makeUUID("node", node_idx);
-
-    /* Mesh 依赖 */
-    if (n.meshIndex.has_value())
-    {
-        const uint32_t mi   = static_cast<uint32_t>(n.meshIndex.value());
-        const auto     mesh = std::make_shared<dk::AssetNode>();
-        mesh->kind          = dk::AssetKind::Mesh;
-        mesh->name          = asset.meshes[mi].name.empty() ? "Mesh" : asset.meshes[mi].name;
-        mesh->id            = makeUUID("mesh", mi);
-
-        const auto& gltf_mesh = asset.meshes[mi];
-        for (size_t pi = 0; pi < gltf_mesh.primitives.size(); ++pi)
-        {
-            const auto& prim      = gltf_mesh.primitives[pi];
-            auto        primitive = std::make_shared<dk::AssetNode>();
-            primitive->kind       = dk::AssetKind::Primitive;
-            primitive->name       = fmt::format("Surface {}", pi);
-            primitive->id         = makeUUID("primitive", mi * 100 + pi); // 100 is arbitrary, just to ensure uniqueness
-            mesh->children.push_back(primitive);
-        }
-        node->children.push_back(mesh);
-    }
-
-    /* 子节点递归 */
-    for (const auto& child : n.children)
-    {
-        node->children.push_back(self(self, asset, static_cast<uint32_t>(child)));
-    }
-
-    return node;
-};
 
 auto make_prefab_node_recursive =
     [](auto self, const fastgltf::Asset& asset, const uint32_t node_idx) -> dk::PrefabNode
@@ -163,26 +122,6 @@ std::optional<fastgltf::Asset> load_gltf_asset(const std::filesystem::path& file
     }
 
     return gltf;
-}
-
-void build_scene_nodes(const fastgltf::Asset& gltf, dk::ImportResult& result)
-{
-    for (size_t s = 0; s < gltf.scenes.size(); ++s)
-    {
-        const auto& [nodeIndices, name] = gltf.scenes[s];
-
-        auto scene_root  = std::make_shared<dk::AssetNode>();
-        scene_root->kind = dk::AssetKind::Scene;
-        scene_root->name = name.empty() ? "Scene" : name;
-        scene_root->id   = makeUUID("scene", s);
-
-        for (const auto& ni : nodeIndices)
-        {
-            scene_root->children.push_back(make_node_recursive(make_node_recursive, gltf, static_cast<uint32_t>(ni)));
-        }
-
-        result.nodes.push_back(scene_root);
-    }
 }
 
 void export_prefabs(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, dk::ImportResult& result)
@@ -556,8 +495,6 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
 
     auto gltf = load_gltf_asset(file_path);
     if (!gltf) return {};
-
-    build_scene_nodes(*gltf, result); // 生成 AssetNode 树
 
     // 仅生成资源节点树
     if (opts.only_nodes) return result;
