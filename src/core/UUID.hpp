@@ -5,6 +5,7 @@
 #include <functional>
 #include <imgui.h>
 #include <fmt/base.h>
+#include <random>
 
 namespace dk {
 using UUID = uuids::uuid;
@@ -16,6 +17,16 @@ inline UUID uuid_from_string(std::string_view str)
     //fmt::print("UUID from string: {} {}\n", str, to_string(id));
     assert(!id.is_nil());
     assert(id.version() == uuids::uuid_version::name_based_sha1);
+    assert(id.variant() == uuids::uuid_variant::rfc);
+    return id;
+}
+
+inline UUID uuid_generate()
+{
+    static thread_local uuids::uuid_random_generator generator{std::random_device{}()};
+    const auto id = generator();
+    assert(!id.is_nil());
+    assert(id.version() == uuids::uuid_version::random_number);
     assert(id.variant() == uuids::uuid_variant::rfc);
     return id;
 }
