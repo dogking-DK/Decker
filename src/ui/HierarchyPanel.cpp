@@ -5,6 +5,7 @@
 namespace dk {
 void HierarchyPanel::onGui(const std::string& title)
 {
+    if (_roots == nullptr) return;
     ImGui::Begin(title.c_str());
     for (auto& r : *_roots) drawNode(r);
     ImGui::End();
@@ -13,9 +14,6 @@ void HierarchyPanel::onGui(const std::string& title)
 void HierarchyPanel::drawNode(const PrefabNode& n)
 {
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
-    //bool               open  = ImGui::TreeNodeEx(&n->id, flags,
-    //                              "%s  [%s]", n->name.c_str(),
-    //                              to_string(n->id).c_str());
     bool               open = ImGui::TreeNodeEx(&n.id, flags, "%s", n.name.c_str());
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
         ImGui::SetItemDefaultFocus();               // 简单高亮演示

@@ -1563,8 +1563,8 @@ void VulkanEngine::init_renderables()
     // 1 假设导入阶段已写入 metas & raw；此处只加载
     ResourceCache  cache;
     ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
-    auto           result = loader.load<MeshData>(root.metas[0].uuid);
-    auto           result1 = loader.load<MeshData>(root.metas[0].uuid);
+    //auto           result = loader.load<MeshData>(root.metas[0].uuid);
+    //auto           result1 = loader.load<MeshData>(root.metas[0].uuid);
     //hierarchy_panel.setRoots(root.nodes);
 
     assert(structureFile.has_value());
