@@ -23,11 +23,19 @@ inline UUID uuid_from_string(std::string_view str)
 
 inline UUID uuid_generate()
 {
-    static thread_local uuids::uuid_random_generator generator{std::random_device{}()};
+    // 1. 先初始化随机数引擎 (std::mt19937)
+    // 2. 再将引擎传递给 uuid_random_generator
+    static thread_local std::random_device rd;
+    static thread_local std::mt19937 engine{ rd() };
+    static thread_local uuids::uuid_random_generator generator{ engine };
+
     const auto id = generator();
+
     assert(!id.is_nil());
-    assert(id.version() == uuids::uuid_version::random_number);
+    // 注意：这里通常是 random_number_based
+    assert(id.version() == uuids::uuid_version::random_number_based);
     assert(id.variant() == uuids::uuid_variant::rfc);
+
     return id;
 }
 

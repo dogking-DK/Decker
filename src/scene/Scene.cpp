@@ -64,7 +64,7 @@ namespace {
                                    meta.raw_path.ends_with(".prefab");
             if (!is_prefab) continue;
 
-            const auto path = base_dir / meta.raw_path;
+            const auto    path = base_dir / meta.raw_path;
             std::ifstream is(path);
             if (!is) continue;
 
@@ -76,9 +76,9 @@ namespace {
         return prefabs;
     }
 
-    std::shared_ptr<SceneNode> clonePrefabNode(const PrefabNode&                     src,
-                                               const std::shared_ptr<SceneNode>&     parent,
-                                               std::unordered_set<UUID>&             runtime_ids)
+    std::shared_ptr<SceneNode> clonePrefabNode(const PrefabNode&                 src,
+                                               const std::shared_ptr<SceneNode>& parent,
+                                               std::unordered_set<UUID>&         runtime_ids)
     {
         auto dst      = std::make_shared<SceneNode>();
         dst->name     = src.name.empty() ? "Node" : src.name;
@@ -178,7 +178,6 @@ void SceneResourceBinder::preloadCPU(Scene& scene, ResourceLoader& loader, Resou
         loader.loadBatch<TextureData>(it->second);
     if (auto it = batch_ids.find(AssetType::Material); it != batch_ids.end())
         loader.loadBatch<MaterialData>(it->second);
-}
 }
 
 void SceneResourceBinder::preloadGPU(Scene& scene)
