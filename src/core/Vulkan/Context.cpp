@@ -60,7 +60,11 @@ void VulkanContext::deleteVma()
     {
         VmaTotalStatistics stats;
         vmaCalculateStatistics(_allocator, &stats);
-        fmt::print("Total device memory leaked: {} bytes.", stats.total.statistics.allocationBytes);
+        auto bytes_to_mb = [](std::uint64_t bytes) -> double {
+            constexpr double MB = 1024.0 * 1024.0;  // 1 MiB = 1,048,576 bytes
+            return std::round(bytes / MB * 100.0) / 100.0;  // 四舍五入到两位小数
+            };
+        fmt::print("Total device memory leaked: {} MB.\n", bytes_to_mb(stats.total.statistics.allocationBytes));
         vmaDestroyAllocator(_allocator);
         _allocator = VK_NULL_HANDLE;
     }

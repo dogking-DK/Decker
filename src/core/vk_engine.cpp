@@ -384,11 +384,51 @@ void VulkanEngine::cleanup()
         // make sure the gpu has stopped doing its things
         vkDeviceWaitIdle(_context->getDevice());
 
+        if (m_grid_point_render)
+        {
+            m_grid_point_render->cleanup();
+            m_grid_point_render.reset();
+        }
+        if (m_vector_render)
+        {
+            m_vector_render->cleanup();
+            m_vector_render.reset();
+        }
+        if (m_spring_renderer)
+        {
+            m_spring_renderer->cleanup();
+            m_spring_renderer.reset();
+        }
+        if (point_cloud_renderer)
+        {
+            point_cloud_renderer->cleanup();
+            point_cloud_renderer.reset();
+        }
+        color_image.reset();
+        render_graph.reset();
+        m_blit_pass.reset();
+        m_gaussian_blur_pass.reset();
+        m_scene_system.reset();
+
         loadedScenes.clear();
 
         for (auto& frame : _frames)
         {
             frame._deletionQueue.flush();
+
+            frame._dynamicDescriptorAllocator.reset();
+
+            delete frame.command_buffer_graphic;
+            frame.command_buffer_graphic = nullptr;
+
+            delete frame.command_buffer_transfer;
+            frame.command_buffer_transfer = nullptr;
+
+            delete frame._command_pool_graphic;
+            frame._command_pool_graphic = nullptr;
+
+            delete frame._command_pool_transfer;
+            frame._command_pool_transfer = nullptr;
         }
 
         destroy_image(_whiteImage);

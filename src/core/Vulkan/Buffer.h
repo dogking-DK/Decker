@@ -69,14 +69,7 @@ public:
     BufferResource(VulkanContext& context, Builder& builder);
     BufferResource() = delete;
 
-    ~BufferResource() override
-    {
-        if (_handle)
-        {
-            // 通过静态转换获取底层 VkBuffer，再使用 VMA 销毁
-            vmaDestroyBuffer(_context->getVmaAllocator(), _handle, _allocation);
-        }
-    }
+    ~BufferResource() override;
 
     // 映射内存，返回 CPU 可访问的指针
     void* map();

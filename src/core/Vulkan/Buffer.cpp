@@ -50,6 +50,19 @@ void BufferResource::update(const void* src_data, vk::DeviceSize size, vk::Devic
     }
 }
 
+BufferResource::~BufferResource()
+{
+    if (_handle)
+    {
+        if (_owns_mapping)
+        {
+            vmaUnmapMemory(_context->getVmaAllocator(), _allocation);
+        }
+        // 通过静态转换获取底层 VkBuffer，再使用 VMA 销毁
+        vmaDestroyBuffer(_context->getVmaAllocator(), _handle, _allocation);
+    }
+}
+
 void* BufferResource::map()
 {
     if (!_host_visible)
