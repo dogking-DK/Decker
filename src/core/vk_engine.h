@@ -27,6 +27,14 @@
 #include "Vulkan/CommandBuffer.h"
 
 namespace dk {
+class SceneSystem;
+}
+
+namespace dk {
+class Scene;
+}
+
+namespace dk {
 class GaussianBlurPass;
 }
 
@@ -183,6 +191,7 @@ public:
     std::shared_ptr<RenderGraph> render_graph;
     std::shared_ptr<BlitPass> m_blit_pass;
     std::shared_ptr<GaussianBlurPass> m_gaussian_blur_pass;
+    std::shared_ptr<SceneSystem> m_scene_system;
 
     std::unique_ptr<World> physic_world;
 

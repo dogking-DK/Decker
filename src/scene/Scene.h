@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "AssetNode.hpp"
 #include "AssetMeta.hpp"
 #include "resource/cpu/ResourceCache.h"
 #include "resource/cpu/ResourceLoader.h"
@@ -36,10 +35,6 @@ class SceneBuilder
 {
 public:
     std::shared_ptr<SceneNode> build(const ImportResult& result);
-
-private:
-    static std::shared_ptr<SceneNode> cloneAssetNode(const std::shared_ptr<AssetNode>& node,
-                                                     const std::shared_ptr<SceneNode>& parent);
 };
 
 /// @brief 简单的资源预热器，根据 raw 扩展推断资源类型并加载。

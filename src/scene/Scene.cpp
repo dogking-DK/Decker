@@ -101,25 +101,6 @@ void Scene::forEachNode(const std::function<void(SceneNode&)>& visitor)
     traverse(_root, visitor);
 }
 
-std::shared_ptr<SceneNode> SceneBuilder::cloneAssetNode(const std::shared_ptr<AssetNode>& src,
-                                                        const std::shared_ptr<SceneNode>& parent)
-{
-    auto dst      = std::make_shared<SceneNode>();
-    dst->name     = src ? src->name : "Node";
-    dst->id       = src ? src->id : uuid_from_string(dst->name);
-    dst->asset_id = src ? std::optional<UUID>{src->id} : std::nullopt;
-    dst->parent   = parent;
-
-    if (src)
-    {
-        for (auto& child : src->children)
-        {
-            dst->children.push_back(cloneAssetNode(child, dst));
-        }
-    }
-    return dst;
-}
-
 std::shared_ptr<SceneNode> SceneBuilder::build(const ImportResult& result)
 {
     auto prefabs = load_prefabs(result);
@@ -142,22 +123,11 @@ std::shared_ptr<SceneNode> SceneBuilder::build(const ImportResult& result)
         return root;
     }
 
-    if (result.nodes.empty()) return {};
-
-    if (result.nodes.size() == 1)
-    {
-        return cloneAssetNode(result.nodes.front(), {});
-    }
-
     auto root      = std::make_shared<SceneNode>();
     root->name     = "SceneRoot";
     root->id       = uuid_from_string(root->name);
     root->asset_id = {};
 
-    for (const auto& n : result.nodes)
-    {
-        root->children.push_back(cloneAssetNode(n, root));
-    }
     return root;
 }
 

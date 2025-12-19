@@ -7,11 +7,11 @@ void HierarchyPanel::onGui(const std::string& title)
 {
     if (_roots == nullptr) return;
     ImGui::Begin(title.c_str());
-    for (auto& r : *_roots) drawNode(r);
+     drawNode(*_roots);
     ImGui::End();
 }
 
-void HierarchyPanel::drawNode(const PrefabNode& n)
+void HierarchyPanel::drawNode(const SceneNode& n)
 {
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
     bool               open = ImGui::TreeNodeEx(&n.id, flags, "%s", n.name.c_str());
@@ -27,7 +27,7 @@ void HierarchyPanel::drawNode(const PrefabNode& n)
     {
         for (auto& ch : n.children)
         {
-            drawNode(ch);
+            drawNode(*ch);
         }
         ImGui::TreePop();
     }

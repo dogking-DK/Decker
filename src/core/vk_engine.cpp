@@ -46,6 +46,7 @@
 
 # include <vk_mem_alloc.h>
 
+#include "Scene.h"
 #include "render graph/renderpass/GaussianBlurPass.h"
 #include "resource/cpu/MeshLoader.h"
 
@@ -1565,8 +1566,12 @@ void VulkanEngine::init_renderables()
     ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
     //auto           result = loader.load<MeshData>(root.metas[0].uuid);
     //auto           result1 = loader.load<MeshData>(root.metas[0].uuid);
-    //hierarchy_panel.setRoots(root.nodes);
 
+    m_scene_system = std::make_shared<SceneSystem>(std::make_unique<SceneBuilder>(), std::make_unique<SceneResourceBinder>());
+    m_scene_system->buildSceneFromImport("scene", root);
+    m_scene_system->preloadResources(loader, cache);
+
+    hierarchy_panel.setRoots(m_scene_system->currentScene()->getRoot().get());
     assert(structureFile.has_value());
 
     loadedScenes["structure"] = *structureFile;
