@@ -9,13 +9,6 @@ nlohmann::json deps_to_json(const dk::DependencyMap& deps)
         j[dk::to_string(k)] = to_string(v);            // UUID → string
     return j;
 }
-
-std::optional<dk::AssetDependencyType> dependency_from_legacy_index(const std::size_t idx)
-{
-    // Historic array format stored only a single material dependency.
-    if (idx == 0) return dk::AssetDependencyType::Material;
-    return std::nullopt;
-}
 }
 
 namespace dk {
@@ -135,20 +128,7 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
         auto txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 4));
         auto j   = nlohmann::json::parse(txt, nullptr, false);
 
-        /* 兼容旧版 array 格式 */
-        if (j.is_array())
-        {
-            size_t idx = 0;
-            for (auto& v : j)
-            {
-                auto id = UUID::from_string(v.get<std::string>());
-                auto dep_type = dependency_from_legacy_index(idx++);
-                if (id.has_value() && dep_type.has_value())
-                    m.dependencies.emplace(dep_type.value(), id.value());
-            }
-        }
-        /* 新版 object 格式 */
-        else if (j.is_object())
+        if (j.is_object())
         {
             for (auto& [k, v] : j.items())
             {
@@ -156,9 +136,6 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
                 auto dep_type = dependency_from_string(k);
                 if (id.has_value() && dep_type.has_value())
                     m.dependencies.emplace(dep_type.value(), id.value());
-                //auto test = v.get<std::string>();
-                //auto uid = uuid_from_string(test);
-                //auto uid = uuid_from_string(test);
             }
         }
     }
