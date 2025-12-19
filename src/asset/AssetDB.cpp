@@ -40,6 +40,10 @@ void AssetDB::prepareSchema()
     char* err = nullptr;
     if (sqlite3_exec(_db, sql, nullptr, nullptr, &err) != SQLITE_OK)
         throw std::runtime_error(err);
+
+    // 兼容旧表，忽略重复列错误
+    sqlite3_exec(_db, "ALTER TABLE asset_meta ADD COLUMN asset_type TEXT;", nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
 }
 
 static void bindText(sqlite3_stmt* st, int idx, const std::string& s)
@@ -84,26 +88,33 @@ void AssetDB::upsert(const AssetMeta& m)
 AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
 {
     AssetMeta m;
+    const int column_count = sqlite3_column_count(st);
 
     // 0  uuid
     if (auto txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 0)))
         m.uuid   = uuid_from_string(txt);
 
-    // 1  asset_type
-    if (auto txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 1)))
+    // 1  asset_type (may be absent in legacy DB)
+    if (column_count > 1)
     {
-        if (auto type = asset_type_from_string(txt))
-            m.asset_type = *type;
+        if (auto txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 1)))
+        {
+            if (auto type = asset_type_from_string(txt))
+                m.asset_type = *type;
+        }
     }
 
     // 2  importer
-    if (auto txt   = reinterpret_cast<const char*>(sqlite3_column_text(st, 2)))
-        m.importer = txt;
+    if (column_count > 2)
+    {
+        if (auto txt   = reinterpret_cast<const char*>(sqlite3_column_text(st, 2)))
+            m.importer = txt;
+    }
 
     /* 2  import_opts  ──────────── */
-    if (sqlite3_column_type(st, 3) == SQLITE_NULL)
+    if (column_count > 3 && sqlite3_column_type(st, 3) == SQLITE_NULL)
         m.import_opts = nlohmann::json::object();          // {}
-    else
+    else if (column_count > 3)
     {
         auto txt      = reinterpret_cast<const char*>(sqlite3_column_text(st, 3));
         m.import_opts = nlohmann::json::parse(txt, nullptr, /*throw*/false);
@@ -112,7 +123,7 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
     }
 
     /* 3  deps (uuid 数组/对象) ───────── */
-    if (sqlite3_column_type(st, 4) != SQLITE_NULL)
+    if (column_count > 4 && sqlite3_column_type(st, 4) != SQLITE_NULL)
     {
         auto txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 4));
         auto j   = nlohmann::json::parse(txt, nullptr, false);
@@ -130,11 +141,15 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
     }
 
     /* 4  content_hash */
-    m.content_hash = static_cast<uint64_t>(sqlite3_column_int64(st, 5));
+    if (column_count > 5)
+        m.content_hash = static_cast<uint64_t>(sqlite3_column_int64(st, 5));
 
     /* 5  raw_path */
-    if (auto txt   = reinterpret_cast<const char*>(sqlite3_column_text(st, 6)))
-        m.raw_path = txt;            // NULL → 留空串
+    if (column_count > 6)
+    {
+        if (auto txt   = reinterpret_cast<const char*>(sqlite3_column_text(st, 6)))
+            m.raw_path = txt;            // NULL → 留空串
+    }
 
     return m;
 }
