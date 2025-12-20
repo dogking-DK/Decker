@@ -161,6 +161,7 @@ target_link_libraries(${PROJECT_NAME}
 # 链接三方头文件
 target_include_directories(${PROJECT_NAME} PRIVATE ${Stb_INCLUDE_DIR})
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE GLM_ENABLE_EXPERIMENTAL)
 
 # === 放在 src/CMakeLists.txt 末尾（add_executable/target_link_libraries 之后）===
 if(UNIX AND NOT APPLE)
