@@ -85,6 +85,7 @@ namespace {
         dst->id       = uuid_generate();
         dst->asset_id = src.id;
         dst->parent   = parent;
+        dst->local_transform = src.local_transform;
 
         const auto [_, inserted] = runtime_ids.insert(dst->id);
         assert(inserted && "Prefab instance should have a unique runtime UUID");
