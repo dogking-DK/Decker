@@ -4,7 +4,8 @@
 #include <vector>
 #include "UUID.hpp"
 #include <nlohmann/json.hpp>
-#include "scene/SceneTypes.h"
+
+#include "Transform.h"
 
 namespace dk {
 enum class AssetKind : uint8_t

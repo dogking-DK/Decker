@@ -1,4 +1,7 @@
-﻿#include <fastgltf/glm_element_traits.hpp>  // GLM 类型的 ElementTraits 专门化
+﻿#include "vk_types.h"
+#include "Transform.h"
+
+#include <fastgltf/glm_element_traits.hpp>  // GLM 类型的 ElementTraits 专门化
 #include <fastgltf/types.hpp>
 #include <fastgltf/core.hpp>
 
@@ -6,8 +9,7 @@
 #include <filesystem>
 #include <cstdint>
 
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
+
 
 #include "Prefab.hpp"
 #include "UUID.hpp"
@@ -21,7 +23,6 @@
 #include "RawTypes.hpp"
 #include <fstream>
 #include <optional>
-
 
 namespace {
 dk::UUID makeUUID(const std::string& tag, size_t idx)
