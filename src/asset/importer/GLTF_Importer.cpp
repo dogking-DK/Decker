@@ -6,6 +6,9 @@
 #include <filesystem>
 #include <cstdint>
 
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
+
 #include "Prefab.hpp"
 #include "UUID.hpp"
 #include "GLTF_Importer.h"
@@ -26,6 +29,31 @@ dk::UUID makeUUID(const std::string& tag, size_t idx)
     return dk::uuid_from_string(tag + std::to_string(idx));
 }
 
+dk::Transform to_transform(const fastgltf::Node& node)
+{
+    dk::Transform t{};
+    std::visit(fastgltf::visitor{
+                   [&](fastgltf::math::fmat4x4 matrix)
+                   {
+                       glm::mat4 m{1.0f};
+                       std::memcpy(glm::value_ptr(m), matrix.data(), sizeof(glm::mat4));
+
+                       glm::vec3    skew{};
+                       glm::vec4    perspective{};
+                       glm::decompose(m, t.scale, t.rotation, t.translation, skew, perspective);
+                   },
+                   [&](fastgltf::TRS transform)
+                   {
+                       t.translation = {transform.translation[0], transform.translation[1], transform.translation[2]};
+                       t.rotation    = {transform.rotation[3], transform.rotation[0], transform.rotation[1],
+                                        transform.rotation[2]};
+                       t.scale       = {transform.scale[0], transform.scale[1], transform.scale[2]};
+                   }
+               },
+               node.transform);
+    return t;
+}
+
 auto make_prefab_node_recursive =
     [](auto self, const fastgltf::Asset& asset, const uint32_t node_idx) -> dk::PrefabNode
 {
@@ -34,6 +62,7 @@ auto make_prefab_node_recursive =
     node.kind      = dk::AssetKind::Node;
     node.name      = n.name.empty() ? "Node" : n.name;
     node.id        = makeUUID("node", node_idx);
+    node.local_transform = to_transform(n);
 
     if (n.meshIndex.has_value())
     {
