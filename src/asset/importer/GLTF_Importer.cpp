@@ -9,8 +9,6 @@
 #include <filesystem>
 #include <cstdint>
 
-
-
 #include "Prefab.hpp"
 #include "UUID.hpp"
 #include "GLTF_Importer.h"
@@ -25,11 +23,6 @@
 #include <optional>
 
 namespace {
-dk::UUID makeUUID(const std::string& tag, size_t idx)
-{
-    return dk::uuid_from_string(tag + std::to_string(idx));
-}
-
 dk::Transform to_transform(const fastgltf::Node& node)
 {
     dk::Transform t{};
@@ -60,9 +53,9 @@ auto make_prefab_node_recursive =
 {
     const auto& n  = asset.nodes[node_idx];
     dk::PrefabNode node{};
-    node.kind      = dk::AssetKind::Node;
-    node.name      = n.name.empty() ? "Node" : n.name;
-    node.id        = makeUUID("node", node_idx);
+    node.kind            = dk::AssetKind::Node;
+    node.name            = n.name.empty() ? "Node" : n.name;
+    node.id              = dk::uuid_generate();
     node.local_transform = to_transform(n);
 
     if (n.meshIndex.has_value())
@@ -73,14 +66,14 @@ auto make_prefab_node_recursive =
         dk::PrefabNode mesh{};
         mesh.kind = dk::AssetKind::Mesh;
         mesh.name = gltf_mesh.name.empty() ? "Mesh" : gltf_mesh.name;
-        mesh.id   = makeUUID("mesh", mi);
+        mesh.id   = dk::uuid_generate();
 
         for (size_t pi = 0; pi < gltf_mesh.primitives.size(); ++pi)
         {
             dk::PrefabNode primitive{};
             primitive.kind = dk::AssetKind::Primitive;
             primitive.name = fmt::format("Surface {}", pi);
-            primitive.id   = makeUUID("primitive", mi * 100 + pi);
+            primitive.id   = dk::uuid_generate();
             mesh.children.push_back(std::move(primitive));
         }
         node.children.push_back(std::move(mesh));
@@ -163,7 +156,7 @@ void export_prefabs(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, 
         dk::PrefabNode scene_root{};
         scene_root.kind = dk::AssetKind::Scene;
         scene_root.name = name.empty() ? "Scene" : name;
-        scene_root.id   = makeUUID("scene", s);
+        scene_root.id   = dk::uuid_generate();
 
         for (const auto& ni : nodeIndices)
         {
@@ -171,7 +164,7 @@ void export_prefabs(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, 
                 make_prefab_node_recursive(make_prefab_node_recursive, gltf, static_cast<uint32_t>(ni)));
         }
 
-        dk::UUID    uuid      = makeUUID("prefab", s);
+        dk::UUID    uuid      = dk::uuid_generate();
         std::string file_name = to_string(uuid) + ".prefab";
 
         if (opts.write_raw)
@@ -319,7 +312,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
             }
 
             /* 文件 & meta */
-            dk::UUID    uuid      = makeUUID("meshraw", mi * 10 + pi);
+            dk::UUID    uuid      = dk::uuid_generate();
             std::string file_name = to_string(uuid) + ".rawmesh";
             if (opts.write_raw)
             {
@@ -341,7 +334,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
             m.raw_path = file_name;
             if (prim.materialIndex.has_value())
                 m.dependencies.insert_or_assign(dk::AssetDependencyType::Material,
-                                                makeUUID("mat", prim.materialIndex.value()));
+                    dk::uuid_generate());
             if (opts.do_hash)
             {
                 m.content_hash = dk::helper::hash_buffer(indices);
@@ -447,7 +440,7 @@ void export_raw_images(const fastgltf::Asset&   gltf, const std::filesystem::pat
             continue;
         }
 
-        dk::UUID    uuid      = makeUUID("img", ii);
+        dk::UUID    uuid      = dk::uuid_generate();
         std::string file_name = to_string(uuid) + ".rawimg";
         if (opts.write_raw)
         {
@@ -478,30 +471,30 @@ void export_raw_materials(const fastgltf::Asset& gltf, const dk::ImportOptions& 
         raw.roughness_factor = mat.pbrData.roughnessFactor;
         if (mat.pbrData.baseColorTexture)
         {
-            raw.base_color_texture = makeUUID("img", mat.pbrData.baseColorTexture->textureIndex);
+            raw.base_color_texture = dk::uuid_generate();
             m.dependencies.insert_or_assign(dk::AssetDependencyType::BaseColorTexture, raw.base_color_texture);
         }
         if (mat.pbrData.metallicRoughnessTexture)
         {
-            raw.metal_rough_texture = makeUUID("img", mat.pbrData.metallicRoughnessTexture->textureIndex);
+            raw.metal_rough_texture = dk::uuid_generate();
             m.dependencies.insert_or_assign(dk::AssetDependencyType::MetallicRoughnessTexture, raw.metal_rough_texture);
         }
         if (mat.normalTexture)
         {
-            raw.normal_texture = makeUUID("img", mat.normalTexture->textureIndex);
+            raw.normal_texture = dk::uuid_generate();
             m.dependencies.insert_or_assign(dk::AssetDependencyType::NormalTexture, raw.normal_texture);
         }
         if (mat.occlusionTexture)
         {
-            raw.occlusion_texture = makeUUID("img", mat.occlusionTexture->textureIndex);
+            raw.occlusion_texture = dk::uuid_generate();
             m.dependencies.insert_or_assign(dk::AssetDependencyType::OcclusionTexture, raw.occlusion_texture);
         }
         if (mat.emissiveTexture)
         {
-            raw.emissive_texture = makeUUID("img", mat.emissiveTexture->textureIndex);
+            raw.emissive_texture = dk::uuid_generate();
             m.dependencies.insert_or_assign(dk::AssetDependencyType::EmissiveTexture, raw.emissive_texture);
         }
-        dk::UUID uuid = makeUUID("mat", mi);
+        dk::UUID uuid = dk::uuid_generate();
         //fmt::print("material {}: {}\n", mi, to_string(uuid));
         std::string file_name = to_string(uuid) + ".rawmat";
         if (opts.write_raw) dk::helper::write_pod(opts.raw_dir / file_name, raw);

@@ -70,5 +70,33 @@ struct SceneNode
 
     /// 与 Asset 层的关联，便于从 AssetNode 回写或重建。
     std::optional<UUID> asset_id;
+
+    // --- 新增辅助函数 ---
+
+    // 添加组件：node.addComponent<MeshInstanceComponent>();
+    template <typename T, typename... Args>
+    T& addComponent(Args&&... args)
+    {
+        // 实际项目中可能需要检查是否已存在同类组件
+        auto component = std::make_unique<T>(std::forward<Args>(args)...);
+        T* raw_ptr = component.get();
+        components.push_back(std::move(component));
+        return *raw_ptr;
+    }
+
+    // 获取组件：node.getComponent<MeshInstanceComponent>();
+    template <typename T>
+    T* getComponent() const
+    {
+        for (const auto& comp : components)
+        {
+            // 使用 dynamic_cast 进行安全转换
+            if (auto ptr = dynamic_cast<T*>(comp.get()))
+            {
+                return ptr;
+            }
+        }
+        return nullptr;
+    }
 };
 } // namespace dk
