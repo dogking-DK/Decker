@@ -1,6 +1,5 @@
-﻿
-# Add source to this project's executable.
-add_library (vkguide_shared STATIC
+﻿# ================== GPU 静态库：封装公共渲染工具 ==================
+add_library(vkguide_shared STATIC
   vk_types.h
   vk_initializers.cpp
   vk_initializers.h
