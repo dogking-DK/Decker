@@ -25,9 +25,9 @@ inline UUID uuid_generate()
 {
     // 1. 先初始化随机数引擎 (std::mt19937)
     // 2. 再将引擎传递给 uuid_random_generator
-    static thread_local std::random_device rd;
-    static thread_local std::mt19937 engine{ rd() };
-    static thread_local uuids::uuid_random_generator generator{ engine };
+    thread_local std::random_device           rd;
+    thread_local std::mt19937                 engine{rd()};
+    thread_local uuids::uuid_random_generator generator{engine};
 
     const auto id = generator();
 
@@ -66,5 +66,4 @@ public:
     static void  registerType(std::string_view name, Factory f);
     static void* create(std::string_view name);
 };
-
-} // namespace core
+}

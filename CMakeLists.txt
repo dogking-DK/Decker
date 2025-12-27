@@ -1,20 +1,24 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(Decker
-        VERSION 0.0.1
-        DESCRIPTION "a render based on vulkan"
-        LANGUAGES CXX C
-)
-
-# 将安装输出统一放到仓库下的 install 目录，便于清理与部署
-set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install")
-
 if(DEFINED ENV{VCPKG_ROOT})
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
     message(STATUS "vcpkg is set as the toolchians")
 else()
     message(FATAL_ERROR "Environment variable VCPKG_ROOT is not set!")
 endif()
+
+project(Decker
+        VERSION 0.0.1
+        DESCRIPTION "a render based on vulkan"
+        LANGUAGES CXX C
+)
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMake Utility Targets")  # 这里改成你想要的文件夹名，比如 "Utility" 或 "CMake Targets"
+
+# 将安装输出统一放到仓库下的 install 目录，便于清理与部署
+set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install")
+
 # MSVC 平台的通用编译与链接优化
 if (MSVC)
     add_compile_options(/MP)
