@@ -8,6 +8,7 @@
 #include <span>
 #include <filesystem>
 #include <cstdint>
+#include <algorithm>
 
 #include "Prefab.hpp"
 #include "UUID.hpp"
@@ -23,6 +24,13 @@
 #include <optional>
 
 namespace {
+struct GltfUuidCache
+{
+    std::vector<dk::UUID>                 image_uuids;
+    std::vector<dk::UUID>                 material_uuids;
+    std::vector<std::vector<dk::UUID>>    mesh_uuids; // [mesh][primitive]
+};
+
 dk::Transform to_transform(const fastgltf::Node& node)
 {
     dk::Transform t{};
@@ -48,8 +56,8 @@ dk::Transform to_transform(const fastgltf::Node& node)
     return t;
 }
 
-auto make_prefab_node_recursive =
-    [](auto self, const fastgltf::Asset& asset, const uint32_t node_idx) -> dk::PrefabNode
+dk::PrefabNode make_prefab_node_recursive(const fastgltf::Asset& asset, const GltfUuidCache& cache,
+                                          const uint32_t node_idx)
 {
     const auto& n  = asset.nodes[node_idx];
     dk::PrefabNode node{};
@@ -73,7 +81,7 @@ auto make_prefab_node_recursive =
             dk::PrefabNode primitive{};
             primitive.kind = dk::AssetKind::Primitive;
             primitive.name = fmt::format("Surface {}", pi);
-            primitive.id   = dk::uuid_generate();
+            primitive.id   = cache.mesh_uuids[mi][pi];
             mesh.children.push_back(std::move(primitive));
         }
         node.children.push_back(std::move(mesh));
@@ -81,11 +89,11 @@ auto make_prefab_node_recursive =
 
     for (const auto& child : n.children)
     {
-        node.children.push_back(self(self, asset, static_cast<uint32_t>(child)));
+        node.children.push_back(make_prefab_node_recursive(asset, cache, static_cast<uint32_t>(child)));
     }
 
     return node;
-};
+}
 
 dk::VertexAttribute make_sem(const std::string& attr, const int set)
 {
@@ -147,7 +155,8 @@ std::optional<fastgltf::Asset> load_gltf_asset(const std::filesystem::path& file
     return gltf;
 }
 
-void export_prefabs(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, dk::ImportResult& result)
+void export_prefabs(const fastgltf::Asset& gltf, const GltfUuidCache& cache, const dk::ImportOptions& opts,
+                    dk::ImportResult& result)
 {
     for (size_t s = 0; s < gltf.scenes.size(); ++s)
     {
@@ -160,8 +169,7 @@ void export_prefabs(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, 
 
         for (const auto& ni : nodeIndices)
         {
-            scene_root.children.push_back(
-                make_prefab_node_recursive(make_prefab_node_recursive, gltf, static_cast<uint32_t>(ni)));
+            scene_root.children.push_back(make_prefab_node_recursive(gltf, cache, static_cast<uint32_t>(ni)));
         }
 
         dk::UUID    uuid      = dk::uuid_generate();
@@ -191,7 +199,8 @@ void export_prefabs(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, 
     }
 }
 
-void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, dk::ImportResult& result)
+void export_raw_meshes(const fastgltf::Asset& gltf, const GltfUuidCache& cache, const dk::ImportOptions& opts,
+                       dk::ImportResult& result)
 {
     for (size_t mi = 0; mi < gltf.meshes.size(); ++mi)
     {
@@ -312,7 +321,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
             }
 
             /* 文件 & meta */
-            dk::UUID    uuid      = dk::uuid_generate();
+            dk::UUID    uuid      = cache.mesh_uuids[mi][pi];
             std::string file_name = to_string(uuid) + ".rawmesh";
             if (opts.write_raw)
             {
@@ -334,7 +343,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
             m.raw_path = file_name;
             if (prim.materialIndex.has_value())
                 m.dependencies.insert_or_assign(dk::AssetDependencyType::Material,
-                    dk::uuid_generate());
+                    cache.material_uuids[prim.materialIndex.value()]);
             if (opts.do_hash)
             {
                 m.content_hash = dk::helper::hash_buffer(indices);
@@ -346,8 +355,9 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const dk::ImportOptions& opt
     }
 }
 
-void export_raw_images(const fastgltf::Asset&   gltf, const std::filesystem::path& file_path,
-                       const dk::ImportOptions& opts, dk::ImportResult&            result)
+void export_raw_images(const fastgltf::Asset&   gltf, const GltfUuidCache& cache,
+                       const std::filesystem::path& file_path, const dk::ImportOptions& opts,
+                       dk::ImportResult&            result)
 {
     for (size_t ii = 0; ii < gltf.images.size(); ++ii)
     {
@@ -440,7 +450,7 @@ void export_raw_images(const fastgltf::Asset&   gltf, const std::filesystem::pat
             continue;
         }
 
-        dk::UUID    uuid      = dk::uuid_generate();
+        dk::UUID    uuid      = cache.image_uuids[ii];
         std::string file_name = to_string(uuid) + ".rawimg";
         if (opts.write_raw)
         {
@@ -458,7 +468,8 @@ void export_raw_images(const fastgltf::Asset&   gltf, const std::filesystem::pat
     }
 }
 
-void export_raw_materials(const fastgltf::Asset& gltf, const dk::ImportOptions& opts, dk::ImportResult& result)
+void export_raw_materials(const fastgltf::Asset& gltf, const GltfUuidCache& cache, const dk::ImportOptions& opts,
+                          dk::ImportResult& result)
 {
     fmt::print("---------------------------\n");
     for (size_t mi = 0; mi < gltf.materials.size(); ++mi)
@@ -467,34 +478,48 @@ void export_raw_materials(const fastgltf::Asset& gltf, const dk::ImportOptions& 
         dk::RawMaterial raw{};
         dk::AssetMeta   m;
 
+        auto texture_to_uuid = [&](const auto& texture_info) -> dk::UUID
+        {
+            if (!texture_info) return {};
+            if (texture_info->textureIndex >= gltf.textures.size()) return {};
+            const auto& texture = gltf.textures[texture_info->textureIndex];
+            if (!texture.imageIndex.has_value()) return {};
+            return cache.image_uuids[texture.imageIndex.value()];
+        };
+
         raw.metallic_factor  = mat.pbrData.metallicFactor;
         raw.roughness_factor = mat.pbrData.roughnessFactor;
         if (mat.pbrData.baseColorTexture)
         {
-            raw.base_color_texture = dk::uuid_generate();
-            m.dependencies.insert_or_assign(dk::AssetDependencyType::BaseColorTexture, raw.base_color_texture);
+            raw.base_color_texture = texture_to_uuid(mat.pbrData.baseColorTexture);
+            if (!raw.base_color_texture.is_nil())
+                m.dependencies.insert_or_assign(dk::AssetDependencyType::BaseColorTexture, raw.base_color_texture);
         }
         if (mat.pbrData.metallicRoughnessTexture)
         {
-            raw.metal_rough_texture = dk::uuid_generate();
-            m.dependencies.insert_or_assign(dk::AssetDependencyType::MetallicRoughnessTexture, raw.metal_rough_texture);
+            raw.metal_rough_texture = texture_to_uuid(mat.pbrData.metallicRoughnessTexture);
+            if (!raw.metal_rough_texture.is_nil())
+                m.dependencies.insert_or_assign(dk::AssetDependencyType::MetallicRoughnessTexture, raw.metal_rough_texture);
         }
         if (mat.normalTexture)
         {
-            raw.normal_texture = dk::uuid_generate();
-            m.dependencies.insert_or_assign(dk::AssetDependencyType::NormalTexture, raw.normal_texture);
+            raw.normal_texture = texture_to_uuid(mat.normalTexture);
+            if (!raw.normal_texture.is_nil())
+                m.dependencies.insert_or_assign(dk::AssetDependencyType::NormalTexture, raw.normal_texture);
         }
         if (mat.occlusionTexture)
         {
-            raw.occlusion_texture = dk::uuid_generate();
-            m.dependencies.insert_or_assign(dk::AssetDependencyType::OcclusionTexture, raw.occlusion_texture);
+            raw.occlusion_texture = texture_to_uuid(mat.occlusionTexture);
+            if (!raw.occlusion_texture.is_nil())
+                m.dependencies.insert_or_assign(dk::AssetDependencyType::OcclusionTexture, raw.occlusion_texture);
         }
         if (mat.emissiveTexture)
         {
-            raw.emissive_texture = dk::uuid_generate();
-            m.dependencies.insert_or_assign(dk::AssetDependencyType::EmissiveTexture, raw.emissive_texture);
+            raw.emissive_texture = texture_to_uuid(mat.emissiveTexture);
+            if (!raw.emissive_texture.is_nil())
+                m.dependencies.insert_or_assign(dk::AssetDependencyType::EmissiveTexture, raw.emissive_texture);
         }
-        dk::UUID uuid = dk::uuid_generate();
+        dk::UUID uuid = cache.material_uuids[mi];
         //fmt::print("material {}: {}\n", mi, to_string(uuid));
         std::string file_name = to_string(uuid) + ".rawmat";
         if (opts.write_raw) dk::helper::write_pod(opts.raw_dir / file_name, raw);
@@ -529,10 +554,22 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     fmt::print("当前目录: {}\n", std::filesystem::current_path().string());
     create_directories(opts.raw_dir);
 
-    export_prefabs(*gltf, opts, result); // 导出 prefab
-    export_raw_meshes(*gltf, opts, result); // 导出raw mesh
-    export_raw_images(*gltf, file_path, opts, result); // 导出raw image
-    export_raw_materials(*gltf, opts, result); // 导出raw material
+    GltfUuidCache uuid_cache;
+    uuid_cache.image_uuids.resize(gltf->images.size());
+    std::generate(uuid_cache.image_uuids.begin(), uuid_cache.image_uuids.end(), dk::uuid_generate);
+    uuid_cache.material_uuids.resize(gltf->materials.size());
+    std::generate(uuid_cache.material_uuids.begin(), uuid_cache.material_uuids.end(), dk::uuid_generate);
+    uuid_cache.mesh_uuids.resize(gltf->meshes.size());
+    for (size_t mi = 0; mi < gltf->meshes.size(); ++mi)
+    {
+        uuid_cache.mesh_uuids[mi].resize(gltf->meshes[mi].primitives.size());
+        std::generate(uuid_cache.mesh_uuids[mi].begin(), uuid_cache.mesh_uuids[mi].end(), dk::uuid_generate);
+    }
+
+    export_prefabs(*gltf, uuid_cache, opts, result); // 导出 prefab
+    export_raw_meshes(*gltf, uuid_cache, opts, result); // 导出raw mesh
+    export_raw_images(*gltf, uuid_cache, file_path, opts, result); // 导出raw image
+    export_raw_materials(*gltf, uuid_cache, opts, result); // 导出raw material
     return result;
 }
 
