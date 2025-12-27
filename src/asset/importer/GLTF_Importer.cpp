@@ -556,14 +556,14 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
 
     GltfUuidCache uuid_cache;
     uuid_cache.image_uuids.resize(gltf->images.size());
-    std::generate(uuid_cache.image_uuids.begin(), uuid_cache.image_uuids.end(), dk::uuid_generate);
+    std::ranges::generate(uuid_cache.image_uuids, dk::uuid_generate);
     uuid_cache.material_uuids.resize(gltf->materials.size());
-    std::generate(uuid_cache.material_uuids.begin(), uuid_cache.material_uuids.end(), dk::uuid_generate);
+    std::ranges::generate(uuid_cache.material_uuids, dk::uuid_generate);
     uuid_cache.mesh_uuids.resize(gltf->meshes.size());
     for (size_t mi = 0; mi < gltf->meshes.size(); ++mi)
     {
         uuid_cache.mesh_uuids[mi].resize(gltf->meshes[mi].primitives.size());
-        std::generate(uuid_cache.mesh_uuids[mi].begin(), uuid_cache.mesh_uuids[mi].end(), dk::uuid_generate);
+        std::ranges::generate(uuid_cache.mesh_uuids[mi], dk::uuid_generate);
     }
 
     export_prefabs(*gltf, uuid_cache, opts, result); // 导出 prefab
