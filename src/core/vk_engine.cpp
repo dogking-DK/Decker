@@ -48,6 +48,7 @@
 
 #include "Scene.h"
 #include "render graph/renderpass/GaussianBlurPass.h"
+#include "render graph/renderpass/DistortionPass.h"
 #include "resource/cpu/MeshLoader.h"
 
 // 定义全局默认分发器的存储（只在一个 TU 里写！）
@@ -321,15 +322,18 @@ void VulkanEngine::test_render_graph()
     // Task A
     struct CreateTempData
     {
-        MyRes* color = nullptr;
+        MyRes* distortion = nullptr;
+        MyRes* blur        = nullptr;
     };
 
     if (render_graph == nullptr)
     {
-        render_graph         = std::make_shared<RenderGraph>();
-        m_blit_pass          = std::make_shared<BlitPass>();
-        m_gaussian_blur_pass = std::make_shared<GaussianBlurPass>();
+        render_graph          = std::make_shared<RenderGraph>();
+        m_blit_pass           = std::make_shared<BlitPass>();
+        m_gaussian_blur_pass  = std::make_shared<GaussianBlurPass>();
+        m_distortion_pass     = std::make_shared<DistortionPass>();
         m_gaussian_blur_pass->init(_context);
+        m_distortion_pass->init(_context);
     }
     ImageDesc desc{
         .width = _drawImage.imageExtent.width,
@@ -355,20 +359,23 @@ void VulkanEngine::test_render_graph()
                 .format = static_cast<vk::Format>(_drawImage.imageFormat),
                 .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
             };
-            auto* r1 = b.create<MyRes>("color_temp", desc);
-            auto* r2 = b.create<MyRes>("color_after_blur", desc);
-            //data.r1 = r1;
-            res1 = r1;
-            res2 = r2;
+            auto* r1     = b.create<MyRes>("color_temp", desc);
+            auto* r2     = b.create<MyRes>("color_after_blur", desc);
+            auto* distort = b.create<MyRes>("color_distortion", desc);
+            res1            = r1;
+            res2            = distort;
+            data.distortion = distort;
+            data.blur       = r2;
         },
         // execute
         [&](const CreateTempData& data, RenderGraphContext& ctx)
         {
-            //std::cout << "      [TaskA] running. R1=" << data.r1->get() << "\n";
+            (void)data;
         }
     );
     m_blit_pass->registerToGraph(*render_graph, color_image.get(), res1);
-    //m_gaussian_blur_pass->registerToGraph(*render_graph, res1, color_image.get());
+    m_distortion_pass->registerToGraph(*render_graph, res1, res2);
+    m_gaussian_blur_pass->registerToGraph(*render_graph, res2, color_image.get());
     RenderGraphContext ctx;
     ctx.vkCtx      = _context;
     ctx.frame_data = &get_current_frame();
@@ -408,6 +415,7 @@ void VulkanEngine::cleanup()
         render_graph.reset();
         m_blit_pass.reset();
         m_gaussian_blur_pass.reset();
+        m_distortion_pass.reset();
         m_scene_system.reset();
 
         loadedScenes.clear();
