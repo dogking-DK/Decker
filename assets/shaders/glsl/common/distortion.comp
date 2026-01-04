@@ -1,0 +1,38 @@
+#version 460
+
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout (binding = 0) uniform sampler2D uSrc;
+layout (binding = 1, rgba16f) writeonly uniform image2D uDst;
+
+layout (push_constant) uniform PushConstants {
+    float strength;   // 失真强度
+    float frequency;  // 波纹频率
+    float time;       // 预留，用于动画
+    float aspect;     // 宽高比
+} pc;
+
+void main()
+{
+    ivec2 gid     = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 imgSize = imageSize(uDst);
+    if (gid.x >= imgSize.x || gid.y >= imgSize.y)
+        return;
+
+    vec2 uv = (vec2(gid) + 0.5) / vec2(imgSize);
+
+    // 将 y 方向缩放到与 x 一致，保证圆形失真
+    vec2 centered = uv - vec2(0.5);
+    centered.y   *= pc.aspect;
+
+    float radius = length(centered);
+    float wave   = sin(radius * pc.frequency + pc.time) * pc.strength;
+
+    vec2 direction = radius > 0.0 ? centered / radius : vec2(0.0);
+    vec2 distorted = uv + direction * wave;
+
+    distorted = clamp(distorted, vec2(0.0), vec2(1.0));
+
+    vec4 color = texture(uSrc, distorted);
+    imageStore(uDst, gid, vec4(color.rgb, 1.0));
+}
