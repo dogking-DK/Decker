@@ -1,7 +1,5 @@
 ﻿// src/ui/HierarchyPanel.hpp
 #pragma once
-#include <imgui.h>
-#include <vector>
 
 #include "SceneTypes.h"
 

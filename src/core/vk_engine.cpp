@@ -374,8 +374,8 @@ void VulkanEngine::test_render_graph()
         }
     );
     m_blit_pass->registerToGraph(*render_graph, color_image.get(), res1);
-    m_distortion_pass->registerToGraph(*render_graph, res1, res2);
-    m_gaussian_blur_pass->registerToGraph(*render_graph, res2, color_image.get());
+    m_distortion_pass->registerToGraph(*render_graph, res1, color_image.get());
+    //m_gaussian_blur_pass->registerToGraph(*render_graph, res2, color_image.get());
     RenderGraphContext ctx;
     ctx.vkCtx      = _context;
     ctx.frame_data = &get_current_frame();
@@ -1025,6 +1025,11 @@ void VulkanEngine::run()
         ImGui_ImplSDL3_NewFrame();
 
         ImGui::NewFrame();
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+        {
+            ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+        }
         static float time                                       = 0;
         backgroundEffects[currentBackgroundEffect].data.data1.x = mainCamera.position.x;
         backgroundEffects[currentBackgroundEffect].data.data1.y = time;
@@ -1661,7 +1666,7 @@ void VulkanEngine::init_imgui()
 
     ImGuiIO& io = ImGui::GetIO();
     //io.FontGlobalScale = _context->getWindow()->get_dpi_factor(); // 放大字体
-    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // 开启docking
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // 开启docking
 
     ImFontConfig font_cfg;
     font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint;  // 额外的 FreeType 设置

@@ -1,11 +1,9 @@
 #pragma once
-
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
-#include <glm/gtc/quaternion.hpp>
 #include <glm/vec3.hpp>
 
 #include "Transform.h"
