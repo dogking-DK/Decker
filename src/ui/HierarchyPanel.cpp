@@ -6,8 +6,11 @@ namespace dk {
 void HierarchyPanel::onGui(const std::string& title)
 {
     if (_roots == nullptr) return;
-    ImGui::Begin(title.c_str());
-     drawNode(*_roots);
+    const bool panel_open = ImGui::Begin(title.c_str());
+    if (panel_open)
+    {
+        drawNode(*_roots);
+    }
     ImGui::End();
 }
 
