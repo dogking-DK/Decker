@@ -1034,15 +1034,19 @@ void VulkanEngine::run()
         backgroundEffects[currentBackgroundEffect].data.data1.x = mainCamera.position.x;
         backgroundEffects[currentBackgroundEffect].data.data1.y = time;
         time += 0.001f;
-        if (ImGui::Begin("设置面板", nullptr, ImGuiWindowFlags_NoCollapse))
+        const bool settings_open = ImGui::Begin("设置面板", nullptr, ImGuiWindowFlags_NoCollapse);
+        if (settings_open)
         {
             if (ImGui::CollapsingHeader("背景设置", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
 
-                ImGui::Text("Selected effect: ", selected.name);
+                ImGui::Text("Selected effect: %s", selected.name.c_str());
 
-                ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
+                ImGui::SliderInt("Effect Index",
+                                 &currentBackgroundEffect,
+                                 0,
+                                 static_cast<int>(backgroundEffects.size()) - 1);
 
                 ImGui::InputFloat4("data1", reinterpret_cast<float*>(&selected.data.data1));
                 ImGui::InputFloat4("data2", reinterpret_cast<float*>(&selected.data.data2));
@@ -1095,8 +1099,8 @@ void VulkanEngine::run()
                 ImGui::Text("draws %i", stats.drawcall_count);
             }
             mainCamera.renderUI();
-            ImGui::End();
         }
+        ImGui::End();
         // 资源树
         hierarchy_panel.onGui();
         // 顶部工具栏
