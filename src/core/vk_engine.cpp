@@ -374,7 +374,7 @@ void VulkanEngine::test_render_graph()
         }
     );
     m_blit_pass->registerToGraph(*render_graph, color_image.get(), res1);
-    m_distortion_pass->registerToGraph(*render_graph, res1, color_image.get());
+    //m_distortion_pass->registerToGraph(*render_graph, res1, color_image.get());
     //m_gaussian_blur_pass->registerToGraph(*render_graph, res2, color_image.get());
     RenderGraphContext ctx;
     ctx.vkCtx      = _context;

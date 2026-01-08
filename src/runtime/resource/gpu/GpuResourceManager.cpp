@@ -1,4 +1,4 @@
-#include "GpuResourceManager.h"
+﻿#include "GpuResourceManager.h"
 
 #include <algorithm>
 #include <array>

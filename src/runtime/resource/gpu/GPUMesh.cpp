@@ -1,4 +1,4 @@
-#include "GPUMesh.h"
+ï»¿#include "GPUMesh.h"
 
 #include "resource/cpu/MeshLoader.h"
 #include "Vulkan/Buffer.h"
@@ -8,7 +8,7 @@ GPUMesh create_gpu_mesh_buffers(vkcore::VulkanContext& context, const MeshData& 
 {
     GPUMesh gpu{};
 
-    // 1. ×é×° AoS ¶¥µãÊý×é
+    // 1. ç»„è£… AoS é¡¶ç‚¹æ•°ç»„
     std::vector<GPUVertex> vertices(mesh.vertex_count);
     for (uint32_t i = 0; i < mesh.vertex_count; ++i)
     {
@@ -31,7 +31,7 @@ GPUMesh create_gpu_mesh_buffers(vkcore::VulkanContext& context, const MeshData& 
     .buildUnique(context);
     gpu.vertex_buffer->update(vertices.data(), vertices.size());
 
-    //// 2. ´´½¨ vertex buffer£¨device local + staging ÉÏ´«£©
+    //// 2. åˆ›å»º vertex bufferï¼ˆdevice local + staging ä¸Šä¼ ï¼‰
     //gpu.vertexBuffer = createDeviceLocalBufferWithData(
     //    context,
     //    vertices.data(),
@@ -39,7 +39,7 @@ GPUMesh create_gpu_mesh_buffers(vkcore::VulkanContext& context, const MeshData& 
     //    vk::BufferUsageFlagBits::eVertexBuffer
     //    | vk::BufferUsageFlagBits::eTransferDst);
 
-    //// 3. ´´½¨ index buffer
+    //// 3. åˆ›å»º index buffer
     //gpu.indexBuffer = createDeviceLocalBufferWithData(
     //    context,
     //    mesh.indices.data(),
