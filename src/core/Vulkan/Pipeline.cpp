@@ -44,6 +44,8 @@ PipelineBuilder::PipelineBuilder(VulkanContext* context)
 
     // 默认动态状态
     _dynamic_states = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+    _vertex_input_info.vertexBindingDescriptionCount   = 0;
+    _vertex_input_info.vertexAttributeDescriptionCount = 0;
 }
 
 std::unique_ptr<Pipeline> PipelineBuilder::build()
@@ -114,7 +116,20 @@ std::unique_ptr<Pipeline> PipelineBuilder::build()
     }
     else
     {
-        pipeline_info.pVertexInputState   = &empty_vertex_info; // 假设无顶点属性，可扩展
+        if (_use_vertex_input)
+        {
+            _vertex_input_info.vertexBindingDescriptionCount =
+                static_cast<uint32_t>(_vertex_bindings.size());
+            _vertex_input_info.pVertexBindingDescriptions = _vertex_bindings.data();
+            _vertex_input_info.vertexAttributeDescriptionCount =
+                static_cast<uint32_t>(_vertex_attributes.size());
+            _vertex_input_info.pVertexAttributeDescriptions = _vertex_attributes.data();
+            pipeline_info.pVertexInputState = &_vertex_input_info;
+        }
+        else
+        {
+            pipeline_info.pVertexInputState = &empty_vertex_info;
+        }
         pipeline_info.pInputAssemblyState = &_input_assembly_info;
     }
 
@@ -147,6 +162,15 @@ PipelineBuilder& PipelineBuilder::setShaders(vk::ShaderModule mesh_shader, vk::S
 
     _shader_stages.clear();
     _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eMeshEXT, mesh_shader, "main"});
+    _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eFragment, fragment_shader, "main"});
+    return *this;
+}
+
+PipelineBuilder& PipelineBuilder::setShaders(vk::ShaderModule vertex_shader, vk::ShaderModule fragment_shader)
+{
+    _type = PipelineType::Graphics;
+    _shader_stages.clear();
+    _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eVertex, vertex_shader, "main"});
     _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eFragment, fragment_shader, "main"});
     return *this;
 }
@@ -247,6 +271,16 @@ PipelineBuilder& PipelineBuilder::setColorBlendingAlpha()
 PipelineBuilder& PipelineBuilder::addDynamicState(vk::DynamicState state)
 {
     _dynamic_states.push_back(state);
+    return *this;
+}
+
+PipelineBuilder& PipelineBuilder::setVertexInput(
+    const std::vector<vk::VertexInputBindingDescription>& bindings,
+    const std::vector<vk::VertexInputAttributeDescription>& attributes)
+{
+    _vertex_bindings   = bindings;
+    _vertex_attributes = attributes;
+    _use_vertex_input  = true;
     return *this;
 }
 } // namespace dk::vkcore

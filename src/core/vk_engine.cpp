@@ -50,6 +50,7 @@
 #include "render graph/renderpass/GaussianBlurPass.h"
 #include "render graph/renderpass/DistortionPass.h"
 #include "resource/cpu/MeshLoader.h"
+#include "runtime/render/RenderSystem.h"
 
 // 定义全局默认分发器的存储（只在一个 TU 里写！）
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -417,6 +418,12 @@ void VulkanEngine::cleanup()
         m_gaussian_blur_pass.reset();
         m_distortion_pass.reset();
         m_scene_system.reset();
+        _render_system.reset();
+        if (_upload_pool)
+        {
+            _upload_ctx.shutdown();
+            _upload_pool.reset();
+        }
 
         loadedScenes.clear();
 
@@ -598,7 +605,13 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
     vkCmdBeginRendering(cmd, &renderInfo);
     auto start = std::chrono::system_clock::now();
-    draw_geometry(cmd);
+    if (_render_system)
+    {
+        RenderGraphContext rg_ctx;
+        rg_ctx.vkCtx      = _context;
+        rg_ctx.frame_data = &get_current_frame();
+        _render_system->execute(rg_ctx);
+    }
     auto end     = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
@@ -1218,7 +1231,14 @@ void VulkanEngine::update_scene()
     sceneData.view = view;
 
 
-    loadedScenes["structure"]->draw(glm::mat4{1.f}, drawCommands);
+    if (_render_system && m_scene_system)
+    {
+        _render_system->prepareFrame(*m_scene_system->currentScene(),
+                                     sceneData.view,
+                                     sceneData.proj,
+                                     mainCamera.position,
+                                     {_windowExtent.width, _windowExtent.height});
+    }
 }
 
 AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
@@ -1561,6 +1581,9 @@ void VulkanEngine::init_commands()
 
     _mainDeletionQueue.push_function(
         [this]() { vkDestroyCommandPool(_context->getDevice(), _immCommandPool, nullptr); });
+
+    _upload_pool = std::make_unique<vkcore::CommandPool>(_context, _context->getTransferQueueIndex());
+    _upload_ctx.init(_context, _upload_pool.get(), _context->getTransferQueue());
 }
 
 void VulkanEngine::init_sync_structures()
@@ -1619,19 +1642,24 @@ void VulkanEngine::init_renderables()
         AssetDB::instance().upsert(meta);
     }
     // 1 假设导入阶段已写入 metas & raw；此处只加载
-    ResourceCache  cache;
-    ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
+    _cpu_cache = ResourceCache{};
+    _cpu_loader = std::make_unique<ResourceLoader>("cache/raw", AssetDB::instance(), _cpu_cache);
     //auto           result = loader.load<MeshData>(root.metas[0].uuid);
     //auto           result1 = loader.load<MeshData>(root.metas[0].uuid);
 
-    m_scene_system = std::make_shared<SceneSystem>(std::make_unique<SceneBuilder>(), std::make_unique<SceneResourceBinder>());
+    m_scene_system = std::make_shared<SceneSystem>(std::make_unique<SceneBuilder>(),
+                                                   std::make_unique<SceneResourceBinder>());
     m_scene_system->buildSceneFromImport("scene", root);
-    m_scene_system->preloadResources(loader, cache);
+    m_scene_system->preloadResources(*_cpu_loader, _cpu_cache);
 
     hierarchy_panel.setRoots(m_scene_system->currentScene()->getRoot().get());
     assert(structureFile.has_value());
 
     loadedScenes["structure"] = *structureFile;
+
+    _render_system = std::make_unique<render::RenderSystem>(*_context, _upload_ctx, *_cpu_loader);
+    _render_system->init(static_cast<vk::Format>(_drawImage.imageFormat),
+                         static_cast<vk::Format>(_depthImage.imageFormat));
 }
 
 void VulkanEngine::init_imgui()
