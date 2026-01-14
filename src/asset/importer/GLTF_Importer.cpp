@@ -1,4 +1,4 @@
-﻿#include "vk_types.h"
+#include "vk_types.h"
 #include "Transform.h"
 
 #include <fastgltf/glm_element_traits.hpp>  // GLM 类型的 ElementTraits 专门化
@@ -370,7 +370,7 @@ void export_raw_images(const fastgltf::Asset&   gltf, const GltfUuidCache& cache
 
         std::visit(
             fastgltf::visitor{
-                [&](fastgltf::sources::URI& filePath)
+                [&](const fastgltf::sources::URI& filePath)
                 {
                     assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
                     assert(filePath.uri.isLocalPath()); // We're only capable of loading
@@ -395,7 +395,7 @@ void export_raw_images(const fastgltf::Asset&   gltf, const GltfUuidCache& cache
                         stbi_image_free(image_data);
                     }
                 },
-                [&](fastgltf::sources::Vector& vector)
+                [&](const fastgltf::sources::Vector& vector)
                 {
                     unsigned char* image_data = stbi_load_from_memory(
                         reinterpret_cast<const stbi_uc*>(vector.bytes.data()),
@@ -408,7 +408,7 @@ void export_raw_images(const fastgltf::Asset&   gltf, const GltfUuidCache& cache
                         stbi_image_free(image_data);
                     }
                 },
-                [&](fastgltf::sources::BufferView& view)
+                [&](const fastgltf::sources::BufferView& view)
                 {
                     auto& bufferView = gltf.bufferViews[view.bufferViewIndex];
                     auto& buffer     = gltf.buffers[bufferView.bufferIndex];
