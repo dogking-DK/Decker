@@ -1,4 +1,4 @@
-﻿#include "Scene.h"
+#include "Scene.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -89,6 +89,12 @@ namespace {
 
         const auto [_, inserted] = runtime_ids.insert(dst->id);
         assert(inserted && "Prefab instance should have a unique runtime UUID");
+
+        if (src.kind == AssetKind::Primitive)
+        {
+            auto& mesh_component = dst->addComponent<MeshInstanceComponent>();
+            mesh_component.mesh_asset = src.id;
+        }
 
         for (const auto& child : src.children)
         {
