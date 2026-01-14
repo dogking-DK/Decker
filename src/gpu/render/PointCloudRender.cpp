@@ -1,4 +1,4 @@
-﻿#include "PointCloudRender.h"
+#include "PointCloudRender.h"
 #include <stdexcept>
 
 #include "Vulkan/ShaderModule.h"
@@ -132,7 +132,7 @@ void PointCloudRenderer::createPipeline(vk::Format color_format, vk::Format dept
     // =================================================================
     dk::vkcore::PipelineBuilder builder(_context);
     _pipeline = builder.setLayout(_pipeline_layout.get()) // 使用我们手动创建的布局
-                       .setShaders(mesh_module->getHandle(), frag_module->getHandle())
+                       .setMeshShaders(mesh_module->getHandle(), frag_module->getHandle())
                        .setRenderingInfo({color_format}, depth_format)
                        .setPolygonMode(vk::PolygonMode::ePoint)
                        .setCullMode(vk::CullModeFlagBits::eNone)

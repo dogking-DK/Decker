@@ -1,9 +1,10 @@
-﻿#include "OpaquePass.h"
+#include "OpaquePass.h"
 
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
 
+#include "Vulkan/CommandBuffer.h"
 #include "Vulkan/ShaderModule.h"
 #include "Vulkan/ShaderCompiler.h"
 
@@ -84,7 +85,7 @@ void OpaquePass::init(vk::Format color_format, vk::Format depth_format)
 
     vkcore::PipelineBuilder builder(&_context);
     _pipeline = builder.setLayout(_pipeline_layout.get())
-                       .setShaders(vert_module->getHandle(), frag_module->getHandle())
+                       .setGraphicsShaders(vert_module->getHandle(), frag_module->getHandle())
                        .setVertexInput(bindings, attributes)
                        .setRenderingInfo({color_format}, depth_format)
                        .setCullMode(vk::CullModeFlagBits::eBack)

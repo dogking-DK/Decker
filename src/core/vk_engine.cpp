@@ -1,4 +1,4 @@
-﻿#include "vk_engine.h"
+#include "vk_engine.h"
 
 #include "vk_images.h"
 #include "vk_loader.h"
@@ -50,7 +50,7 @@
 #include "render graph/renderpass/GaussianBlurPass.h"
 #include "render graph/renderpass/DistortionPass.h"
 #include "resource/cpu/MeshLoader.h"
-#include "runtime/render/RenderSystem.h"
+#include "render/RenderSystem.h"
 
 // 定义全局默认分发器的存储（只在一个 TU 里写！）
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -81,7 +81,8 @@ struct fmt::formatter<glm::vec3>
 namespace dk {
 // we want to immediately abort when there is an error. In normal engines this
 // would give an error message to the user, or perform a dump of state.
-using namespace std;
+    using namespace std;
+    using namespace render;
 
 VulkanEngine* loadedEngine = nullptr;
 
@@ -2015,5 +2016,13 @@ TextureID TextureCache::AddTexture(const VkImageView& image, VkSampler sampler)
     });
 
     return TextureID{idx};
+}
+
+VulkanEngine::VulkanEngine()
+{
+}
+
+VulkanEngine::~VulkanEngine()
+{
 }
 }

@@ -1,7 +1,10 @@
-﻿#pragma once
+#pragma once
 
 #include <memory>
 #include <vector>
+#include <span>
+#include <string_view>
+#include <initializer_list>
 #include "Resource.hpp"
 #include "PipelineLayout.h"
 #include "Context.h"
@@ -31,6 +34,14 @@ private:
     PipelineLayout* _layout; // 持有对其布局的引用
 };
 
+// 统一描述一个 shader stage（C++23: string_view + span-friendly）
+struct ShaderStageDesc
+{
+    vk::ShaderStageFlagBits        stage{};
+    vk::ShaderModule              module{};
+    std::string_view              entry{"main"};
+    const vk::SpecializationInfo* specialization{nullptr};
+};
 
 class PipelineBuilder
 {
@@ -42,10 +53,23 @@ public:
 
     // --- Fluent API for configuration ---
 
-    // 设置着色器阶段
-    PipelineBuilder& setShaders(vk::ShaderModule mesh_shader, vk::ShaderModule fragment_shader);
-    PipelineBuilder& setShaders(vk::ShaderModule vertex_shader, vk::ShaderModule fragment_shader);
-    PipelineBuilder& setShaders(vk::ShaderModule comp_shader);
+    // 设置着色器阶段（推荐：统一入口）
+    PipelineBuilder& setShaderStages(std::span<const ShaderStageDesc> stages);
+    PipelineBuilder& setShaderStages(std::initializer_list<ShaderStageDesc> stages);
+
+    // 便捷封装：VS+FS / MS(+TS)+FS / CS
+    PipelineBuilder& setGraphicsShaders(vk::ShaderModule vertex_shader, vk::ShaderModule fragment_shader,
+                                        std::string_view vs_entry = "main",
+                                        std::string_view fs_entry = "main");
+    PipelineBuilder& setMeshShaders(vk::ShaderModule mesh_shader, vk::ShaderModule fragment_shader,
+                                    std::string_view ms_entry = "main",
+                                    std::string_view fs_entry = "main");
+    PipelineBuilder& setTaskMeshShaders(vk::ShaderModule task_shader, vk::ShaderModule mesh_shader,
+                                        vk::ShaderModule fragment_shader,
+                                        std::string_view ts_entry = "main",
+                                        std::string_view ms_entry = "main",
+                                        std::string_view fs_entry = "main");
+    PipelineBuilder& setComputeShader(vk::ShaderModule comp_shader, std::string_view cs_entry = "main");
     // 设置管线布局
     PipelineBuilder& setLayout(PipelineLayout* layout);
 
@@ -79,6 +103,7 @@ private:
     // --- State storage ---
     PipelineLayout*                                _pipeline_layout{nullptr};
     std::vector<vk::PipelineShaderStageCreateInfo> _shader_stages;
+    bool                                           _is_mesh_pipeline{false};
     vk::PipelineInputAssemblyStateCreateInfo       _input_assembly_info;
     vk::PipelineRasterizationStateCreateInfo       _rasterization_info;
     vk::PipelineMultisampleStateCreateInfo         _multisample_info;

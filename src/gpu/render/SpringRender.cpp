@@ -1,4 +1,4 @@
-﻿// SpringRenderer.cpp
+// SpringRenderer.cpp
 #include "SpringRender.h"
 #include <stdexcept>
 #include <filesystem>
@@ -151,7 +151,7 @@ void SpringRenderer::createPipeline(vk::Format color_format, vk::Format depth_fo
     // 3. 创建管线
     vkcore::PipelineBuilder builder(_context);
     _pipeline = builder.setLayout(_pipeline_layout.get())
-                       .setShaders(mesh_module->getHandle(), frag_module->getHandle())
+                       .setMeshShaders(mesh_module->getHandle(), frag_module->getHandle())
                        .setRenderingInfo({color_format}, depth_format)
                         // **核心变化**: 设置为线框模式
                        .setPolygonMode(vk::PolygonMode::eLine)

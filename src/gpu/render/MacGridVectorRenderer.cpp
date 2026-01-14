@@ -1,4 +1,4 @@
-﻿#include "MacGridVectorRenderer.h"
+#include "MacGridVectorRenderer.h"
 
 #include "data/MACGrid.h"
 
@@ -84,7 +84,7 @@ void MacGridVectorRenderer::createPipeline(vk::Format color_format, vk::Format d
     // pipeline
     vkcore::PipelineBuilder pb(_context);
     _pipeline = pb.setLayout(_pipeline_layout.get())
-                  .setShaders(mesh_mod->getHandle(), frag_mod->getHandle())
+                  .setMeshShaders(mesh_mod->getHandle(), frag_mod->getHandle())
                   .setRenderingInfo({color_format}, depth_format)
                   .setPolygonMode(vk::PolygonMode::eFill)               // 填充
                   .setCullMode(vk::CullModeFlagBits::eNone)             // billboard 需要禁背面

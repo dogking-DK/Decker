@@ -1,4 +1,4 @@
-﻿// GaussianBlurPass.cpp
+// GaussianBlurPass.cpp
 #include "GaussianBlurPass.h"
 #include "vk_engine.h"            // 里面有 device 等
 #include "vk_images.h"
@@ -71,7 +71,7 @@ void GaussianBlurPass::init(vkcore::VulkanContext* ctx)
     // 3. 创建管线
     vkcore::PipelineBuilder builder(ctx);
     _pipeline = builder.setLayout(_pipeline_layout.get())
-                       .setShaders(comp_module->getHandle())
+                       .setComputeShader(comp_module->getHandle())
                        .build();
 }
 

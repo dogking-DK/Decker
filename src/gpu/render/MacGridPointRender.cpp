@@ -1,4 +1,4 @@
-﻿#include "MacGridPointRender.h"
+#include "MacGridPointRender.h"
 #include <algorithm>
 #include <filesystem>
 #include <stdexcept>
@@ -79,7 +79,7 @@ namespace dk {
 
         vkcore::PipelineBuilder pb(_ctx);
         _pipeline = pb.setLayout(_pipeline_layout.get())
-            .setShaders(mesh_mod->getHandle(), frag_mod->getHandle())
+            .setMeshShaders(mesh_mod->getHandle(), frag_mod->getHandle())
             .setRenderingInfo({ color_format }, depth_format)
             .setPolygonMode(vk::PolygonMode::eFill)
             .setCullMode(vk::CullModeFlagBits::eNone)

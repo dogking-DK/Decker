@@ -1,4 +1,5 @@
-﻿#include "Pipeline.h"
+#include "Pipeline.h"
+#include <stdexcept>
 
 namespace dk::vkcore {
 Pipeline::Pipeline(VulkanContext* context, vk::Pipeline pipeline, PipelineLayout* layout)
@@ -96,17 +97,8 @@ std::unique_ptr<Pipeline> PipelineBuilder::build()
     vk::GraphicsPipelineCreateInfo pipeline_info;
     pipeline_info.stageCount = static_cast<uint32_t>(_shader_stages.size());
     pipeline_info.pStages    = _shader_stages.data();
-
-    // 检查是否为 Mesh Shader 管线
-    bool is_mesh_pipeline = false;
-    for (const auto& stage : _shader_stages)
-    {
-        if (stage.stage == vk::ShaderStageFlagBits::eMeshEXT)
-        {
-            is_mesh_pipeline = true;
-            break;
-        }
-    }
+    // Mesh/Task Shader 管线：在 setShaderStages 时已判定
+    const bool is_mesh_pipeline = _is_mesh_pipeline;
 
     vk::PipelineVertexInputStateCreateInfo empty_vertex_info;
     if (is_mesh_pipeline)
@@ -156,32 +148,108 @@ std::unique_ptr<Pipeline> PipelineBuilder::build()
     return std::unique_ptr<Pipeline>(new Pipeline(_context, result.value, _pipeline_layout));
 }
 
-PipelineBuilder& PipelineBuilder::setShaders(vk::ShaderModule mesh_shader, vk::ShaderModule fragment_shader)
+
+
+// ---- 统一的 Stage 入口（C++23） ----
+static bool isMeshLikeStage(vk::ShaderStageFlagBits stage)
 {
-    _type = PipelineType::Graphics;        // 明确是图形管线
+    return stage == vk::ShaderStageFlagBits::eMeshEXT || stage == vk::ShaderStageFlagBits::eTaskEXT;
+}
+
+PipelineBuilder& PipelineBuilder::setShaderStages(std::span<const ShaderStageDesc> stages)
+{
+    if (stages.empty())
+    {
+        throw std::runtime_error("setShaderStages: empty stage list.");
+    }
+
+    if (stages.size() > _shader_stages.max_size())
+    {
+        throw std::runtime_error("setShaderStages: too many stages (increase inplace_vector capacity).");
+    }
+
+    // 判定管线类型 + 合法性检查
+    bool has_compute   = false;
+    bool has_graphics  = false;
+    bool has_mesh_like = false;
+
+    for (const auto& s : stages)
+    {
+        if (s.stage == vk::ShaderStageFlagBits::eCompute) has_compute = true;
+        else has_graphics = true;
+
+        if (isMeshLikeStage(s.stage)) has_mesh_like = true;
+    }
+
+    if (has_compute && has_graphics)
+    {
+        throw std::runtime_error("setShaderStages: cannot mix compute and graphics stages.");
+    }
+
+    _type             = has_compute ? PipelineType::Compute : PipelineType::Graphics;
+    _is_mesh_pipeline = (!has_compute) && has_mesh_like;
 
     _shader_stages.clear();
-    _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eMeshEXT, mesh_shader, "main"});
-    _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eFragment, fragment_shader, "main"});
+    for (const auto& s : stages)
+    {
+        _shader_stages.push_back(vk::PipelineShaderStageCreateInfo{
+            {},
+            s.stage,
+            s.module,
+            s.entry.data(),
+            s.specialization
+        });
+    }
     return *this;
 }
 
-PipelineBuilder& PipelineBuilder::setShaders(vk::ShaderModule vertex_shader, vk::ShaderModule fragment_shader)
+PipelineBuilder& PipelineBuilder::setShaderStages(std::initializer_list<ShaderStageDesc> stages)
 {
-    _type = PipelineType::Graphics;
-    _shader_stages.clear();
-    _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eVertex, vertex_shader, "main"});
-    _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eFragment, fragment_shader, "main"});
-    return *this;
+    return setShaderStages(std::span<const ShaderStageDesc>{stages.begin(), stages.size()});
 }
 
-PipelineBuilder& PipelineBuilder::setShaders(vk::ShaderModule comp_shader)
+// ---- 便捷封装（薄包装，避免重复） ----
+PipelineBuilder& PipelineBuilder::setGraphicsShaders(vk::ShaderModule vertex_shader,
+                                                     vk::ShaderModule fragment_shader,
+                                                     std::string_view vs_entry,
+                                                     std::string_view fs_entry)
 {
-    _type = PipelineType::Compute;         // 明确是计算管线
+    return setShaderStages({
+        {vk::ShaderStageFlagBits::eVertex,   vertex_shader,   vs_entry},
+        {vk::ShaderStageFlagBits::eFragment, fragment_shader, fs_entry},
+    });
+}
 
-    _shader_stages.clear();
-    _shader_stages.push_back({{}, vk::ShaderStageFlagBits::eCompute, comp_shader, "main"});
-    return *this;
+PipelineBuilder& PipelineBuilder::setMeshShaders(vk::ShaderModule mesh_shader,
+                                                 vk::ShaderModule fragment_shader,
+                                                 std::string_view ms_entry,
+                                                 std::string_view fs_entry)
+{
+    return setShaderStages({
+        {vk::ShaderStageFlagBits::eMeshEXT,  mesh_shader,     ms_entry},
+        {vk::ShaderStageFlagBits::eFragment, fragment_shader, fs_entry},
+    });
+}
+
+PipelineBuilder& PipelineBuilder::setTaskMeshShaders(vk::ShaderModule task_shader,
+                                                     vk::ShaderModule mesh_shader,
+                                                     vk::ShaderModule fragment_shader,
+                                                     std::string_view ts_entry,
+                                                     std::string_view ms_entry,
+                                                     std::string_view fs_entry)
+{
+    return setShaderStages({
+        {vk::ShaderStageFlagBits::eTaskEXT,  task_shader,     ts_entry},
+        {vk::ShaderStageFlagBits::eMeshEXT,  mesh_shader,     ms_entry},
+        {vk::ShaderStageFlagBits::eFragment, fragment_shader, fs_entry},
+    });
+}
+
+PipelineBuilder& PipelineBuilder::setComputeShader(vk::ShaderModule comp_shader, std::string_view cs_entry)
+{
+    return setShaderStages({
+        {vk::ShaderStageFlagBits::eCompute, comp_shader, cs_entry},
+    });
 }
 
 PipelineBuilder& PipelineBuilder::setLayout(PipelineLayout* layout)

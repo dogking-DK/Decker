@@ -1,11 +1,11 @@
-﻿#include "RenderWorld.h"
+#include "RenderWorld.h"
 
 #include <stack>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include "scene/SceneTypes.h"
+#include "SceneTypes.h"
 #include "resource/cpu/MeshLoader.h"
 
 namespace dk::render {
@@ -24,7 +24,7 @@ void RenderWorld::extractFromScene(const Scene& scene, ResourceLoader& loader, G
     _proxies.clear();
     _node_map.clear();
 
-    const auto root = scene.getRoot();
+    auto root = scene.getRoot();
     if (!root)
     {
         return;

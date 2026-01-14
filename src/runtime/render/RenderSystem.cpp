@@ -1,4 +1,4 @@
-﻿#include "RenderSystem.h"
+#include "RenderSystem.h"
 
 #include <algorithm>
 
@@ -11,6 +11,10 @@ RenderSystem::RenderSystem(vkcore::VulkanContext& ctx, vkcore::UploadContext& up
 {
     _gpu_cache   = std::make_unique<GpuResourceManager>(ctx, upload_ctx, loader);
     _opaque_pass = std::make_unique<OpaquePass>(ctx);
+}
+
+RenderSystem::~RenderSystem()
+{
 }
 
 void RenderSystem::init(vk::Format color_format, vk::Format depth_format)

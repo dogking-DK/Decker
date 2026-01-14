@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <memory>
 #include <optional>
@@ -26,7 +26,7 @@ class RenderSystem
 {
 public:
     RenderSystem(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx, ResourceLoader& loader);
-
+    ~RenderSystem();
     void init(vk::Format color_format, vk::Format depth_format);
 
     void prepareFrame(const Scene& scene,

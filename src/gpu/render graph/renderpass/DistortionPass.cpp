@@ -1,4 +1,4 @@
-﻿#include "DistortionPass.h"
+#include "DistortionPass.h"
 
 #include "vk_engine.h"
 #include "vk_images.h"
@@ -64,7 +64,7 @@ void DistortionPass::init(vkcore::VulkanContext* ctx)
 
     vkcore::PipelineBuilder builder(ctx);
     _pipeline = builder.setLayout(_pipeline_layout.get())
-                       .setShaders(comp_module->getHandle())
+                       .setComputeShader(comp_module->getHandle())
                        .build();
 }
 

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -21,6 +21,7 @@ public:
 
     void                       setRoot(std::shared_ptr<SceneNode> root);
     std::shared_ptr<SceneNode> getRoot();
+    std::shared_ptr<SceneNode> getRoot() const;
     void                       forEachNode(const std::function<void(SceneNode&)>& visitor);
 
     const std::string& name() const noexcept { return _name; }

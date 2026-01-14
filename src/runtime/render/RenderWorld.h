@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <unordered_map>
 #include <vector>
@@ -6,7 +6,7 @@
 #include <glm/mat4x4.hpp>
 
 #include "UUID.hpp"
-#include "scene/Scene.h"
+#include "Scene.h"
 #include "resource/cpu/ResourceLoader.h"
 #include "resource/gpu/GpuResourceManager.h"
 #include "RenderTypes.h"

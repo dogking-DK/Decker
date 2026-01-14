@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <vk_types.h>
 
@@ -129,6 +129,8 @@ struct TextureCache
 class VulkanEngine
 {
 public:
+    VulkanEngine();
+    ~VulkanEngine();
     bool _isInitialized{ false };
     int _frameNumber{ 0 };
 
