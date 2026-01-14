@@ -25,6 +25,7 @@
 #include "render graph/Resource.h"
 #include "Vulkan/CommandPool.h"
 #include "Vulkan/CommandBuffer.h"
+#include "resource/cpu/ResourceCache.h"
 
 namespace dk {
 class SceneSystem;
@@ -32,6 +33,14 @@ class SceneSystem;
 
 namespace dk {
 class Scene;
+}
+
+namespace dk {
+class ResourceLoader;
+}
+
+namespace dk::render {
+class RenderSystem;
 }
 
 namespace dk {
@@ -196,6 +205,12 @@ public:
     std::shared_ptr<SceneSystem> m_scene_system;
 
     std::unique_ptr<World> physic_world;
+
+    std::unique_ptr<render::RenderSystem> _render_system;
+    std::unique_ptr<ResourceLoader>       _cpu_loader;
+    ResourceCache                         _cpu_cache;
+    std::unique_ptr<vkcore::CommandPool>  _upload_pool;
+    vkcore::UploadContext                 _upload_ctx;
 
     // singleton style getter.multiple engines is not supported
     static VulkanEngine& Get();

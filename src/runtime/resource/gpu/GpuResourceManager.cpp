@@ -52,21 +52,23 @@ std::shared_ptr<GPUMesh> GpuResourceManager::uploadMeshData(const MeshData& mesh
 
     gpu_mesh->vertex_buffer = BufferResource::Builder()
                              .setSize(sizeof(GPUVertex) * gpu_vertices.size())
-                             .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
+                             .setUsage(vk::BufferUsageFlagBits::eVertexBuffer |
+                                       vk::BufferUsageFlagBits::eTransferDst)
                              .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eDeviceLocal)
                              .withVmaUsage(VMA_MEMORY_USAGE_AUTO)
                              .buildUnique(_context);
     upload_buffer_data_immediate(_upload_ctx, gpu_vertices.data(), sizeof(GPUVertex) * gpu_vertices.size(), *gpu_mesh->
-                                 vertex_buffer, 0, BufferUsage::StorageBuffer);
+                                 vertex_buffer, 0, BufferUsage::VertexBuffer);
 
     gpu_mesh->index_buffer = BufferResource::Builder()
                             .setSize(sizeof(uint32_t) * mesh.indices.size())
-                            .setUsage(vk::BufferUsageFlagBits::eStorageBuffer)
+                            .setUsage(vk::BufferUsageFlagBits::eIndexBuffer |
+                                      vk::BufferUsageFlagBits::eTransferDst)
                             .withVmaRequiredFlags(vk::MemoryPropertyFlagBits::eDeviceLocal)
                             .withVmaUsage(VMA_MEMORY_USAGE_AUTO)
                             .buildUnique(_context);
     upload_buffer_data_immediate(_upload_ctx, mesh.indices.data(), sizeof(uint32_t) * mesh.indices.size(), *gpu_mesh->
-                                 index_buffer, 0, BufferUsage::StorageBuffer);
+                                 index_buffer, 0, BufferUsage::IndexBuffer);
 
     gpu_mesh->vertex_count = vertex_count;
     gpu_mesh->index_count  = index_count;

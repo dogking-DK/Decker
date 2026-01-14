@@ -44,6 +44,7 @@ public:
 
     // 设置着色器阶段
     PipelineBuilder& setShaders(vk::ShaderModule mesh_shader, vk::ShaderModule fragment_shader);
+    PipelineBuilder& setShaders(vk::ShaderModule vertex_shader, vk::ShaderModule fragment_shader);
     PipelineBuilder& setShaders(vk::ShaderModule comp_shader);
     // 设置管线布局
     PipelineBuilder& setLayout(PipelineLayout* layout);
@@ -69,6 +70,9 @@ public:
     // 设置动态状态
     PipelineBuilder& addDynamicState(vk::DynamicState state);
 
+    PipelineBuilder& setVertexInput(const std::vector<vk::VertexInputBindingDescription>&   bindings,
+                                    const std::vector<vk::VertexInputAttributeDescription>& attributes);
+
 private:
     VulkanContext* _context;
 
@@ -80,6 +84,10 @@ private:
     vk::PipelineMultisampleStateCreateInfo         _multisample_info;
     vk::PipelineDepthStencilStateCreateInfo        _depth_stencil_info;
     vk::PipelineColorBlendAttachmentState          _color_blend_attachment;
+    vk::PipelineVertexInputStateCreateInfo         _vertex_input_info{};
+    std::vector<vk::VertexInputBindingDescription> _vertex_bindings;
+    std::vector<vk::VertexInputAttributeDescription> _vertex_attributes;
+    bool                                           _use_vertex_input{false};
 
     std::vector<vk::Format> _color_attachment_formats;
     vk::Format              _depth_attachment_format{vk::Format::eUndefined};
