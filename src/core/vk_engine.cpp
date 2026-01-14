@@ -20,8 +20,6 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <nlohmann/json.hpp>
-#include <algorithm>
-#include <tuple>
 #include <fstream>
 #include <filesystem>
 #include <unordered_set>
@@ -39,10 +37,6 @@
 #include "render graph/RenderGraph.h"
 #include "render graph/Resource.h"
 #include "render graph/ResourceTexture.h"
-#include "render graph/renderpass/OpaquePass.h"
-#include "render graph/renderpass/FluidVolumePass.h"
-#include "render graph/renderpass/VoxelPass.h"
-#include "render/RenderCulling.h"
 #include "render graph/renderpass/BlitPass.h"
 #include "render/MacGridPointRender.h"
 #include "render/MacGridVectorRenderer.h"
@@ -320,24 +314,74 @@ void VulkanEngine::init_default_data()
 
 void VulkanEngine::test_render_graph()
 {
+    using MyRes = RGResource<ImageDesc, FrameGraphImage>;
+
+    MyRes* res1 = nullptr;
+    MyRes* res2 = nullptr;
+
+    // Task A
+    struct CreateTempData
+    {
+        MyRes* distortion = nullptr;
+        MyRes* blur        = nullptr;
+    };
+
     if (render_graph == nullptr)
     {
-        render_graph = std::make_shared<RenderGraph>();
-        m_opaque_pass = std::make_shared<OpaquePass>(*this);
-        m_fluid_pass  = std::make_shared<FluidVolumePass>();
-        m_voxel_pass  = std::make_shared<VoxelPass>();
+        render_graph          = std::make_shared<RenderGraph>();
+        m_blit_pass           = std::make_shared<BlitPass>();
+        m_gaussian_blur_pass  = std::make_shared<GaussianBlurPass>();
+        m_distortion_pass     = std::make_shared<DistortionPass>();
+        m_gaussian_blur_pass->init(_context);
+        m_distortion_pass->init(_context);
     }
+    ImageDesc desc{
+        .width = _drawImage.imageExtent.width,
+        .height = _drawImage.imageExtent.height,
+        .depth = _drawImage.imageExtent.depth,
+        .format = static_cast<vk::Format>(_drawImage.imageFormat)
+    };
+    color_image = make_shared<MyRes>("color src", desc, ResourceLifetime::External);
+    color_image->setExternal(
+        _drawImage.image,
+        _drawImage.imageView  // 或者你封装里的 view
+    );
+    m_blit_pass->setSrc(color_image.get());
 
-    m_opaque_pass->registerToGraph(*render_graph);
-    m_fluid_pass->registerToGraph(*render_graph);
-    m_voxel_pass->registerToGraph(*render_graph);
-
+    render_graph->addTask<CreateTempData>(
+        "Create temp data",
+        // setup
+        [&](CreateTempData& data, RenderTaskBuilder& b)
+        {
+            ImageDesc desc{
+                .width = _drawImage.imageExtent.width,
+                .height = _drawImage.imageExtent.height,
+                .format = static_cast<vk::Format>(_drawImage.imageFormat),
+                .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
+            };
+            auto* r1     = b.create<MyRes>("color_temp", desc);
+            auto* r2     = b.create<MyRes>("color_after_blur", desc);
+            auto* distort = b.create<MyRes>("color_distortion", desc);
+            res1            = r1;
+            res2            = distort;
+            data.distortion = distort;
+            data.blur       = r2;
+        },
+        // execute
+        [&](const CreateTempData& data, RenderGraphContext& ctx)
+        {
+            (void)data;
+        }
+    );
+    m_blit_pass->registerToGraph(*render_graph, color_image.get(), res1);
+    //m_distortion_pass->registerToGraph(*render_graph, res1, color_image.get());
+    //m_gaussian_blur_pass->registerToGraph(*render_graph, res2, color_image.get());
     RenderGraphContext ctx;
     ctx.vkCtx      = _context;
     ctx.frame_data = &get_current_frame();
-
-    // 编译
+    // 编译 + 执行
     render_graph->compile();
+    //render_graph->execute(ctx);
 }
 
 void VulkanEngine::cleanup()
@@ -372,14 +416,7 @@ void VulkanEngine::cleanup()
         m_blit_pass.reset();
         m_gaussian_blur_pass.reset();
         m_distortion_pass.reset();
-        m_opaque_pass.reset();
-        m_fluid_pass.reset();
-        m_voxel_pass.reset();
         m_scene_system.reset();
-        m_gpu_resource_cache.reset();
-        m_resource_loader.reset();
-        m_fluid_data.reset();
-        m_voxel_data.reset();
 
         loadedScenes.clear();
 
@@ -552,35 +589,22 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
     //draw the triangle
 
-    RenderGraphContext ctx;
-    ctx.vkCtx      = _context;
-    ctx.frame_data = &get_current_frame();
-
-    if (m_opaque_pass)
-    {
-        m_opaque_pass->setDrawLists(&m_draw_lists);
-        m_opaque_pass->setFrameContext(&m_frame_context);
-    }
-    if (m_fluid_pass)
-    {
-        m_fluid_pass->setData(m_fluid_data ? &(*m_fluid_data) : nullptr);
-    }
-    if (m_voxel_pass)
-    {
-        m_voxel_pass->setData(m_voxel_data ? &(*m_voxel_data) : nullptr);
-    }
-
-    if (render_graph)
-    {
-        render_graph->execute(ctx);
-    }
-
     VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, nullptr,
                                                                         VK_IMAGE_LAYOUT_GENERAL);
     VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(
         _depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
+
+    vkCmdBeginRendering(cmd, &renderInfo);
+    auto start = std::chrono::system_clock::now();
+    draw_geometry(cmd);
+    auto end     = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    stats.mesh_draw_time = elapsed.count() / 1000.f;
+
+    vkCmdEndRendering(cmd);
     //srand(time(nullptr));
     //point_cloud_renderer->getPointData() = makeRandomPointCloudSphere(10000, { 0, 0, 0 }, 100, true, rand());
     physic_world->getSystemAs<SpringMassSystem>("spring")->getRenderData(point_cloud_renderer->getPointData());
@@ -618,6 +642,10 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
 
     m_spring_renderer->draw(*get_current_frame().command_buffer_graphic, {sceneData.viewproj}, renderInfo);
 
+    RenderGraphContext ctx;
+    ctx.vkCtx      = _context;
+    ctx.frame_data = &get_current_frame();
+    render_graph->execute(ctx);
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
@@ -1189,228 +1217,8 @@ void VulkanEngine::update_scene()
     }
     sceneData.view = view;
 
-    PrepareFrame();
-}
 
-void VulkanEngine::PrepareFrame()
-{
-    if (!m_scene_system || !m_scene_system->currentScene() || !m_gpu_resource_cache)
-    {
-        return;
-    }
-
-    m_render_world.extractFromScene(*m_scene_system->currentScene());
-
-    m_frame_context.view            = sceneData.view;
-    m_frame_context.proj            = sceneData.proj;
-    m_frame_context.viewproj        = sceneData.viewproj;
-    m_frame_context.camera_position = mainCamera.position;
-    m_frame_context.draw_extent     = _drawExtent;
-    if (m_frame_context.draw_extent.width == 0 || m_frame_context.draw_extent.height == 0)
-    {
-        m_frame_context.draw_extent = _windowExtent;
-    }
-
-    BuildDrawLists();
-}
-
-void VulkanEngine::BuildDrawLists()
-{
-    m_draw_lists.clear();
-    stats.proxy_count    = static_cast<uint32_t>(m_render_world.proxies().size());
-    stats.visible_count  = 0;
-    stats.draw_item_count = 0;
-
-    const auto frustum = Frustum::fromMatrix(m_frame_context.viewproj);
-
-    for (const auto& proxy : m_render_world.proxies())
-    {
-        auto mesh_entry = m_gpu_resource_cache->ensureMesh(proxy.mesh_asset);
-        if (!mesh_entry)
-        {
-            continue;
-        }
-
-        auto material_entry = m_gpu_resource_cache->ensureMaterial(proxy.material_asset);
-        if (!material_entry)
-        {
-            continue;
-        }
-
-        const glm::vec3 world_center = glm::vec3(proxy.world_transform * glm::vec4(mesh_entry->local_bounds.origin, 1.0f));
-        const float scale_x = glm::length(glm::vec3(proxy.world_transform[0]));
-        const float scale_y = glm::length(glm::vec3(proxy.world_transform[1]));
-        const float scale_z = glm::length(glm::vec3(proxy.world_transform[2]));
-        const float max_scale = std::max({scale_x, scale_y, scale_z});
-        const float radius = mesh_entry->local_bounds.sphere_radius * max_scale;
-
-        if (mesh_entry->local_bounds.isValid() && !frustum.intersectsSphere(world_center, radius))
-        {
-            continue;
-        }
-
-        DrawItem item{};
-        item.pipeline              = material_entry->material.pipeline;
-        item.material              = &material_entry->material;
-        item.mesh                  = &mesh_entry->buffers;
-        item.index_buffer          = mesh_entry->buffers.indexBuffer.buffer;
-        item.index_count           = mesh_entry->index_count;
-        item.first_index           = 0;
-        item.vertex_buffer_address = mesh_entry->buffers.vertexBufferAddress;
-        item.world_transform       = proxy.world_transform;
-        item.node_id               = proxy.node_id;
-
-        glm::vec4 view_pos = m_frame_context.view * glm::vec4(world_center, 1.0f);
-        item.depth         = view_pos.z;
-
-        stats.visible_count++;
-
-        if (material_entry->material.passType == MaterialPass::Transparent)
-        {
-            m_draw_lists.transparent.items.push_back(item);
-        }
-        else
-        {
-            m_draw_lists.opaque.items.push_back(item);
-        }
-    }
-
-    auto opaque_sort = [](const DrawItem& a, const DrawItem& b)
-    {
-        return std::tie(a.pipeline, a.material, a.mesh) < std::tie(b.pipeline, b.material, b.mesh);
-    };
-    std::sort(m_draw_lists.opaque.items.begin(), m_draw_lists.opaque.items.end(), opaque_sort);
-
-    auto transparent_sort = [](const DrawItem& a, const DrawItem& b)
-    {
-        return a.depth > b.depth;
-    };
-    std::sort(m_draw_lists.transparent.items.begin(), m_draw_lists.transparent.items.end(), transparent_sort);
-
-    stats.draw_item_count = static_cast<uint32_t>(m_draw_lists.opaque.items.size() + m_draw_lists.transparent.items.size());
-}
-
-void VulkanEngine::record_opaque_pass(RenderGraphContext& ctx, const FrameContext& frame_context, const DrawLists& draw_lists)
-{
-    VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, nullptr,
-                                                                        VK_IMAGE_LAYOUT_GENERAL);
-    VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(
-        _depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
-    VkRenderingInfo renderInfo = vkinit::rendering_info(frame_context.draw_extent, &colorAttachment, &depthAttachment);
-
-    VkCommandBuffer cmd = ctx.frame_data->command_buffer_graphic->getHandle();
-    vkCmdBeginRendering(cmd, &renderInfo);
-
-    auto start = std::chrono::system_clock::now();
-
-    AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                       VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-    get_current_frame()._deletionQueue.push_function([gpuSceneDataBuffer, this]()
-    {
-        destroy_buffer(gpuSceneDataBuffer);
-    });
-
-    auto sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.info.pMappedData);
-    *sceneUniformData     = sceneData;
-
-    VkDescriptorSetVariableDescriptorCountAllocateInfo allocArrayInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO, .pNext = nullptr
-    };
-
-    uint32_t descriptorCounts         = texCache.Cache.size();
-    allocArrayInfo.pDescriptorCounts  = &descriptorCounts;
-    allocArrayInfo.descriptorSetCount = 1;
-
-    VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(
-        _context->getDevice(), _gpuSceneDataDescriptorLayout, &allocArrayInfo);
-
-    DescriptorWriter writer;
-    writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
-    if (!texCache.Cache.empty())
-    {
-        VkWriteDescriptorSet arraySet{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        arraySet.descriptorCount = texCache.Cache.size();
-        arraySet.dstArrayElement = 0;
-        arraySet.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        arraySet.dstBinding      = 1;
-        arraySet.pImageInfo      = texCache.Cache.data();
-        writer.writes.push_back(arraySet);
-    }
-
-    writer.update_set(_context->getDevice(), globalDescriptor);
-
-    MaterialPipeline* lastPipeline    = nullptr;
-    MaterialInstance* lastMaterial    = nullptr;
-    VkBuffer          lastIndexBuffer = VK_NULL_HANDLE;
-
-    auto draw_item = [&](const DrawItem& item)
-    {
-        if (item.material != lastMaterial)
-        {
-            lastMaterial = item.material;
-            if (item.material->pipeline != lastPipeline)
-            {
-                lastPipeline = item.material->pipeline;
-                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, item.material->pipeline->pipeline);
-                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, item.material->pipeline->layout, 0, 1,
-                                        &globalDescriptor, 0, nullptr);
-
-                VkViewport viewport = {};
-                viewport.width      = static_cast<float>(frame_context.draw_extent.width);
-                viewport.height     = -static_cast<float>(frame_context.draw_extent.height);
-                viewport.x          = 0;
-                viewport.y          = static_cast<float>(frame_context.draw_extent.height);
-                viewport.minDepth   = 0.f;
-                viewport.maxDepth   = 1.f;
-
-                vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-                VkRect2D scissor      = {};
-                scissor.offset.x      = 0;
-                scissor.offset.y      = 0;
-                scissor.extent.width  = frame_context.draw_extent.width;
-                scissor.extent.height = frame_context.draw_extent.height;
-
-                vkCmdSetScissor(cmd, 0, 1, &scissor);
-            }
-
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, item.material->pipeline->layout, 1, 1,
-                                    &item.material->materialSet, 0, nullptr);
-        }
-        if (item.index_buffer != lastIndexBuffer)
-        {
-            lastIndexBuffer = item.index_buffer;
-            vkCmdBindIndexBuffer(cmd, item.index_buffer, 0, VK_INDEX_TYPE_UINT32);
-        }
-
-        GPUDrawPushConstants push_constants;
-        push_constants.worldMatrix  = item.world_transform;
-        push_constants.vertexBuffer = item.vertex_buffer_address;
-
-        vkCmdPushConstants(cmd, item.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
-                           sizeof(GPUDrawPushConstants), &push_constants);
-
-        stats.drawcall_count++;
-        stats.triangle_count += item.index_count / 3;
-        vkCmdDrawIndexed(cmd, item.index_count, 1, item.first_index, 0, 0);
-    };
-
-    stats.drawcall_count = 0;
-    stats.triangle_count = 0;
-
-    for (const auto& item : draw_lists.opaque.items)
-    {
-        draw_item(item);
-    }
-
-    auto end     = std::chrono::system_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    stats.mesh_draw_time = elapsed.count() / 1000.f;
-
-    vkCmdEndRendering(cmd);
+    loadedScenes["structure"]->draw(glm::mat4{1.f}, drawCommands);
 }
 
 AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
@@ -1811,20 +1619,19 @@ void VulkanEngine::init_renderables()
         AssetDB::instance().upsert(meta);
     }
     // 1 假设导入阶段已写入 metas & raw；此处只加载
-    m_resource_loader = std::make_unique<ResourceLoader>("cache/raw", AssetDB::instance(), m_resource_cache);
+    ResourceCache  cache;
+    ResourceLoader loader("cache/raw", AssetDB::instance(), cache);
     //auto           result = loader.load<MeshData>(root.metas[0].uuid);
     //auto           result1 = loader.load<MeshData>(root.metas[0].uuid);
 
     m_scene_system = std::make_shared<SceneSystem>(std::make_unique<SceneBuilder>(), std::make_unique<SceneResourceBinder>());
     m_scene_system->buildSceneFromImport("scene", root);
-    m_scene_system->preloadResources(*m_resource_loader, m_resource_cache);
+    m_scene_system->preloadResources(loader, cache);
 
     hierarchy_panel.setRoots(m_scene_system->currentScene()->getRoot().get());
     assert(structureFile.has_value());
 
     loadedScenes["structure"] = *structureFile;
-
-    m_gpu_resource_cache = std::make_unique<GpuResourceCache>(*this, *m_resource_loader);
 }
 
 void VulkanEngine::init_imgui()

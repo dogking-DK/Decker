@@ -4,7 +4,6 @@
 
 #include <deque>
 #include <functional>
-#include <optional>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -24,11 +23,6 @@
 //#include "render/SpringRender.h"
 #include "vk_base.h"
 #include "render graph/Resource.h"
-#include "render/DrawList.h"
-#include "render/RenderWorld.h"
-#include "render/RenderData.h"
-#include "render/GpuResourceCache.h"
-#include "resource/cpu/ResourceLoader.h"
 #include "Vulkan/CommandPool.h"
 #include "Vulkan/CommandBuffer.h"
 
@@ -43,9 +37,6 @@ class Scene;
 namespace dk {
 class GaussianBlurPass;
 class DistortionPass;
-class OpaquePass;
-class FluidVolumePass;
-class VoxelPass;
 }
 
 namespace dk::vkcore {
@@ -72,9 +63,6 @@ struct EngineStats
     int triangle_count;
     int drawcall_count;
     float mesh_draw_time;
-    uint32_t proxy_count{0};
-    uint32_t visible_count{0};
-    uint32_t draw_item_count{0};
 };
 
 struct GLTFMetallic_Roughness
@@ -202,24 +190,12 @@ public:
     std::shared_ptr<MacGridVectorRenderer> m_vector_render;
     std::shared_ptr<MacGridPointRenderer> m_grid_point_render;
     std::shared_ptr<RenderGraph> render_graph;
-    std::shared_ptr<OpaquePass> m_opaque_pass;
-    std::shared_ptr<FluidVolumePass> m_fluid_pass;
-    std::shared_ptr<VoxelPass> m_voxel_pass;
     std::shared_ptr<BlitPass> m_blit_pass;
     std::shared_ptr<GaussianBlurPass> m_gaussian_blur_pass;
     std::shared_ptr<DistortionPass> m_distortion_pass;
     std::shared_ptr<SceneSystem> m_scene_system;
 
     std::unique_ptr<World> physic_world;
-
-    ResourceCache m_resource_cache;
-    std::unique_ptr<ResourceLoader> m_resource_loader;
-    std::unique_ptr<GpuResourceCache> m_gpu_resource_cache;
-    RenderWorld m_render_world;
-    DrawLists m_draw_lists;
-    FrameContext m_frame_context;
-    std::optional<FluidRenderData> m_fluid_data;
-    std::optional<VoxelRenderData> m_voxel_data;
 
     // singleton style getter.multiple engines is not supported
     static VulkanEngine& Get();
@@ -243,14 +219,6 @@ public:
     void run();
 
     void update_scene();
-
-    void PrepareFrame();
-    void BuildDrawLists();
-
-    void setFluidData(const FluidRenderData& data) { m_fluid_data = data; }
-    void setVoxelData(const VoxelRenderData& data) { m_voxel_data = data; }
-
-    void record_opaque_pass(RenderGraphContext& ctx, const FrameContext& frame_context, const DrawLists& draw_lists);
 
     // upload a mesh into a pair of gpu buffers. If descriptor allocator is not
     // null, it will also create a descriptor that points to the vertex buffer

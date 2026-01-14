@@ -112,11 +112,6 @@ std::shared_ptr<SceneNode> Scene::getRoot()
     return _root;
 }
 
-std::shared_ptr<SceneNode> Scene::getRoot() const
-{
-    return _root;
-}
-
 void Scene::forEachNode(const std::function<void(SceneNode&)>& visitor)
 {
     if (!visitor) return;
