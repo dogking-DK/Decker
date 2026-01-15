@@ -91,7 +91,7 @@ inline void to_json(nlohmann::json& j, const PrefabNode& node)
 
 inline void from_json(const nlohmann::json& j, PrefabNode& node)
 {
-    node.id   = uuid_from_string(j.at("id").get<std::string>());
+    node.id   = uuid_parse(j.at("id").get<std::string>());
     node.name = j.value("name", "");
     if (auto kind = asset_kind_from_string(j.at("kind").get<std::string>()); kind.has_value())
         node.kind = *kind;

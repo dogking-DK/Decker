@@ -4,6 +4,8 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <queue>
+#include <set>
 #include <stack>
 #include <string_view>
 #include <unordered_set>
@@ -86,6 +88,7 @@ namespace {
         dst->asset_id = src.id;
         dst->parent   = parent;
         dst->local_transform = src.local_transform;
+        auto node_id1 = to_string(src.id);
 
         const auto [_, inserted] = runtime_ids.insert(dst->id);
         assert(inserted && "Prefab instance should have a unique runtime UUID");
@@ -102,7 +105,7 @@ namespace {
         }
         return dst;
     }
-} // namespace
+}
 
 Scene::Scene(std::string name) : _name(std::move(name))
 {
@@ -132,6 +135,19 @@ void Scene::forEachNode(const std::function<void(SceneNode&)>& visitor)
 std::shared_ptr<SceneNode> SceneBuilder::build(const ImportResult& result)
 {
     auto prefabs = load_prefabs(result);
+    std::queue<PrefabNode> prefabs_queue;
+    prefabs_queue.emplace(prefabs.front());
+    fmt::print("-------------------------scene node recurse info--------------------\n");
+    while (!prefabs_queue.empty())
+    {
+        auto node = prefabs_queue.back();
+        prefabs_queue.pop();
+        fmt::print("{}: {}\n", node.name.c_str(), to_string(node.id).c_str());
+        for (auto child : node.children)
+        {
+            prefabs_queue.emplace(child);
+        }
+    }
     if (!prefabs.empty())
     {
         std::unordered_set<UUID> runtime_ids;
@@ -142,7 +158,7 @@ std::shared_ptr<SceneNode> SceneBuilder::build(const ImportResult& result)
 
         auto root      = std::make_shared<SceneNode>();
         root->name     = "SceneRoot";
-        root->id       = uuid_from_string(root->name);
+        root->id       = uuid_parse(root->name);
         root->asset_id = {};
         runtime_ids.insert(root->id);
 
@@ -155,7 +171,7 @@ std::shared_ptr<SceneNode> SceneBuilder::build(const ImportResult& result)
 
     auto root      = std::make_shared<SceneNode>();
     root->name     = "SceneRoot";
-    root->id       = uuid_from_string(root->name);
+    root->id       = uuid_parse(root->name);
     root->asset_id = {};
 
     return root;
@@ -229,6 +245,12 @@ std::shared_ptr<Scene> SceneSystem::buildSceneFromImport(const std::string&  nam
                                                          const ImportResult& result)
 {
     if (!_builder) return {};
+
+    fmt::print("-------------------------scene build info--------------------\n");
+    for (auto meta : result.metas)
+    {
+        fmt::print("{}: {}\n", to_string(meta.asset_type.value()), to_string(meta.uuid));
+    }
 
     auto scene = std::make_shared<Scene>(name);
     scene->setRoot(_builder->build(result));

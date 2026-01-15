@@ -81,8 +81,8 @@ struct fmt::formatter<glm::vec3>
 namespace dk {
 // we want to immediately abort when there is an error. In normal engines this
 // would give an error message to the user, or perform a dump of state.
-    using namespace std;
-    using namespace render;
+using namespace std;
+using namespace render;
 
 VulkanEngine* loadedEngine = nullptr;
 
@@ -222,7 +222,7 @@ void VulkanEngine::init()
     }
     fmt::print("total min: {}, max: {}\n", total_min, total_max);
     float total_aabb_length = length(total_max - total_min);
-    geom_center /= count;
+    geom_center             /= count;
 
     //mainCamera.position = total_max - total_min;
     //mainCamera.position /= 2;
@@ -325,15 +325,15 @@ void VulkanEngine::test_render_graph()
     struct CreateTempData
     {
         MyRes* distortion = nullptr;
-        MyRes* blur        = nullptr;
+        MyRes* blur       = nullptr;
     };
 
     if (render_graph == nullptr)
     {
-        render_graph          = std::make_shared<RenderGraph>();
-        m_blit_pass           = std::make_shared<BlitPass>();
-        m_gaussian_blur_pass  = std::make_shared<GaussianBlurPass>();
-        m_distortion_pass     = std::make_shared<DistortionPass>();
+        render_graph         = std::make_shared<RenderGraph>();
+        m_blit_pass          = std::make_shared<BlitPass>();
+        m_gaussian_blur_pass = std::make_shared<GaussianBlurPass>();
+        m_distortion_pass    = std::make_shared<DistortionPass>();
         m_gaussian_blur_pass->init(_context);
         m_distortion_pass->init(_context);
     }
@@ -359,11 +359,12 @@ void VulkanEngine::test_render_graph()
                 .width = _drawImage.imageExtent.width,
                 .height = _drawImage.imageExtent.height,
                 .format = static_cast<vk::Format>(_drawImage.imageFormat),
-                .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
+                .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment |
+                         vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
             };
-            auto* r1     = b.create<MyRes>("color_temp", desc);
-            auto* r2     = b.create<MyRes>("color_after_blur", desc);
-            auto* distort = b.create<MyRes>("color_distortion", desc);
+            auto* r1        = b.create<MyRes>("color_temp", desc);
+            auto* r2        = b.create<MyRes>("color_after_blur", desc);
+            auto* distort   = b.create<MyRes>("color_distortion", desc);
             res1            = r1;
             res2            = distort;
             data.distortion = distort;
@@ -1044,7 +1045,7 @@ void VulkanEngine::run()
         {
             ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
         }
-        static float time                                       = 0;
+        static float time = 0;
         backgroundEffects[currentBackgroundEffect].data.data1.x = mainCamera.position.x;
         backgroundEffects[currentBackgroundEffect].data.data1.y = time;
         time += 0.001f;
@@ -1556,8 +1557,8 @@ void VulkanEngine::init_commands()
         _frames[i]._command_pool_transfer = new vkcore::CommandPool(_context, _context->getTransferQueueIndex());
 
         //_frames[i].command_buffer_graphic = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
-        _frames[i].command_buffer_graphic  = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
-        std::string name = "frame graphic command ";
+        _frames[i].command_buffer_graphic = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_graphic);
+        std::string name                  = "frame graphic command ";
         name.append(std::to_string(i));
         _frames[i].command_buffer_graphic->setDebugName(name);
         _frames[i].command_buffer_transfer = new vkcore::CommandBuffer(_context, _frames[i]._command_pool_transfer);
@@ -1637,13 +1638,18 @@ void VulkanEngine::init_renderables()
 
     auto root = ImporterRegistry::instance().import(structurePath);
 
+    uuids::uuid id = uuid_generate();
+    auto id_str = to_string(id);
+    uuids::uuid convert_id = uuid_parse(id_str);
+    auto convert_id_str = to_string(convert_id);
+
     AssetDB::instance().open();
     for (const auto& meta : root.metas)
     {
         AssetDB::instance().upsert(meta);
     }
     // 1 假设导入阶段已写入 metas & raw；此处只加载
-    _cpu_cache = ResourceCache{};
+    _cpu_cache  = ResourceCache{};
     _cpu_loader = std::make_unique<ResourceLoader>("cache/raw", AssetDB::instance(), _cpu_cache);
     //auto           result = loader.load<MeshData>(root.metas[0].uuid);
     //auto           result1 = loader.load<MeshData>(root.metas[0].uuid);
@@ -1658,7 +1664,7 @@ void VulkanEngine::init_renderables()
 
     loadedScenes["structure"] = *structureFile;
 
-    _render_system = std::make_unique<render::RenderSystem>(*_context, _upload_ctx, *_cpu_loader);
+    _render_system = std::make_unique<RenderSystem>(*_context, _upload_ctx, *_cpu_loader);
     _render_system->init(static_cast<vk::Format>(_drawImage.imageFormat),
                          static_cast<vk::Format>(_depthImage.imageFormat));
 }

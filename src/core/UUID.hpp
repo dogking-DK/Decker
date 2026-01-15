@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <string_view>
 #include <span>
 #include <uuid.h>        // 来自 stduuid
@@ -10,15 +10,26 @@
 namespace dk {
 using UUID = uuids::uuid;
 
-inline UUID uuid_from_string(std::string_view str)
+// 功能1：确定性生成 (Hash生成)
+// 输入相同的字符串，永远得到相同的 UUID (Version 5)
+// 用途：给固定名字的资源生成 ID
+inline UUID uuid_hash_from_name(std::string_view name)
 {
-    uuids::uuid_name_generator gen(uuids::uuid::from_string("47183823-2574-4bfd-b411-99ed177d3e43").value());
-    const uuids::uuid          id = gen(str);
-    //fmt::print("UUID from string: {} {}\n", str, to_string(id));
-    assert(!id.is_nil());
-    assert(id.version() == uuids::uuid_version::name_based_sha1);
-    assert(id.variant() == uuids::uuid_variant::rfc);
-    return id;
+    static uuids::uuid_name_generator gen(uuids::uuid::from_string("47183823-2574-4bfd-b411-99ed177d3e43").value());
+    return gen(name);
+}
+
+// 功能2：反序列化 (Parse)
+// 将字符串形式的 UUID 还原为对象
+// 用途：读取文件、网络传输
+inline UUID uuid_parse(std::string_view str)
+{
+    auto result = uuids::uuid::from_string(str);
+    if (result.has_value()) {
+        return result.value();
+    }
+    // 如果解析失败（字符串格式不对），返回一个空 UUID 或者抛出异常
+    return UUID();
 }
 
 inline UUID uuid_generate()
@@ -42,7 +53,7 @@ inline UUID uuid_generate()
 inline UUID uuid_combine(const UUID& parent, uint64_t sub)
 {
     const std::string buf = to_string(parent) + std::to_string(sub);
-    return uuid_from_string(buf);                   // 再做一次 UUID5
+    return uuid_hash_from_name(buf);                   // 再做一次 UUID5
 }
 
 inline std::string as_string(const UUID& id)

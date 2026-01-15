@@ -1,4 +1,4 @@
-﻿#include "AssetDB.h"
+#include "AssetDB.h"
 #include <stdexcept>
 
 namespace {
@@ -92,7 +92,7 @@ AssetMeta AssetDB::rowToMeta(sqlite3_stmt* st)
 
     // 0  uuid
     if (auto txt = reinterpret_cast<const char*>(sqlite3_column_text(st, 0)))
-        m.uuid   = uuid_from_string(txt);
+        m.uuid   = uuid_parse(txt);
 
     // 1  asset_type (may be absent in legacy DB)
     if (column_count > 1)

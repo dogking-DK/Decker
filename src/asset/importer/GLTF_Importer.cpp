@@ -376,9 +376,7 @@ void export_raw_images(const fastgltf::Asset&   gltf, const GltfUuidCache& cache
                     assert(filePath.uri.isLocalPath()); // We're only capable of loading
 
                     // 生成绝对路径
-                    auto path(file_path.parent_path());
-                    path += "/";
-                    path.append(filePath.uri.path());
+                    auto path(file_path.parent_path() / filePath.uri.path());
                     //if (filePath.uri.isLocalPath()) fmt::print("image path: {}\n", path.generic_string());
 
                     if (name.empty())
@@ -570,6 +568,19 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     export_raw_meshes(*gltf, uuid_cache, opts, result); // 导出raw mesh
     export_raw_images(*gltf, uuid_cache, file_path, opts, result); // 导出raw image
     export_raw_materials(*gltf, uuid_cache, opts, result); // 导出raw material
+
+    for (size_t mi = 0; mi < gltf->meshes.size(); ++mi)
+    {
+        for (size_t pi = 0; pi < gltf->meshes[mi].primitives.size(); ++pi)
+        {
+            fmt::print("prim: {}\n", to_string(uuid_cache.mesh_uuids[mi][pi]));
+        }
+    }
+    fmt::print("-------------------------meta info--------------------\n");
+    for (auto meta : result.metas)
+    {
+        fmt::print("{}: {}\n", to_string(meta.asset_type.value()), to_string(meta.uuid));
+    }
     return result;
 }
 
