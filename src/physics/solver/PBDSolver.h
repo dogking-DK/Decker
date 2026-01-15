@@ -1,4 +1,4 @@
-﻿// PBDSolver.h
+// PBDSolver.h
 #pragma once
 #include "ISolver.h"
 #include "data/Particle.h" // PBD求解器需要知道弹簧的连接关系

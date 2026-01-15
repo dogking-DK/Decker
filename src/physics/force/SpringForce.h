@@ -1,4 +1,4 @@
-﻿// SpringForce.h
+// SpringForce.h
 #pragma once
 #include "IForce.h"
 

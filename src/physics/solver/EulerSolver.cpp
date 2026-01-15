@@ -1,4 +1,4 @@
-﻿#include "EulerSolver.h"
+#include "EulerSolver.h"
 
 #include "data/Particle.h"
 

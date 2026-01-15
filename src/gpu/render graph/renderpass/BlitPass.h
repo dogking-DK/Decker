@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "render graph/Resource.h"
 
 namespace dk {

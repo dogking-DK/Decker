@@ -1,4 +1,4 @@
-﻿//// SlangCompiler.cpp
+//// SlangCompiler.cpp
 //#include "SlangCompiler.h"
 //#include <cstring>
 //#include <iostream>

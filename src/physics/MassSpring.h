@@ -1,4 +1,4 @@
-﻿// SpringMassSystem.h
+// SpringMassSystem.h
 #pragma once
 #include <execution>
 #include <vector>

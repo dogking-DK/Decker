@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "../asset/RawTypes.hpp"
 #include <memory>
 #include <filesystem>

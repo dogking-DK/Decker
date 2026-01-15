@@ -1,4 +1,4 @@
-﻿// data/MacGrid.cpp
+// data/MacGrid.cpp
 #include "data/MacGrid.h"
 #include <cmath>
 

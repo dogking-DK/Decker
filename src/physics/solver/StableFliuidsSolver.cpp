@@ -1,4 +1,4 @@
-﻿// solver/StableFluidSolver.cpp
+// solver/StableFluidSolver.cpp
 #include "solver/StableFliuidsSolver.h"
 #include <cassert>
 #include <cmath>

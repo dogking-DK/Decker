@@ -1,4 +1,4 @@
-﻿// src/asset/AssetNode.hpp
+// src/asset/AssetNode.hpp
 #pragma once
 #include <memory>
 #include <optional>

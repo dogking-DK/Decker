@@ -1,4 +1,4 @@
-﻿#include "DescriptorSetLayout.h"
+#include "DescriptorSetLayout.h"
 #include <stdexcept>
 
 namespace dk::vkcore {

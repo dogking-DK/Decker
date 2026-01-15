@@ -1,4 +1,4 @@
-﻿// data/MacGrid.h
+// data/MacGrid.h
 #pragma once
 #include "Base.h"
 #include <algorithm>

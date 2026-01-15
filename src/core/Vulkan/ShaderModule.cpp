@@ -1,4 +1,4 @@
-﻿#include "ShaderModule.h"
+#include "ShaderModule.h"
 #include <stdexcept>
 
 // 为了进行反射，我们需要包含 spirv-cross 的头文件。

@@ -1,4 +1,4 @@
-﻿#include "CommandBuffer.h"
+#include "CommandBuffer.h"
 
 #include "Buffer.h"
 #include "CommandPool.h"

@@ -1,4 +1,4 @@
-﻿#include "MACInit.h"
+#include "MACInit.h"
 #include <algorithm>
 #include <cmath>
 #include <glm/gtx/norm.hpp>

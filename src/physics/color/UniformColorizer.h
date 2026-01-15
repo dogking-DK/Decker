@@ -1,4 +1,4 @@
-﻿// VelocityColorizer.h
+// VelocityColorizer.h
 #pragma once
 #include "IParticleColorizer.h"
 #include <algorithm>

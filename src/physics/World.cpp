@@ -1,4 +1,4 @@
-﻿#include "Base.h"
+#include "Base.h"
 #include "World.h"
 
 #include <ranges>

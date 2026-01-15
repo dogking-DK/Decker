@@ -2,16 +2,17 @@
 # -*- coding: utf-8 -*-
 
 """
-convert_to_utf8_bom.py
+convert_to_utf8.py
 
-Recursively scan source files and convert to UTF-8 with BOM (UTF-8-SIG):
-- UTF-8 without BOM -> add BOM
-- UTF-8 with BOM -> keep (no change)
-- GB-family encodings (GB2312/GBK/GB18030 etc.) -> UTF-8 with BOM
+Recursively scan source files and convert to UTF-8 (NO BOM by default):
+- UTF-8 with BOM -> strip BOM (convert to UTF-8 without BOM)
+- UTF-8 without BOM -> keep (no change)
+- GB-family encodings (GB2312/GBK/GB18030 etc.) -> UTF-8 (no BOM)
   Only when UTF-8 decoding fails but GB18030 decoding succeeds.
 
 Default: dry-run (preview only)
 Use --no-dry-run to actually modify files.
+Use --with-bom if you want UTF-8 with BOM output.
 """
 
 import argparse
@@ -37,11 +38,15 @@ def is_probably_binary(data: bytes) -> bool:
     return b"\x00" in data
 
 
-def detect_and_prepare_convert(path: Path, add_bom_for_utf8: bool = True) -> DetectResult:
+def _encode_utf8(text: str, with_bom: bool) -> bytes:
+    return text.encode("utf-8-sig" if with_bom else "utf-8")
+
+
+def detect_and_prepare_convert(path: Path, with_bom: bool = False) -> DetectResult:
     data = path.read_bytes()
 
     if not data:
-        # 空文件是否要加 BOM 看个人习惯。这里默认不动（更保守）。
+        # 空文件：默认不动（更保守）。
         return DetectResult(path, "skip", "empty", "empty file; skip", None)
 
     if is_probably_binary(data):
@@ -51,20 +56,26 @@ def detect_and_prepare_convert(path: Path, add_bom_for_utf8: bool = True) -> Det
     if data.startswith(b"\xff\xfe") or data.startswith(b"\xfe\xff"):
         return DetectResult(path, "unsupported", "utf-16", "UTF-16 BOM detected; not converting", None)
 
-    # 1) Already UTF-8 with BOM -> keep
+    # 1) UTF-8 with BOM
     if data.startswith(UTF8_BOM):
         try:
-            _ = data.decode("utf-8-sig", errors="strict")
+            text = data.decode("utf-8-sig", errors="strict")  # strips BOM
         except UnicodeDecodeError as e:
             return DetectResult(path, "unsupported", "utf-8-bom?", f"has UTF-8 BOM but decode failed: {e}", None)
-        return DetectResult(path, "skip", "utf-8-bom", "already UTF-8 with BOM; keep", None)
+
+        if with_bom:
+            # 目标也是带 BOM，且当前已经是 BOM+有效utf8 -> 不需要改
+            return DetectResult(path, "skip", "utf-8-bom", "already UTF-8 with BOM; keep", None)
+        else:
+            # 目标不带 BOM -> 去 BOM
+            new_data = _encode_utf8(text, with_bom=False)
+            return DetectResult(path, "convert", "utf-8-bom", "UTF-8 with BOM -> strip BOM", new_data)
 
     # 2) Try UTF-8 (no BOM)
     try:
         text_utf8 = data.decode("utf-8", errors="strict")
-        if add_bom_for_utf8:
-            new_data = text_utf8.encode("utf-8-sig")  # adds BOM
-            # If original had no BOM, new_data will differ (BOM added)
+        if with_bom:
+            new_data = _encode_utf8(text_utf8, with_bom=True)
             return DetectResult(path, "convert", "utf-8", "valid UTF-8 but no BOM -> add BOM", new_data)
         else:
             return DetectResult(path, "skip", "utf-8", "valid UTF-8; keep", None)
@@ -77,8 +88,12 @@ def detect_and_prepare_convert(path: Path, add_bom_for_utf8: bool = True) -> Det
     except UnicodeDecodeError as e:
         return DetectResult(path, "unsupported", "unknown", f"not UTF-8, not GB18030: {e}", None)
 
-    new_data = text_gb.encode("utf-8-sig")  # UTF-8 with BOM
-    return DetectResult(path, "convert", "gb-family", "UTF-8 decode failed but GB18030 succeeded -> convert to UTF-8 with BOM", new_data)
+    new_data = _encode_utf8(text_gb, with_bom=with_bom)
+    if with_bom:
+        reason = "UTF-8 decode failed but GB18030 succeeded -> convert to UTF-8 with BOM"
+    else:
+        reason = "UTF-8 decode failed but GB18030 succeeded -> convert to UTF-8 (no BOM)"
+    return DetectResult(path, "convert", "gb-family", reason, new_data)
 
 
 def iter_target_files(root: Path, exts: Set[str]) -> List[Path]:
@@ -93,7 +108,7 @@ def iter_target_files(root: Path, exts: Set[str]) -> List[Path]:
 
 def main(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(
-        description="Detect and convert GB-family / UTF-8-no-BOM C/C++ source files to UTF-8 with BOM. Default is dry-run."
+        description="Detect and convert GB-family / UTF-8 BOM C/C++ source files to UTF-8 (no BOM by default). Default is dry-run."
     )
     parser.add_argument(
         "root",
@@ -103,8 +118,8 @@ def main(argv: List[str]) -> int:
     )
     parser.add_argument(
         "--ext",
-        default=".cpp,.h,hpp",
-        help="Comma-separated file extensions to include (default: .cpp,.h). Example: --ext .cpp,.h,.hpp,.c",
+        default=".cpp,.h,.hpp",
+        help="Comma-separated file extensions to include (default: .cpp,.h,.hpp). Example: --ext .cpp,.h,.hpp,.c",
     )
     parser.add_argument(
         "--no-dry-run",
@@ -125,6 +140,11 @@ def main(argv: List[str]) -> int:
         "--fail-on-unsupported",
         action="store_true",
         help="Return non-zero exit code if unsupported/unknown-encoding files are found.",
+    )
+    parser.add_argument(
+        "--with-bom",
+        action="store_true",
+        help="Output UTF-8 with BOM (utf-8-sig). Default outputs UTF-8 without BOM.",
     )
 
     args = parser.parse_args(argv)
@@ -153,13 +173,13 @@ def main(argv: List[str]) -> int:
 
     print(f"[INFO] Scan root: {root}")
     print(f"[INFO] Extensions: {sorted(exts)}")
-    print(f"[INFO] Target: UTF-8 with BOM (utf-8-sig)")
+    print(f"[INFO] Target: {'UTF-8 with BOM (utf-8-sig)' if args.with_bom else 'UTF-8 (no BOM)'}")
     print(f"[INFO] Mode: {'DRY-RUN (preview only)' if dry_run else 'APPLY (write files)'}")
     if not dry_run and args.backup:
         print("[INFO] Backup: enabled (.bak)")
 
     for p in files:
-        res = detect_and_prepare_convert(p, add_bom_for_utf8=True)
+        res = detect_and_prepare_convert(p, with_bom=args.with_bom)
 
         show = args.list_all or res.action in ("convert", "unsupported")
         if show:

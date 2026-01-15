@@ -1,4 +1,4 @@
-﻿#include "ImageView.h"
+#include "ImageView.h"
 #include <fmt/color.h>
 
 namespace dk::vkcore {

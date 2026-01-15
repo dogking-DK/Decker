@@ -1,4 +1,4 @@
-﻿// vkcore/DescriptorWriter.hpp
+// vkcore/DescriptorWriter.hpp
 #pragma once
 #include "vk_types.h"
 #include <vector>

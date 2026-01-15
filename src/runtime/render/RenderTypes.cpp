@@ -1,4 +1,4 @@
-﻿#include "RenderTypes.h"
+#include "RenderTypes.h"
 
 #include <glm/gtc/matrix_access.hpp>
 

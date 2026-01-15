@@ -1,4 +1,4 @@
-﻿// runtime/MeshLoaderFlex.hpp
+// runtime/MeshLoaderFlex.hpp
 #pragma once
 #include <filesystem>
 #include <span>

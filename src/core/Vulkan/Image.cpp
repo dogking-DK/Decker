@@ -1,4 +1,4 @@
-﻿#include "Image.h"
+#include "Image.h"
 #include <spdlog/spdlog.h>
 
 namespace dk::vkcore {

@@ -1,4 +1,4 @@
-﻿// EulerSolver.h
+// EulerSolver.h
 #pragma once
 #include "ISolver.h"
 

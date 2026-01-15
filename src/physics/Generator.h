@@ -1,4 +1,4 @@
-﻿// SystemGenerators.h
+// SystemGenerators.h
 #pragma once
 
 #include "MassSpring.h"

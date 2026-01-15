@@ -1,4 +1,4 @@
-﻿// SpatialGrid.h
+// SpatialGrid.h
 #pragma once
 #include "Particle.h"
 #include <unordered_map>

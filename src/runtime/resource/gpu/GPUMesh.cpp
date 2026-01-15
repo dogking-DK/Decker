@@ -1,4 +1,4 @@
-﻿#include "GPUMesh.h"
+#include "GPUMesh.h"
 
 #include "resource/cpu/MeshLoader.h"
 #include "Vulkan/Buffer.h"

@@ -1,4 +1,4 @@
-﻿#include <iostream>
+#include <iostream>
 #include <vk_engine.h>
 #include <vk_mem_alloc.h>
 

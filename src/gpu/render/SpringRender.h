@@ -1,4 +1,4 @@
-﻿// SpringRenderer.h
+// SpringRenderer.h
 #pragma once
 
 #include <vector>

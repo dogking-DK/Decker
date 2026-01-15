@@ -1,4 +1,4 @@
-﻿#include "MassSpring.h"
+#include "MassSpring.h"
 #include <execution>
 #include <tracy/Tracy.hpp>
 

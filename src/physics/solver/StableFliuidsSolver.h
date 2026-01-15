@@ -1,4 +1,4 @@
-﻿// solver/StableFluidSolver.h
+// solver/StableFluidSolver.h
 #pragma once
 #include "ISolver.h"
 #include "data/MacGrid.h"

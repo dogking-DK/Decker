@@ -1,4 +1,4 @@
-﻿// IParticleColorizer.h
+// IParticleColorizer.h
 #pragma once
 #include "data/Particle.h"
 

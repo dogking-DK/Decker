@@ -1,4 +1,4 @@
-﻿#include "Context.h"
+#include "Context.h"
 
 #include <VkBootstrap.h>
 #include <SDL3/SDL.h>

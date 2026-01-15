@@ -1,4 +1,4 @@
-﻿#include "ShaderCompiler.h"
+#include "ShaderCompiler.h"
 
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/Public/ShaderLang.h>

@@ -1,4 +1,4 @@
-﻿#include "ResourceTexture.h"
+#include "ResourceTexture.h"
 
 namespace dk {
 void RGResource<ImageDesc, FrameGraphImage>::setExternal(vk::Image image, vk::ImageView view)

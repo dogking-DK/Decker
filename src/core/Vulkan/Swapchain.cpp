@@ -1,4 +1,4 @@
-﻿#include "Swapchain.h"
+#include "Swapchain.h"
 #include "Context.h"
 
 #include <fmt/base.h>

@@ -1,4 +1,4 @@
-﻿#include "Buffer.h"
+#include "Buffer.h"
 #include <spdlog/spdlog.h>
 
 namespace dk::vkcore {

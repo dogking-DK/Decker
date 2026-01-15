@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <vector>
 #include <memory>
 #include <tsl/robin_map.h>

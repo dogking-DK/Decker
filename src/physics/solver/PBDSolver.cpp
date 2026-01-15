@@ -1,4 +1,4 @@
-﻿#include "PBDSolver.h"
+#include "PBDSolver.h"
 
 namespace dk {
 void PBDSolver::solve(dk::ISimulationState& state, const float dt)

@@ -1,4 +1,4 @@
-﻿#include "DescriptorSetPool.h"
+#include "DescriptorSetPool.h"
 #include <stdexcept>
 
 namespace dk::vkcore {

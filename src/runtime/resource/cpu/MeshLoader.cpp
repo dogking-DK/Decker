@@ -1,4 +1,4 @@
-﻿#include "MeshLoader.h"
+#include "MeshLoader.h"
 
 #include "AssetHelpers.hpp"
 #include "RawTypes.hpp"

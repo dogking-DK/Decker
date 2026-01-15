@@ -1,4 +1,4 @@
-﻿// GravityForce.h
+// GravityForce.h
 #pragma once
 #include "IForce.h"
 

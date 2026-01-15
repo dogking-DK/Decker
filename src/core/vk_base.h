@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <vulkan/vulkan_core.h>
 
 #include "vk_descriptors.h"

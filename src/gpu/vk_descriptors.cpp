@@ -1,4 +1,4 @@
-﻿#include <vk_descriptors.h>
+#include <vk_descriptors.h>
 
 #include <algorithm>
 #include "vk_initializers.h"

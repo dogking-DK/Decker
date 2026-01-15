@@ -1,4 +1,4 @@
-﻿#include "MaterialLoader.h"
+#include "MaterialLoader.h"
 #include "RawTypes.hpp"
 #include "AssetHelpers.hpp"
 

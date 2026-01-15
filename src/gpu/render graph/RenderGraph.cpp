@@ -1,4 +1,4 @@
-﻿#include "RenderGraph.h"
+#include "RenderGraph.h"
 #include "Resource.h"
 #include "RenderTask.h"
 

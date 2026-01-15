@@ -1,4 +1,4 @@
-﻿#include "VerletSolver.h"
+#include "VerletSolver.h"
 
 #include "data/Particle.h"
 

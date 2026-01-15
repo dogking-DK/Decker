@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp> // 使用 glm::value_ptr
 
