@@ -50,12 +50,61 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_custom_target(clobber COMMAND git clean -d -f -x)
 
-file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
+set(ASSET_DIR "${CMAKE_SOURCE_DIR}/assets")
+set(GLSL_DIR "${ASSET_DIR}/shaders/glsl")
+set(SPV_DIR "${ASSET_DIR}/shaders/spv")
+set(SHADER_SCRIPT "${CMAKE_SOURCE_DIR}/assets/shaders/build_glsl_to_spv.py")
+
+file(GLOB_RECURSE GLSL_FILES CONFIGURE_DEPENDS
+    "${GLSL_DIR}/*.glsl"
+    "${GLSL_DIR}/*.vert"
+    "${GLSL_DIR}/*.frag"
+    "${GLSL_DIR}/*.comp"
+)
+
+set(SHADER_STAMP "${CMAKE_BINARY_DIR}/shader_build.${CMAKE_CFG_INTDIR}.stamp")
+
+add_custom_command(
+    OUTPUT "${SHADER_STAMP}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SPV_DIR}"
+    COMMAND ${Python3_EXECUTABLE} "${SHADER_SCRIPT}"
+        --src "${GLSL_DIR}"
+        --out "${SPV_DIR}"
+        --config "$<IF:$<CONFIG:Debug>,debug,release>"
+    COMMAND ${CMAKE_COMMAND} -E touch "${SHADER_STAMP}"
+    DEPENDS ${GLSL_FILES} "${SHADER_SCRIPT}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Compiling GLSL -> SPIR-V (assets)"
+    VERBATIM
+)
+
+add_custom_target(compile_shaders ALL
+    DEPENDS "${SHADER_STAMP}"
+)
 
 add_subdirectory(src)
+
+add_dependencies(${PROJECT_NAME} compile_shaders)
 
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
 )
+
+install(CODE [[
+if(CMAKE_INSTALL_CONFIG_NAME)
+    set(_decker_config --config "${CMAKE_INSTALL_CONFIG_NAME}")
+endif()
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}" --target compile_shaders ${_decker_config}
+    RESULT_VARIABLE _decker_shader_result
+)
+if(NOT _decker_shader_result EQUAL 0)
+    message(FATAL_ERROR "Shader compilation failed during install.")
+endif()
+]])
+
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets" DESTINATION bin)
