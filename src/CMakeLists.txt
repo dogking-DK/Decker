@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.11)
+﻿cmake_minimum_required(VERSION 4.2)
 
 add_compile_definitions(VULKAN_NO_PROTOTYPE)
 
