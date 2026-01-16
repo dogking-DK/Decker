@@ -78,10 +78,15 @@ dk::PrefabNode make_prefab_node_recursive(const fastgltf::Asset& asset, const Gl
 
         for (size_t pi = 0; pi < gltf_mesh.primitives.size(); ++pi)
         {
+            const auto& prim = gltf_mesh.primitives[pi];
             dk::PrefabNode primitive{};
             primitive.kind = dk::AssetKind::Primitive;
             primitive.name = fmt::format("Surface {}", pi);
             primitive.id   = cache.mesh_uuids[mi][pi];
+            if (prim.materialIndex.has_value() && prim.materialIndex.value() < cache.material_uuids.size())
+            {
+                primitive.material_id = cache.material_uuids[prim.materialIndex.value()];
+            }
             mesh.children.push_back(std::move(primitive));
         }
         node.children.push_back(std::move(mesh));

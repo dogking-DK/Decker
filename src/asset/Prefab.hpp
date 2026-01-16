@@ -24,6 +24,7 @@ struct PrefabNode
     AssetKind               kind{AssetKind::Node};
     std::string             name;
     Transform               local_transform{};
+    UUID                    material_id{};
     std::vector<PrefabNode> children;
 };
 
@@ -87,6 +88,10 @@ inline void to_json(nlohmann::json& j, const PrefabNode& node)
         {"id", to_string(node.id)}, {"kind", to_string(node.kind)}, {"name", node.name},
         {"children", node.children}, {"transform", node.local_transform}
     };
+    if (!node.material_id.is_nil())
+    {
+        j["material"] = to_string(node.material_id);
+    }
 }
 
 inline void from_json(const nlohmann::json& j, PrefabNode& node)
@@ -96,6 +101,7 @@ inline void from_json(const nlohmann::json& j, PrefabNode& node)
     if (auto kind = asset_kind_from_string(j.at("kind").get<std::string>()); kind.has_value())
         node.kind = *kind;
     if (j.contains("transform")) j.at("transform").get_to(node.local_transform);
+    if (j.contains("material")) node.material_id = uuid_parse(j.at("material").get<std::string>());
     if (j.contains("children")) j.at("children").get_to(node.children);
 }
 } // namespace dk

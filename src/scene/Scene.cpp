@@ -97,6 +97,7 @@ namespace {
         {
             auto& mesh_component = dst->addComponent<MeshInstanceComponent>();
             mesh_component.mesh_asset = src.id;
+            mesh_component.material_asset = src.material_id;
         }
 
         for (const auto& child : src.children)
