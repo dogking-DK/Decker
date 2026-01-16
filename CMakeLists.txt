@@ -50,10 +50,9 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_custom_target(clobber COMMAND git clean -d -f -x)
 
-add_subdirectory(src)
-add_subdirectory(assets)
+file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
 
-add_dependencies(Decker sync_assets)
+add_subdirectory(src)
 
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin
