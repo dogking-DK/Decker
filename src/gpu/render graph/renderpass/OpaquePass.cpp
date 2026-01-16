@@ -32,23 +32,24 @@ void OpaquePass::init(vk::Format color_format, vk::Format depth_format)
 
     namespace fs = std::filesystem;
     const fs::path base_dir   = fs::current_path();
-    const fs::path vert_path  = base_dir / "../../assets/shaders/basic_mesh.vert";
-    const fs::path frag_path  = base_dir / "../../assets/shaders/basic_mesh.frag";
-
-    std::vector<uint32_t> vert_spv;
-    std::vector<uint32_t> frag_spv;
-    vkcore::ShaderCompiler compiler;
-    if (!compiler.compileGLSLToSPV(read_text(vert_path), vert_spv, vk::ShaderStageFlagBits::eVertex))
+    
+    std::unique_ptr<vkcore::ShaderModule> vert_module;
+    std::unique_ptr<vkcore::ShaderModule> frag_module;
+    try
     {
-        throw std::runtime_error("Failed to compile basic_mesh.vert");
-    }
-    if (!compiler.compileGLSLToSPV(read_text(frag_path), frag_spv, vk::ShaderStageFlagBits::eFragment))
-    {
-        throw std::runtime_error("Failed to compile basic_mesh.frag");
-    }
+        namespace fs = std::filesystem;
+        fs::path current_dir = fs::current_path();
+        // **你需要创建这两个新的着色器文件**
+        fs::path target_file_mesh = absolute(current_dir / "../../assets/shaders/spv/common/basic_mesh.vert.spv");
+        fs::path target_file_frag = absolute(current_dir / "../../assets/shaders/spv/common/basic_mesh.frag.spv");
 
-    auto vert_module = std::make_unique<vkcore::ShaderModule>(&_context, vert_spv);
-    auto frag_module = std::make_unique<vkcore::ShaderModule>(&_context, frag_spv);
+        vert_module = std::make_unique<vkcore::ShaderModule>(&_context, vkcore::loadSpirvFromFile(target_file_mesh));
+        frag_module = std::make_unique<vkcore::ShaderModule>(&_context, vkcore::loadSpirvFromFile(target_file_frag));
+    }
+    catch (const std::runtime_error& e)
+    {
+        throw std::runtime_error("Failed to load spring shaders. Error: " + std::string(e.what()));
+    }
 
     vk::PushConstantRange push_range;
     push_range.stageFlags = vk::ShaderStageFlagBits::eVertex;
