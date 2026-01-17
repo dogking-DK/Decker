@@ -3,6 +3,7 @@
 #include <memory>
 
 #include <glm/vec4.hpp>
+#include <vulkan/vulkan.hpp>
 
 #include "GPUMesh.h"
 #include "GPUTexture.h"
@@ -19,5 +20,6 @@ struct GPUMaterial
     std::shared_ptr<GPUTexture> normal_tex{nullptr};
     std::shared_ptr<GPUTexture> occlusion_tex{nullptr};
     std::shared_ptr<GPUTexture> emissive_tex{nullptr};
+    vk::DescriptorSet           descriptor_set{VK_NULL_HANDLE};
 };
 } // namespace dk

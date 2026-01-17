@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "Vulkan/CommandBuffer.h"
+#include "Vulkan/DescriptorSetLayout.h"
 #include "Vulkan/ShaderModule.h"
 #include "Vulkan/ShaderCompiler.h"
 
@@ -56,9 +57,22 @@ void OpaquePass::init(vk::Format color_format, vk::Format depth_format)
     push_range.offset     = 0;
     push_range.size       = sizeof(PushConstants);
 
+    vkcore::DescriptorSetLayout::Builder layout_builder(_context);
+    layout_builder.addBinding(0, vk::DescriptorType::eCombinedImageSampler,
+                              vk::ShaderStageFlagBits::eFragment);
+    layout_builder.addBinding(1, vk::DescriptorType::eCombinedImageSampler,
+                              vk::ShaderStageFlagBits::eFragment);
+    layout_builder.addBinding(2, vk::DescriptorType::eCombinedImageSampler,
+                              vk::ShaderStageFlagBits::eFragment);
+    layout_builder.addBinding(3, vk::DescriptorType::eCombinedImageSampler,
+                              vk::ShaderStageFlagBits::eFragment);
+    layout_builder.addBinding(4, vk::DescriptorType::eCombinedImageSampler,
+                              vk::ShaderStageFlagBits::eFragment);
+    _material_set_layout = layout_builder.build();
+
     _pipeline_layout = std::make_unique<vkcore::PipelineLayout>(
         &_context,
-        std::vector<vkcore::DescriptorSetLayout*>{},
+        std::vector<vkcore::DescriptorSetLayout*>{_material_set_layout.get()},
         std::vector<vk::PushConstantRange>{push_range});
 
     std::vector<vk::VertexInputBindingDescription> bindings = {
@@ -81,6 +95,12 @@ void OpaquePass::init(vk::Format color_format, vk::Format depth_format)
             0,
             vk::Format::eR32G32B32A32Sfloat,
             offsetof(GPUVertex, color0)
+        },
+        vk::VertexInputAttributeDescription{
+            2,
+            0,
+            vk::Format::eR32G32Sfloat,
+            offsetof(GPUVertex, texcoord0)
         }
     };
 
@@ -136,8 +156,9 @@ void OpaquePass::record(::dk::RenderGraphContext& ctx) const
     };
     cmd.setScissor(0, 1, &scissor);
 
-    vk::Buffer last_vertex_buffer{};
-    vk::Buffer last_index_buffer{};
+    vk::Buffer        last_vertex_buffer{};
+    vk::Buffer        last_index_buffer{};
+    vk::DescriptorSet last_material_set{};
 
     for (const auto& item : _draw_lists->opaque)
     {
@@ -160,6 +181,13 @@ void OpaquePass::record(::dk::RenderGraphContext& ctx) const
         {
             cmd.bindIndexBuffer(ib, 0, vk::IndexType::eUint32);
             last_index_buffer = ib;
+        }
+
+        if (item.material && item.material->descriptor_set && item.material->descriptor_set != last_material_set)
+        {
+            cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline_layout->getHandle(), 0,
+                                   {item.material->descriptor_set}, {});
+            last_material_set = item.material->descriptor_set;
         }
 
         PushConstants push{};
