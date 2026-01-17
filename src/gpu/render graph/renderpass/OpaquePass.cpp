@@ -57,7 +57,7 @@ void OpaquePass::init(vk::Format color_format, vk::Format depth_format)
     push_range.offset     = 0;
     push_range.size       = sizeof(PushConstants);
 
-    vkcore::DescriptorSetLayout::Builder layout_builder(_context);
+    vkcore::DescriptorSetLayout::Builder layout_builder(&_context);
     layout_builder.addBinding(0, vk::DescriptorType::eCombinedImageSampler,
                               vk::ShaderStageFlagBits::eFragment);
     layout_builder.addBinding(1, vk::DescriptorType::eCombinedImageSampler,

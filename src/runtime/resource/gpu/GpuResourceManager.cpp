@@ -33,6 +33,10 @@ GpuResourceManager::GpuResourceManager(VulkanContext&  ctx, UploadContext& uploa
 {
 }
 
+GpuResourceManager::~GpuResourceManager()
+{
+}
+
 void GpuResourceManager::setMaterialDescriptorLayout(vkcore::DescriptorSetLayout* layout)
 {
     _material_descriptor_layout = layout;

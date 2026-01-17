@@ -24,7 +24,7 @@ class GpuResourceManager
 {
 public:
     GpuResourceManager(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx, ResourceLoader& cpu_loader);
-
+    ~GpuResourceManager();
     void setMaterialDescriptorLayout(vkcore::DescriptorSetLayout* layout);
     std::shared_ptr<GPUMaterial> getDefaultMaterial();
     std::shared_ptr<GPUMesh>     loadMesh(UUID id);
