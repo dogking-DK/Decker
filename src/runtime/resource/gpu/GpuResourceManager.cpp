@@ -15,6 +15,9 @@
 #include "Vulkan/CommandBuffer.h"
 #include "Vulkan/CommandPool.h"
 #include "Vulkan/Context.h"
+#include "Vulkan/DescriptorSetLayout.h"
+#include "Vulkan/DescriptorSetPool.h"
+#include "Vulkan/DescriptorWriter.h"
 #include "Vulkan/ImageView.h"
 #include "Vulkan/Sampler.h"
 
@@ -28,6 +31,38 @@ GpuResourceManager::GpuResourceManager(VulkanContext&  ctx, UploadContext& uploa
                                        ResourceLoader& cpu_loader)
     : _context(ctx), _upload_ctx(upload_ctx), _cpu_loader(cpu_loader)
 {
+}
+
+void GpuResourceManager::setMaterialDescriptorLayout(vkcore::DescriptorSetLayout* layout)
+{
+    _material_descriptor_layout = layout;
+    if (!_material_descriptor_allocator)
+    {
+        std::vector<vk::DescriptorPoolSize> pool_sizes = {
+            {vk::DescriptorType::eCombinedImageSampler, 512}
+        };
+        _material_descriptor_allocator = std::make_unique<vkcore::GrowableDescriptorAllocator>(
+            &_context, 256, pool_sizes);
+    }
+    if (_default_material)
+    {
+        ensureMaterialDescriptorSet(*_default_material);
+    }
+}
+
+std::shared_ptr<GPUMaterial> GpuResourceManager::getDefaultMaterial()
+{
+    if (_default_material)
+    {
+        return _default_material;
+    }
+
+    auto material            = std::make_shared<GPUMaterial>();
+    material->base_color     = glm::vec4(1.0f);
+    material->base_color_tex = getDefaultWhiteTexture();
+    ensureMaterialDescriptorSet(*material);
+    _default_material = material;
+    return _default_material;
 }
 
 std::shared_ptr<GPUMesh> GpuResourceManager::uploadMeshData(const MeshData& mesh)
@@ -72,6 +107,51 @@ std::shared_ptr<GPUMesh> GpuResourceManager::uploadMeshData(const MeshData& mesh
     gpu_mesh->vertex_count = vertex_count;
     gpu_mesh->index_count  = index_count;
     return gpu_mesh;
+}
+
+std::shared_ptr<GPUTexture> GpuResourceManager::getDefaultWhiteTexture()
+{
+    if (_default_white_texture)
+    {
+        return _default_white_texture;
+    }
+
+    TextureData texture{};
+    texture.width    = 1;
+    texture.height   = 1;
+    texture.depth    = 1;
+    texture.channels = 4;
+    texture.pixels   = {255, 255, 255, 255};
+
+    _default_white_texture = uploadTextureData(texture);
+    return _default_white_texture;
+}
+
+void GpuResourceManager::ensureMaterialDescriptorSet(GPUMaterial& material)
+{
+    if (!_material_descriptor_layout || !_material_descriptor_allocator)
+    {
+        return;
+    }
+
+    if (material.descriptor_set)
+    {
+        return;
+    }
+
+    vk::DescriptorSet descriptor_set = _material_descriptor_allocator->allocate(*_material_descriptor_layout);
+
+    auto texture = material.base_color_tex ? material.base_color_tex : getDefaultWhiteTexture();
+    vk::DescriptorImageInfo image_info = vkcore::makeCombinedImageInfo(
+        texture->view->getHandle(),
+        texture->sampler->getHandle(),
+        texture->layout);
+
+    vkcore::DescriptorSetWriter writer;
+    writer.writeImage(0, vk::DescriptorType::eCombinedImageSampler, image_info, 0);
+    writer.update(_context, descriptor_set);
+
+    material.descriptor_set = descriptor_set;
 }
 
 std::shared_ptr<GPUTexture> GpuResourceManager::uploadTextureData(const TextureData& texture)
@@ -124,7 +204,10 @@ std::shared_ptr<GPUMaterial> GpuResourceManager::loadMaterial(UUID id)
     return _cache.resolve<GPUMaterial>(id, [&]
     {
         auto cpu = _cpu_loader.load<MaterialData>(id);
-        if (!cpu) return std::shared_ptr<GPUMaterial>{};
+        if (!cpu)
+        {
+            return getDefaultMaterial();
+        }
 
         auto gpu        = std::make_shared<GPUMaterial>();
         gpu->metallic   = cpu->metallic;
@@ -140,6 +223,7 @@ std::shared_ptr<GPUMaterial> GpuResourceManager::loadMaterial(UUID id)
         if (cpu->normal_tex) gpu->normal_tex = uploadTextureData(*cpu->normal_tex);
         if (cpu->occlusion_tex) gpu->occlusion_tex = uploadTextureData(*cpu->occlusion_tex);
         if (cpu->emissive_tex) gpu->emissive_tex = uploadTextureData(*cpu->emissive_tex);
+        ensureMaterialDescriptorSet(*gpu);
         return gpu;
     });
 }

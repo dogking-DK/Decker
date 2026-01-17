@@ -20,6 +20,7 @@ RenderSystem::~RenderSystem()
 void RenderSystem::init(vk::Format color_format, vk::Format depth_format)
 {
     _opaque_pass->init(color_format, depth_format);
+    _gpu_cache->setMaterialDescriptorLayout(_opaque_pass->getMaterialDescriptorLayout());
     _opaque_pass->registerToGraph(_graph);
 
     _graph.addTask<int>(

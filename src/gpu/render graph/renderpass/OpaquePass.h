@@ -9,6 +9,7 @@
 #include "render/DrawList.h"
 #include "resource/gpu/GPUMesh.h"
 #include "Vulkan/Context.h"
+#include "Vulkan/DescriptorSetLayout.h"
 #include "Vulkan/Pipeline.h"
 #include "Vulkan/PipelineLayout.h"
 
@@ -20,6 +21,7 @@ public:
 
     void init(vk::Format color_format, vk::Format depth_format);
     void registerToGraph(RenderGraph& graph);
+    vkcore::DescriptorSetLayout* getMaterialDescriptorLayout() const { return _material_set_layout.get(); }
 
     void setFrameData(const FrameContext* frame, const DrawLists* lists)
     {
@@ -41,6 +43,7 @@ private:
     void record(::dk::RenderGraphContext& ctx) const;
 
     vkcore::VulkanContext&       _context;
+    std::unique_ptr<vkcore::DescriptorSetLayout> _material_set_layout;
     std::unique_ptr<vkcore::PipelineLayout> _pipeline_layout;
     std::unique_ptr<vkcore::Pipeline>       _pipeline;
     const FrameContext*          _frame_ctx{nullptr};
