@@ -155,8 +155,8 @@ void CommandBuffer::generateMipmaps(ImageResource& image, vk::Extent2D image_siz
     for (int mip = 0; mip < mip_levels; mip++)
     {
         vk::Extent2D half_size = image_size;
-        half_size.width /= 2;
-        half_size.height /= 2;
+        half_size.width        /= 2;
+        half_size.height       /= 2;
 
         vk::ImageMemoryBarrier2 image_barrier;
 
@@ -228,7 +228,10 @@ void CommandBuffer::generateMipmaps(ImageResource& image, vk::Extent2D image_siz
 void CommandBuffer::copyBuffer(const BufferResource& src, const BufferResource& dst, vk::BufferCopy2 copy)
 {
     vk::CopyBufferInfo2 info;
-    info.setSrcBuffer(src.getHandle()).setDstBuffer(dst.getHandle()).setRegions(copy).setRegionCount(1);
+    info.setSrcBuffer(src.getHandle())
+        .setDstBuffer(dst.getHandle())
+        .setRegions(copy)
+        .setRegionCount(1);
     _handle.copyBuffer2(info);
 }
 
@@ -407,7 +410,7 @@ void upload_buffer_data_immediate(UploadContext& ctx, const void* srcData, vk::D
                                   vk::DeviceSize dstOffset, BufferUsage dst_usage)
 
 {
-    const auto sa = stage_access_for_buffer(dst_usage, false);
+    //const auto sa = stage_access_for_buffer(dst_usage, false);
 
     // 1. 内部创建临时的 Staging Buffer
     //    使用 VMA_MEMORY_USAGE_CPU_ONLY 或 CPU_TO_GPU 确保 host 可写

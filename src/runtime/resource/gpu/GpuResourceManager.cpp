@@ -49,7 +49,6 @@ std::shared_ptr<GPUMesh> GpuResourceManager::uploadMeshData(const MeshData& mesh
     }
 
     auto gpu_mesh = std::make_shared<GPUMesh>();
-
     gpu_mesh->vertex_buffer = BufferResource::Builder()
                              .setSize(sizeof(GPUVertex) * gpu_vertices.size())
                              .setUsage(vk::BufferUsageFlagBits::eVertexBuffer |
@@ -77,7 +76,7 @@ std::shared_ptr<GPUMesh> GpuResourceManager::uploadMeshData(const MeshData& mesh
 
 std::shared_ptr<GPUTexture> GpuResourceManager::uploadTextureData(const TextureData& texture)
 {
-    const vk::DeviceSize image_size = texture.width * texture.height * texture.depth;
+    const vk::DeviceSize image_size = texture.width * texture.height * texture.depth * 4;
 
     ImageResource::Builder image_builder;
     auto                   image = image_builder.setFormat(vk::Format::eR8G8B8A8Unorm)

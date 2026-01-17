@@ -1584,8 +1584,8 @@ void VulkanEngine::init_commands()
     _mainDeletionQueue.push_function(
         [this]() { vkDestroyCommandPool(_context->getDevice(), _immCommandPool, nullptr); });
 
-    _upload_pool = std::make_unique<vkcore::CommandPool>(_context, _context->getTransferQueueIndex());
-    _upload_ctx.init(_context, _upload_pool.get(), _context->getTransferQueue());
+    _upload_pool = std::make_unique<vkcore::CommandPool>(_context, _context->getGraphicsQueueIndex());
+    _upload_ctx.init(_context, _upload_pool.get(), _context->getGraphicsQueue());
 }
 
 void VulkanEngine::init_sync_structures()

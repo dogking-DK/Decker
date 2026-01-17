@@ -390,7 +390,9 @@ void export_raw_images(const fastgltf::Asset&   gltf, const GltfUuidCache& cache
                         //fmt::print("generate image name({})\n", name);
                     }
 
+                    // 将读入统一为4通道
                     unsigned char* image_data = stbi_load(path.generic_string().c_str(), &raw.width, &raw.height, &raw.channels, 4);
+                    raw.channels = 4;
                     if (image_data)
                     {
                         pixels.assign(image_data, image_data + raw.width * raw.height * 4);
