@@ -1,5 +1,4 @@
-﻿cmake_minimum_required(VERSION 4.2)
-
+﻿# src
 add_compile_definitions(VULKAN_NO_PROTOTYPE)
 
 # ================== 查找第三方依赖 ==================
@@ -125,17 +124,30 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLM_ENABLE_EXPERIMENTAL)
 
-# ================== 资源目录同步到输出路径 ==================
-if(UNIX AND NOT APPLE)
-  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove -f "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
-    COMMAND ${CMAKE_COMMAND} -E create_symlink
-            "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
-    COMMENT "Link assets -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets")
-else()
-  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
-    COMMENT "Copy assets -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets")
+# --------------------------------------------------------
+# 核心修改 A: 建立依赖
+# --------------------------------------------------------
+# 这行代码确保在编译 Decker.exe 之前（或同时），先运行 compile_shaders
+# 这样如果 glsl 变了，Python 脚本会被自动调用
+if(TARGET compile_shaders)
+    add_dependencies(${PROJECT_NAME} compile_shaders)
 endif()
+
+# --------------------------------------------------------
+# 核心修改 B: 编译后自动复制 Assets
+# --------------------------------------------------------
+# $<TARGET_FILE_DIR:${PROJECT_NAME}> 会自动解析为:
+#   - build/bin/Debug/   (在 Debug 模式下)
+#   - build/bin/Release/ (在 Release 模式下)
+# 这样无论你切什么配置，assets 都会被复制到 exe 旁边
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/assets"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+    COMMENT "Copying assets to output directory..."
+)
+
+# (可选) 设置一些包含路径
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    "${CMAKE_SOURCE_DIR}/src"
+)

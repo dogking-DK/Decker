@@ -1,3 +1,4 @@
+#root
 cmake_minimum_required(VERSION 4.2)
 
 if(DEFINED ENV{VCPKG_ROOT})
@@ -50,7 +51,8 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_custom_target(clobber COMMAND git clean -d -f -x)
 
-file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+
+add_subdirectory(assets)
 
 add_subdirectory(src)
 
