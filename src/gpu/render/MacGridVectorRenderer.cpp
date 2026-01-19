@@ -69,10 +69,10 @@ void MacGridVectorRenderer::createPipeline(vk::Format color_format, vk::Format d
     try
     {
         namespace fs = std::filesystem;
-        fs::path cwd = fs::current_path();
+        fs::path cwd = get_exe_dir();
         // 自行调整路径
-        fs::path mesh_spv = absolute(cwd / "../../assets/shaders/spv/fluid/mac_vector.mesh.spv");
-        fs::path frag_spv = absolute(cwd / "../../assets/shaders/spv/fluid/mac_vector.frag.spv");
+        fs::path mesh_spv = absolute(cwd / "assets/shaders/spv/fluid/mac_vector.mesh.spv");
+        fs::path frag_spv = absolute(cwd / "assets/shaders/spv/fluid/mac_vector.frag.spv");
         mesh_mod          = std::make_unique<vkcore::ShaderModule>(_context, vkcore::loadSpirvFromFile(mesh_spv));
         frag_mod          = std::make_unique<vkcore::ShaderModule>(_context, vkcore::loadSpirvFromFile(frag_spv));
     }

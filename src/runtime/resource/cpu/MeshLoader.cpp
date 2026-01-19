@@ -36,10 +36,13 @@ namespace {
             const void*  src_ptr    = raw.blob.data() + offsetInBlob;
             const size_t vert_count = raw.header.vertex_count;
 
+
             // 目标类型 T 的维度 (比如 vec3 = 3)
             // 注意：这里假设 glm::vec3 是 3 个 float 紧密排列
             using T                            = typename std::decay_t<T0>::value_type;
             constexpr size_t target_elem_count = sizeof(T) / sizeof(float);
+            auto T_size = sizeof(T);
+            auto calc_size = vert_count * sizeof(T);
 
             // 检查：只有当文件里的 float 数量和目标类型的 float 数量一致时，才能直接 memcpy
             // 比如文件里是 vec3，目标也是 vec3。
@@ -73,11 +76,14 @@ namespace {
                 break;
             // 处理 UV (可能支持多套)
             case Texcoord0:
+                if (mesh->texcoords.empty()) mesh->texcoords.resize(1);
                 // 假设 mesh->texcoords 是 vector<vec2>，如果是 vector<vector<vec2>> 需要调整逻辑
-                //load_attr(mesh->texcoords0, d);
+                //auto& texcood = mesh->texcoords[0];
+                load_attr(mesh->texcoords[0], d);
                 break;
             case Color0:
-                //load_attr(mesh->colors, d);    // 自动推导为 glm::vec4
+                if (mesh->colors.empty()) mesh->colors.resize(1);
+                load_attr(mesh->colors[0], d);    // 自动推导为 glm::vec4
                 break;
 
             case Joints0:

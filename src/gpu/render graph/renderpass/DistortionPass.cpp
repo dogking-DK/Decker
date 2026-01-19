@@ -52,8 +52,8 @@ void DistortionPass::init(vkcore::VulkanContext* ctx)
     try
     {
         namespace fs = std::filesystem;
-        fs::path current_dir = fs::current_path();
-        fs::path target_file_comp = absolute(current_dir / "../../assets/shaders/spv/common/distortion.comp.spv");
+        fs::path current_dir = get_exe_dir();
+        fs::path target_file_comp = absolute(current_dir / "assets/shaders/spv/common/distortion.comp.spv");
 
         comp_module = std::make_unique<vkcore::ShaderModule>(ctx, vkcore::loadSpirvFromFile(target_file_comp));
     }

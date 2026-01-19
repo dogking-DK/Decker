@@ -71,9 +71,9 @@ namespace dk {
         );
 
         namespace fs = std::filesystem;
-        fs::path cwd = fs::current_path();
-        auto mesh_spv = vkcore::loadSpirvFromFile(fs::absolute(cwd / "../../assets/shaders/spv/fluid/macgrid_points.mesh.spv"));
-        auto frag_spv = vkcore::loadSpirvFromFile(fs::absolute(cwd / "../../assets/shaders/spv/fluid/macgrid_points.frag.spv"));
+        fs::path cwd = get_exe_dir();
+        auto mesh_spv = vkcore::loadSpirvFromFile(fs::absolute(cwd / "assets/shaders/spv/fluid/macgrid_points.mesh.spv"));
+        auto frag_spv = vkcore::loadSpirvFromFile(fs::absolute(cwd / "assets/shaders/spv/fluid/macgrid_points.frag.spv"));
         auto mesh_mod = std::make_unique<vkcore::ShaderModule>(_ctx, mesh_spv);
         auto frag_mod = std::make_unique<vkcore::ShaderModule>(_ctx, frag_spv);
 

@@ -11,8 +11,9 @@
 #include <limits>
 #include <memory>
 
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+//#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
+#include <filesystem>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vk_enum_string_helper.h>
 #include <vk_mem_alloc.h>
@@ -37,6 +38,26 @@
 //< intro
 
 constexpr unsigned int FRAME_OVERLAP = 2;
+
+static std::filesystem::path get_exe_dir()
+{
+#if defined(_WIN32)
+    wchar_t buf[MAX_PATH];
+    GetModuleFileNameW(nullptr, buf, MAX_PATH);
+    return std::filesystem::path(buf).parent_path();
+#elif defined(__APPLE__)
+    uint32_t size = 0;
+    _NSGetExecutablePath(nullptr, &size);
+    std::string buf(size, '\0');
+    _NSGetExecutablePath(buf.data(), &size);
+    return std::filesystem::weakly_canonical(std::filesystem::path(buf)).parent_path();
+#else
+    std::string buf(4096, '\0');
+    ssize_t len = readlink("/proc/self/exe", buf.data(), buf.size() - 1);
+    buf.resize((len > 0) ? len : 0);
+    return std::filesystem::path(buf).parent_path();
+#endif
+}
 
 
 // we will add our main reusable types here

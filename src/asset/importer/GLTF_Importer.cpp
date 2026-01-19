@@ -278,7 +278,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const GltfUuidCache& cache, 
                             }
                         }();
 
-                        std::vector<float> tmp(accessor.count * components);
+                        std::vector<float> tmp(accessor.count * fastgltf::getElementByteSize(accessor.type, accessor.componentType));
                         if (accessor.type == fastgltf::AccessorType::Vec2)
                             copyFromAccessor<glm::vec2>(gltf, accessor, tmp.data());
                         else if (accessor.type == fastgltf::AccessorType::Vec3)
@@ -294,7 +294,10 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const GltfUuidCache& cache, 
                     else break;
                 }
             };
-
+            for (const auto& attri_temp : prim.attributes)
+            {
+                fmt::print("attribute name: {}\n", attri_temp.name);
+            }
             // 添加可能的基础属性
             for (auto [attr, set] : {std::pair("POSITION", 0), {"NORMAL", 0}, {"TANGENT", 0}})
             {

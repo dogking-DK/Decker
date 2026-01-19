@@ -111,9 +111,9 @@ void PointCloudRenderer::createPipeline(vk::Format color_format, vk::Format dept
     try
     {
         namespace fs = std::filesystem;
-        fs::path current_dir = fs::current_path(); // 当前目录
-        fs::path target_file_mesh = fs::absolute(current_dir / "../../assets/shaders/spv/fluid/pointcloud.mesh.spv"); // 矫正分隔符
-        fs::path target_file_frag = fs::absolute(current_dir / "../../assets/shaders/spv/fluid/pointcloud.frag.spv"); // 矫正分隔符
+        fs::path current_dir = get_exe_dir(); // 当前目录
+        fs::path target_file_mesh = fs::absolute(current_dir / "assets/shaders/spv/fluid/pointcloud.mesh.spv"); // 矫正分隔符
+        fs::path target_file_frag = fs::absolute(current_dir / "assets/shaders/spv/fluid/pointcloud.frag.spv"); // 矫正分隔符
 
         auto mesh_spirv = dk::vkcore::loadSpirvFromFile(target_file_mesh);
         auto frag_spirv = dk::vkcore::loadSpirvFromFile(target_file_frag);

@@ -11,15 +11,15 @@
 
 namespace dk::render {
 namespace {
-std::string read_text(const std::filesystem::path& path)
-{
-    std::ifstream file(path);
-    if (!file.is_open())
+    std::string read_text(const std::filesystem::path& path)
     {
-        throw std::runtime_error("Failed to open shader file: " + path.string());
+        std::ifstream file(path);
+        if (!file.is_open())
+        {
+            throw std::runtime_error("Failed to open shader file: " + path.string());
+        }
+        return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     }
-    return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-}
 } // namespace
 
 OpaquePass::OpaquePass(vkcore::VulkanContext& ctx)
@@ -32,17 +32,17 @@ void OpaquePass::init(vk::Format color_format, vk::Format depth_format)
     vkcore::ShaderCompiler::initGlslang();
 
     namespace fs = std::filesystem;
-    const fs::path base_dir   = fs::current_path();
-    
+    const fs::path base_dir = get_exe_dir();
+
     std::unique_ptr<vkcore::ShaderModule> vert_module;
     std::unique_ptr<vkcore::ShaderModule> frag_module;
     try
     {
         namespace fs = std::filesystem;
-        fs::path current_dir = fs::current_path();
+        fs::path current_dir = get_exe_dir();
         // **你需要创建这两个新的着色器文件**
-        fs::path target_file_mesh = absolute(current_dir / "../../assets/shaders/spv/common/basic_mesh.vert.spv");
-        fs::path target_file_frag = absolute(current_dir / "../../assets/shaders/spv/common/basic_mesh.frag.spv");
+        fs::path target_file_mesh = absolute(current_dir / "assets/shaders/spv/common/basic_mesh.vert.spv");
+        fs::path target_file_frag = absolute(current_dir / "assets/shaders/spv/common/basic_mesh.frag.spv");
 
         vert_module = std::make_unique<vkcore::ShaderModule>(&_context, vkcore::loadSpirvFromFile(target_file_mesh));
         frag_module = std::make_unique<vkcore::ShaderModule>(&_context, vkcore::loadSpirvFromFile(target_file_frag));
@@ -58,16 +58,11 @@ void OpaquePass::init(vk::Format color_format, vk::Format depth_format)
     push_range.size       = sizeof(PushConstants);
 
     vkcore::DescriptorSetLayout::Builder layout_builder(&_context);
-    layout_builder.addBinding(0, vk::DescriptorType::eCombinedImageSampler,
-                              vk::ShaderStageFlagBits::eFragment);
-    layout_builder.addBinding(1, vk::DescriptorType::eCombinedImageSampler,
-                              vk::ShaderStageFlagBits::eFragment);
-    layout_builder.addBinding(2, vk::DescriptorType::eCombinedImageSampler,
-                              vk::ShaderStageFlagBits::eFragment);
-    layout_builder.addBinding(3, vk::DescriptorType::eCombinedImageSampler,
-                              vk::ShaderStageFlagBits::eFragment);
-    layout_builder.addBinding(4, vk::DescriptorType::eCombinedImageSampler,
-                              vk::ShaderStageFlagBits::eFragment);
+    layout_builder.addBinding(0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
+                  .addBinding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
+                  .addBinding(2, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
+                  .addBinding(3, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
+                  .addBinding(4, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
     _material_set_layout = layout_builder.build();
 
     _pipeline_layout = std::make_unique<vkcore::PipelineLayout>(
@@ -76,7 +71,7 @@ void OpaquePass::init(vk::Format color_format, vk::Format depth_format)
         std::vector<vk::PushConstantRange>{push_range});
 
     std::vector<vk::VertexInputBindingDescription> bindings = {
-        vk::VertexInputBindingDescription{
+        {
             0,
             sizeof(GPUVertex),
             vk::VertexInputRate::eVertex
@@ -84,23 +79,35 @@ void OpaquePass::init(vk::Format color_format, vk::Format depth_format)
     };
 
     std::vector<vk::VertexInputAttributeDescription> attributes = {
-        vk::VertexInputAttributeDescription{
+        {
             0,
             0,
             vk::Format::eR32G32B32Sfloat,
             offsetof(GPUVertex, position)
         },
-        vk::VertexInputAttributeDescription{
+        {
             1,
             0,
-            vk::Format::eR32G32B32A32Sfloat,
-            offsetof(GPUVertex, color0)
+            vk::Format::eR32G32B32Sfloat,
+            offsetof(GPUVertex, normal)
         },
-        vk::VertexInputAttributeDescription{
+        {
             2,
+            0,
+            vk::Format::eR32G32B32A32Sfloat,
+            offsetof(GPUVertex, tangent)
+        },
+        {
+            3,
             0,
             vk::Format::eR32G32Sfloat,
             offsetof(GPUVertex, texcoord0)
+        },
+        {
+            4,
+            0,
+            vk::Format::eR32G32B32A32Sfloat,
+            offsetof(GPUVertex, color0)
         }
     };
 
@@ -121,15 +128,17 @@ void OpaquePass::registerToGraph(RenderGraph& graph)
 {
     graph.addTask<OpaquePassData>(
         "Opaque Pass",
-        [](OpaquePassData&, RenderTaskBuilder&) {},
-        [this](const OpaquePassData&, ::dk::RenderGraphContext& ctx)
+        [](OpaquePassData&, RenderTaskBuilder&)
+        {
+        },
+        [this](const OpaquePassData&, RenderGraphContext& ctx)
         {
             record(ctx);
         }
     );
 }
 
-void OpaquePass::record(::dk::RenderGraphContext& ctx) const
+void OpaquePass::record(RenderGraphContext& ctx) const
 {
     if (!_frame_ctx || !_draw_lists || !_pipeline)
     {
@@ -172,7 +181,7 @@ void OpaquePass::record(::dk::RenderGraphContext& ctx) const
 
         if (vb != last_vertex_buffer)
         {
-            const vk::DeviceSize offset = 0;
+            constexpr vk::DeviceSize offset = 0;
             cmd.bindVertexBuffers(0, 1, &vb, &offset);
             last_vertex_buffer = vb;
         }

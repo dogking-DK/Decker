@@ -57,9 +57,9 @@ void GaussianBlurPass::init(vkcore::VulkanContext* ctx)
     try
     {
         namespace fs = std::filesystem;
-        fs::path current_dir = fs::current_path();
+        fs::path current_dir = get_exe_dir();
         // **你需要创建这两个新的着色器文件**
-        fs::path target_file_comp = absolute(current_dir / "../../assets/shaders/spv/common/gaussian_blur.comp.spv");
+        fs::path target_file_comp = absolute(current_dir / "assets/shaders/spv/common/gaussian_blur.comp.spv");
 
         comp_module = std::make_unique<vkcore::ShaderModule>(ctx, vkcore::loadSpirvFromFile(target_file_comp));
     }

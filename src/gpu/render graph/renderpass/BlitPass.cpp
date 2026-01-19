@@ -146,10 +146,10 @@ void BlitPass::createPipeline(vk::Format color_format, vk::Format depth_format)
     try
     {
         namespace fs = std::filesystem;
-        fs::path current_dir = fs::current_path();
+        fs::path current_dir = get_exe_dir();
         // **你需要创建这两个新的着色器文件**
-        fs::path target_file_mesh = absolute(current_dir / "../../assets/shaders/spv/fluid/spring.mesh.spv");
-        fs::path target_file_frag = absolute(current_dir / "../../assets/shaders/spv/fluid/spring.frag.spv");
+        fs::path target_file_mesh = absolute(current_dir / "assets/shaders/spv/fluid/spring.mesh.spv");
+        fs::path target_file_frag = absolute(current_dir / "assets/shaders/spv/fluid/spring.frag.spv");
 
         mesh_module = std::make_unique<vkcore::ShaderModule>(_context, vkcore::loadSpirvFromFile(target_file_mesh));
         frag_module = std::make_unique<vkcore::ShaderModule>(_context, vkcore::loadSpirvFromFile(target_file_frag));

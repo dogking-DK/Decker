@@ -480,15 +480,15 @@ void VulkanEngine::init_background_pipelines()
                                                uint64_t>(_gradientPipelineLayout), "background layout");
     VkShaderModule gradientShader;
     namespace fs = std::filesystem;
-    fs::path current_dir = fs::current_path(); // 当前目录
-    fs::path target_file = absolute(current_dir / "../../assets/shaders/spv/gradient_color.comp.spv"); // 矫正分隔符
+    fs::path current_dir = get_exe_dir(); // 当前目录
+    fs::path target_file = absolute(current_dir / "assets/shaders/spv/gradient_color.comp.spv"); // 矫正分隔符
     if (!vkutil::load_shader_module(target_file.string(), _context->getDevice(), &gradientShader))
     {
         fmt::print("Error when building the compute shader \n");
     }
 
     VkShaderModule skyShader;
-    target_file = absolute(current_dir / "../../assets/shaders/spv/sky.comp.spv"); // 矫正分隔符
+    target_file = absolute(current_dir / "assets/shaders/spv/sky.comp.spv"); // 矫正分隔符
     if (!vkutil::load_shader_module(target_file.string(), _context->getDevice(),
                                     &skyShader))
     {
@@ -1623,8 +1623,8 @@ void VulkanEngine::init_renderables()
 {
     namespace fs = std::filesystem;
     std::string structurePath;
-    fs::path    current_dir    = fs::current_path(); // 当前目录
-    fs::path    file_json_path = absolute(current_dir / "../../assets/config/file.json"); // 矫正分隔符
+    fs::path    current_dir    = get_exe_dir(); // 当前目录
+    fs::path    file_json_path = absolute(current_dir / "assets/config/file.json"); // 矫正分隔符
     fmt::print(fg(fmt::color::bisque), "file config path: {}\n", file_json_path.string());
     if (exists(file_json_path))
     {
@@ -1711,8 +1711,8 @@ void VulkanEngine::init_imgui()
     font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint;  // 额外的 FreeType 设置
     font_cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_ForceAutoHint | ImGuiFreeTypeBuilderFlags_Monochrome;
     namespace fs = std::filesystem;
-    fs::path current_dir = fs::current_path(); // 当前目录
-    fs::path target_file = absolute(current_dir / "../../assets/font/SourceHanSansCN-Regular.otf"); // 矫正分隔符
+    fs::path current_dir = get_exe_dir(); // 当前目录
+    fs::path target_file = absolute(current_dir / "assets/font/SourceHanSansCN-Regular.otf"); // 矫正分隔符
     io.Fonts->AddFontFromFileTTF(target_file.string().c_str(), 20.0f, &font_cfg, io.Fonts->GetGlyphRangesChineseFull());
 
     // this initializes imgui for SDL
@@ -1860,8 +1860,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     vkutil::ShaderCompiler::initGlslang();
     std::string code1;
     std::string code2;
-    vkutil::readShaderFile("C:/code/code_file/Decker/assets/shaders/mesh_pbr.frag", code1);
-    vkutil::readShaderFile("C:/code/code_file/Decker/assets/shaders/mesh.vert", code2);
+    vkutil::readShaderFile("C:/code/code_file/Deckerassets/shaders/mesh_pbr.frag", code1);
+    vkutil::readShaderFile("C:/code/code_file/Deckerassets/shaders/mesh.vert", code2);
     std::vector<uint32_t> spv_code1;
     std::vector<uint32_t> spv_code2;
     compiler.compileGLSLtoSPV(code1, spv_code1, EShLangFragment, false);
@@ -1875,8 +1875,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
     //if (!vkutil::load_shader_module(spv_code1, engine->_context->getDevice(), &meshFragShader))
     VkShaderModule gradientShader;
     namespace fs = std::filesystem;
-    fs::path current_dir = fs::current_path(); // 当前目录
-    fs::path target_file = absolute(current_dir / "../../assets/shaders/spv/mesh_pbr.frag.spv"); // 矫正分隔符
+    fs::path current_dir = get_exe_dir(); // 当前目录
+    fs::path target_file = absolute(current_dir / "assets/shaders/spv/mesh_pbr.frag.spv"); // 矫正分隔符
     if (!vkutil::load_shader_module(target_file.string(),
                                     engine->_context->getDevice(),
                                     &meshFragShader))
@@ -1886,7 +1886,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
     VkShaderModule meshVertexShader;
     //if (!vkutil::load_shader_module(spv_code1, engine->_context->getDevice(), &meshVertexShader))
-    target_file = absolute(current_dir / "../../assets/shaders/spv/mesh.vert.spv"); // 矫正分隔符
+    target_file = absolute(current_dir / "assets/shaders/spv/mesh.vert.spv"); // 矫正分隔符
     if (!vkutil::load_shader_module(target_file.string(),
                                     engine->_context->getDevice(),
                                     &meshVertexShader))
