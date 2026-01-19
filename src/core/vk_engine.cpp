@@ -195,34 +195,16 @@ void VulkanEngine::init()
     _isInitialized = true;
 
     mainCamera.velocity = glm::vec3(0.f);
-    mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
-
+    mainCamera.position = glm::vec3(0.f, 0.f, 0.f);
+    update_scene();
     glm::vec3 geom_center{0, 0, 0};
-    int       count = 0;
     glm::vec3 total_max{-FLT_MAX, -FLT_MAX, -FLT_MAX};
     glm::vec3 total_min{FLT_MAX,FLT_MAX,FLT_MAX};
-    for (const auto& mesh : loadedScenes["structure"]->meshes)
-    {
-        fmt::print("{}: {}\n", mesh.first, mesh.second->name);
-        for (const auto& surface : mesh.second->surfaces)
-        {
-            geom_center += surface.bounds.origin;
-            total_max.x = std::max(total_max.x, surface.bounds.max_edge.x);
-            total_max.y = std::max(total_max.y, surface.bounds.max_edge.y);
-            total_max.z = std::max(total_max.z, surface.bounds.max_edge.z);
-            total_min.x = std::min(total_min.x, surface.bounds.min_edge.x);
-            total_min.y = std::min(total_min.y, surface.bounds.min_edge.y);
-            total_min.z = std::min(total_min.z, surface.bounds.min_edge.z);
-            fmt::print("{}: center: {},min: {},max: {}\n", count, surface.bounds.origin, surface.bounds.min_edge,
-                       surface.bounds.max_edge);
-
-            ++count;
-        }
-        //geom_center += mesh.second->surfaces[0].bounds.sphereRadius* glm::vec3{ 1,0,0 };
-    }
+    auto bound = _render_system->getRenderWorld().getAllBound();
+    total_max = bound.max;
+    total_min = bound.min;
     fmt::print("total min: {}, max: {}\n", total_min, total_max);
     float total_aabb_length = length(total_max - total_min);
-    geom_center             /= count;
 
     //mainCamera.position = total_max - total_min;
     //mainCamera.position /= 2;
@@ -1634,7 +1616,7 @@ void VulkanEngine::init_renderables()
         structurePath = vkutil::get_model_path(j, j["load_file"]["name"]).string();
     }
     fmt::print(fg(fmt::color::bisque), "model file path: {}\n", structurePath);
-    auto structureFile = loadGltf(this, structurePath);
+    //auto structureFile = loadGltf(this, structurePath);
 
     auto root = ImporterRegistry::instance().import(structurePath);
 
@@ -1660,9 +1642,9 @@ void VulkanEngine::init_renderables()
     m_scene_system->preloadResources(*_cpu_loader, _cpu_cache);
 
     hierarchy_panel.setRoots(m_scene_system->currentScene()->getRoot().get());
-    assert(structureFile.has_value());
-
-    loadedScenes["structure"] = *structureFile;
+    //assert(structureFile.has_value());
+    
+    //loadedScenes["structure"] = *structureFile;
 
     _render_system = std::make_unique<RenderSystem>(*_context, _upload_ctx, *_cpu_loader);
     _render_system->init(static_cast<vk::Format>(_drawImage.imageFormat),

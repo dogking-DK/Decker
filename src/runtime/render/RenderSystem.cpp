@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "BVH/Frustum.hpp"
 #include "render graph/renderpass/OpaquePass.h"
 #include "render/RenderTypes.h"
 

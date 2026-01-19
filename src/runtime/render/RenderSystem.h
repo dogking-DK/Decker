@@ -41,7 +41,7 @@ public:
     void setVoxelData(const VoxelRenderData& data) { _voxel_data = data; }
 
     const FrameStats& stats() const { return _stats; }
-
+    const RenderWorld& getRenderWorld() const { return _render_world; }
 private:
     void buildDrawLists();
 

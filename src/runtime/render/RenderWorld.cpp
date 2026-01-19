@@ -71,6 +71,16 @@ void RenderWorld::extractFromScene(const Scene& scene, ResourceLoader& loader, G
     }
 }
 
+AABB RenderWorld::getAllBound() const
+{
+    AABB total_bound;
+    for (const auto& proxy : _proxies)
+    {
+        total_bound.expand(proxy.world_bounds);
+    }
+    return total_bound;
+}
+
 AABB RenderWorld::getMeshBounds(const UUID& mesh_id, const MeshData& mesh)
 {
     if (auto it = _mesh_bounds_cache.find(mesh_id); it != _mesh_bounds_cache.end())

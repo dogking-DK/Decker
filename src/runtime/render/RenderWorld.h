@@ -10,6 +10,7 @@
 #include "resource/cpu/ResourceLoader.h"
 #include "resource/gpu/GpuResourceManager.h"
 #include "RenderTypes.h"
+#include "BVH/AABB.hpp"
 
 namespace dk::render {
 struct RenderProxy
@@ -31,7 +32,7 @@ public:
 
     const std::vector<RenderProxy>& proxies() const { return _proxies; }
     std::vector<RenderProxy>&       proxies() { return _proxies; }
-
+    AABB getAllBound() const;
 private:
     AABB getMeshBounds(const UUID& mesh_id, const MeshData& mesh);
 

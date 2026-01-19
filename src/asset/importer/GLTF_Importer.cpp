@@ -294,10 +294,7 @@ void export_raw_meshes(const fastgltf::Asset& gltf, const GltfUuidCache& cache, 
                     else break;
                 }
             };
-            for (const auto& attri_temp : prim.attributes)
-            {
-                fmt::print("attribute name: {}\n", attri_temp.name);
-            }
+
             // 添加可能的基础属性
             for (auto [attr, set] : {std::pair("POSITION", 0), {"NORMAL", 0}, {"TANGENT", 0}})
             {
@@ -376,6 +373,12 @@ void export_raw_images(const fastgltf::Asset&   gltf, const GltfUuidCache& cache
         raw.comp_type = dk::PixelDataType::UBYTE;
         std::vector<uint8_t> pixels;
 
+        // 输出data source类型代码
+        //std::visit([](auto&& x) 
+        //    {
+        //        fmt::print("the image data source type is \"{}\"\n", typeid(x).name());
+        //    }, data);
+
         std::visit(
             fastgltf::visitor{
                 [&](const fastgltf::sources::URI& filePath)
@@ -396,6 +399,19 @@ void export_raw_images(const fastgltf::Asset&   gltf, const GltfUuidCache& cache
                     // 将读入统一为4通道
                     unsigned char* image_data = stbi_load(path.generic_string().c_str(), &raw.width, &raw.height, &raw.channels, 4);
                     raw.channels = 4;
+                    if (image_data)
+                    {
+                        pixels.assign(image_data, image_data + raw.width * raw.height * 4);
+
+                        stbi_image_free(image_data);
+                    }
+                },
+                [&](const fastgltf::sources::Array& array)
+                {
+                    unsigned char* image_data = stbi_load_from_memory(
+                        reinterpret_cast<const stbi_uc*>(array.bytes.data()),
+                        static_cast<int>(array.bytes.size()),
+                        &raw.width, &raw.height, &raw.channels, 4);
                     if (image_data)
                     {
                         pixels.assign(image_data, image_data + raw.width * raw.height * 4);
@@ -447,7 +463,9 @@ void export_raw_images(const fastgltf::Asset&   gltf, const GltfUuidCache& cache
                 },
                 [](auto& arg)
                 {
-                    fmt::print(stderr, "the image data source is not support yet\n");
+                    
+
+                    fmt::print(stderr, "the image data source \"{}\" is not support yet\n", typeid(arg).name());
                 }
             },
             data);
@@ -579,18 +597,18 @@ ImportResult GltfImporter::import(const std::filesystem::path& file_path, const 
     export_raw_images(*gltf, uuid_cache, file_path, opts, result); // 导出raw image
     export_raw_materials(*gltf, uuid_cache, opts, result); // 导出raw material
 
-    for (size_t mi = 0; mi < gltf->meshes.size(); ++mi)
-    {
-        for (size_t pi = 0; pi < gltf->meshes[mi].primitives.size(); ++pi)
-        {
-            fmt::print("prim: {}\n", to_string(uuid_cache.mesh_uuids[mi][pi]));
-        }
-    }
-    fmt::print("-------------------------meta info--------------------\n");
-    for (auto meta : result.metas)
-    {
-        fmt::print("{}: {}\n", to_string(meta.asset_type.value()), to_string(meta.uuid));
-    }
+    //for (size_t mi = 0; mi < gltf->meshes.size(); ++mi)
+    //{
+    //    for (size_t pi = 0; pi < gltf->meshes[mi].primitives.size(); ++pi)
+    //    {
+    //        fmt::print("prim: {}\n", to_string(uuid_cache.mesh_uuids[mi][pi]));
+    //    }
+    //}
+    //fmt::print("-------------------------meta info--------------------\n");
+    //for (auto meta : result.metas)
+    //{
+    //    fmt::print("{}: {}\n", to_string(meta.asset_type.value()), to_string(meta.uuid));
+    //}
     return result;
 }
 

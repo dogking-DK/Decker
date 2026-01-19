@@ -9,7 +9,7 @@
 namespace dk {
 Camera::Camera()
 {
-    projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 1500.0f);
+    projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.001f, 1500.0f);
     ortho      = glm::ortho(-640.0f, 640.0f, -360.0f, 360.0f, -500.0f, 500.0f);
 }
 

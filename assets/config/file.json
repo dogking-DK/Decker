@@ -1,7 +1,7 @@
 {
     "load_file" : 
     {
-        "name" : "girl",
+        "name" : "mercedes",
         "comment" : "打开文件对应的名字"
     },
     "file_paths": 
@@ -89,6 +89,22 @@
         {
             "name" : "cube",
             "path" : "C:/code/data/gltf/cube/Untitled.gltf"
+        },
+        {
+            "name" : "liminal",
+            "path" : "C:/code/data/gltf/liminal/scene.gltf"
+        },
+        {
+            "name" : "mercedes",
+            "path" : "C:/code/data/gltf/mercedes_petronas_amg1_evo_lmdh__vecarz.com/scene.gltf"
+        },
+        {
+            "name" : "hongkong",
+            "path" : "C:/code/data/gltf/full-gameready-city-buildings-iv-hongkong/source/Untitled2.glb"
+        },
+        {
+            "name" : "bmw4",
+            "path" : "C:/code/data/gltf/bmw_m4_gt3__www.vecarz.com/scene.gltf"
         }
     ]
 }
