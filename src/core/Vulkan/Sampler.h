@@ -27,6 +27,19 @@ public:
     }
 };
 
+inline vk::SamplerCreateInfo makeLinearRepeatSamplerInfo()
+{
+    vk::SamplerCreateInfo info{};
+    info.magFilter = vk::Filter::eLinear;
+    info.minFilter = vk::Filter::eLinear;
+    info.mipmapMode = vk::SamplerMipmapMode::eLinear;
+    info.addressModeU = vk::SamplerAddressMode::eRepeat;
+    info.addressModeV = vk::SamplerAddressMode::eRepeat;
+    info.addressModeW = vk::SamplerAddressMode::eRepeat;
+    info.maxLod = 1000.0f;
+    return info;
+}
+
 inline vk::SamplerCreateInfo makeLinearClampSamplerInfo()
 {
     vk::SamplerCreateInfo info{};

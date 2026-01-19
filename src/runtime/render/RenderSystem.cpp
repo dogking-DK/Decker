@@ -111,15 +111,15 @@ void RenderSystem::buildDrawLists()
 
     _stats.visible_proxies = _draw_lists.opaque.size();
 
-    std::sort(_draw_lists.opaque.begin(), _draw_lists.opaque.end(),
-              [](const DrawItem& a, const DrawItem& b)
-              {
-                  if (a.material.get() != b.material.get())
-                  {
-                      return a.material.get() < b.material.get();
-                  }
-                  return a.mesh.get() < b.mesh.get();
-              });
+    std::ranges::sort(_draw_lists.opaque,
+                      [](const DrawItem& a, const DrawItem& b)
+                      {
+                          if (a.material.get() != b.material.get())
+                          {
+                              return a.material.get() < b.material.get();
+                          }
+                          return a.mesh.get() < b.mesh.get();
+                      });
 
     _stats.opaque_draws = _draw_lists.opaque.size();
 }

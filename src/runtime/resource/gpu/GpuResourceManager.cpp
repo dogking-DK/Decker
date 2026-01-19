@@ -173,7 +173,7 @@ std::shared_ptr<GPUTexture> GpuResourceManager::uploadTextureData(const TextureD
     upload_image_data_immediate(_upload_ctx, texture.pixels.data(), image_size, *image, ImageUsage::Sampled);
 
     auto view    = ImageViewResource::create2D(_context, *image, vk::Format::eR8G8B8A8Unorm);
-    auto sampler = std::make_unique<SamplerResource>(_context, makeLinearClampSamplerInfo());
+    auto sampler = std::make_unique<SamplerResource>(_context, makeLinearRepeatSamplerInfo());
 
     auto gpu_tex     = std::make_shared<GPUTexture>();
     gpu_tex->image   = std::move(image);
