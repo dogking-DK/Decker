@@ -62,6 +62,7 @@ struct SceneNode
     UUID                                         id{};            ///< 运行时节点句柄。
     std::string                                  name;            ///< 便于调试的名称。
     Transform                                    local_transform; ///< 与父节点的变换关系。
+    bool                                         visible{true};
     std::weak_ptr<SceneNode>                     parent;
     std::vector<std::shared_ptr<SceneNode>>      children;
     std::vector<std::unique_ptr<SceneComponent>> components;

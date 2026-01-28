@@ -30,34 +30,47 @@ void RenderWorld::extractFromScene(const Scene& scene, ResourceLoader& loader, G
         return;
     }
 
-    std::stack<std::pair<std::shared_ptr<SceneNode>, glm::mat4>> stack;
-    stack.push({root, glm::mat4(1.0f)});
+    struct StackEntry
+    {
+        std::shared_ptr<SceneNode> node;
+        glm::mat4                  parent_transform;
+        bool                       parent_visible;
+    };
+
+    std::stack<StackEntry> stack;
+    stack.push({root, glm::mat4(1.0f), true});
 
     while (!stack.empty())
     {
-        auto [node, parent_transform] = stack.top();
+        auto entry = stack.top();
         stack.pop();
 
-        glm::mat4 world = parent_transform * to_matrix(node->local_transform);
+        auto& node = entry.node;
+        glm::mat4 world = entry.parent_transform * to_matrix(node->local_transform);
+        const bool node_visible = entry.parent_visible && node->visible;
 
-        if (auto* mesh_component = node->getComponent<MeshInstanceComponent>())
+        if (node_visible)
         {
-            auto cpu_mesh = loader.load<MeshData>(mesh_component->mesh_asset);
-            if (cpu_mesh)
+            if (auto* mesh_component = node->getComponent<MeshInstanceComponent>())
             {
-                RenderProxy proxy{};
-                proxy.node_id         = node->id;
-                proxy.world_transform = world;
-                proxy.mesh_asset      = mesh_component->mesh_asset;
-                proxy.material_asset  = mesh_component->material_asset;
-                proxy.gpu_mesh        = gpu_cache.loadMesh(mesh_component->mesh_asset);
-                proxy.gpu_material    = gpu_cache.loadMaterial(mesh_component->material_asset);
+                auto cpu_mesh = loader.load<MeshData>(mesh_component->mesh_asset);
+                if (cpu_mesh)
+                {
+                    RenderProxy proxy{};
+                    proxy.node_id         = node->id;
+                    proxy.world_transform = world;
+                    proxy.mesh_asset      = mesh_component->mesh_asset;
+                    proxy.material_asset  = mesh_component->material_asset;
+                    proxy.gpu_mesh        = gpu_cache.loadMesh(mesh_component->mesh_asset);
+                    proxy.gpu_material    = gpu_cache.loadMaterial(mesh_component->material_asset);
+                    proxy.visible         = node_visible;
 
-                const AABB local_bounds = getMeshBounds(mesh_component->mesh_asset, *cpu_mesh);
-                proxy.world_bounds      = local_bounds.transform(world);
+                    const AABB local_bounds = getMeshBounds(mesh_component->mesh_asset, *cpu_mesh);
+                    proxy.world_bounds      = local_bounds.transform(world);
 
-                _node_map[node->id] = _proxies.size();
-                _proxies.push_back(std::move(proxy));
+                    _node_map[node->id] = _proxies.size();
+                    _proxies.push_back(std::move(proxy));
+                }
             }
         }
 
@@ -65,7 +78,7 @@ void RenderWorld::extractFromScene(const Scene& scene, ResourceLoader& loader, G
         {
             if (child)
             {
-                stack.push({child, world});
+                stack.push({child, world, node_visible});
             }
         }
     }

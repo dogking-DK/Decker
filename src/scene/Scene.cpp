@@ -88,6 +88,7 @@ namespace {
         dst->asset_id = src.id;
         dst->parent   = parent;
         dst->local_transform = src.local_transform;
+        dst->visible = src.visible;
         auto node_id1 = to_string(src.id);
 
         const auto [_, inserted] = runtime_ids.insert(dst->id);
