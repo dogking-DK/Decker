@@ -88,6 +88,10 @@ void RenderSystem::buildDrawLists()
     for (size_t i = 0; i < proxies.size(); ++i)
     {
         const auto& proxy = proxies[i];
+        if (!proxy.visible)
+        {
+            continue;
+        }
         if (!proxy.gpu_mesh)
         {
             continue;

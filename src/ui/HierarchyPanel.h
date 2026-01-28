@@ -11,7 +11,7 @@ public:
     void onGui(const std::string& title = "Hierarchy");
 
 private:
-    void                                     drawNode(const SceneNode& n);
+    void                                     drawNode(SceneNode& n);
     SceneNode* _roots{nullptr};
 };
 }
