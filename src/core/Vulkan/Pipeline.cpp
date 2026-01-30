@@ -266,6 +266,13 @@ PipelineBuilder& PipelineBuilder::setRenderingInfo(const std::vector<vk::Format>
     return *this;
 }
 
+PipelineBuilder& PipelineBuilder::setPrimitiveTopology(vk::PrimitiveTopology topology, bool primitive_restart)
+{
+    _input_assembly_info.topology               = topology;
+    _input_assembly_info.primitiveRestartEnable = primitive_restart ? VK_TRUE : VK_FALSE;
+    return *this;
+}
+
 PipelineBuilder& PipelineBuilder::setPolygonMode(vk::PolygonMode mode)
 {
     _rasterization_info.polygonMode = mode;

@@ -3,15 +3,18 @@
 #include <algorithm>
 
 #include "BVH/Frustum.hpp"
+#include "gpu/render graph/renderpass/DebugAabbPass.h"
 #include "render graph/renderpass/OpaquePass.h"
 #include "render/RenderTypes.h"
 
 namespace dk::render {
 RenderSystem::RenderSystem(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx, ResourceLoader& loader)
     : _cpu_loader(loader)
+    , _debug_render_service(ctx, upload_ctx)
 {
     _gpu_cache   = std::make_unique<GpuResourceManager>(ctx, upload_ctx, loader);
     _opaque_pass = std::make_unique<OpaquePass>(ctx);
+    _debug_aabb_pass = std::make_unique<DebugAabbPass>(ctx);
 }
 
 RenderSystem::~RenderSystem()
@@ -23,6 +26,9 @@ void RenderSystem::init(vk::Format color_format, vk::Format depth_format)
     _opaque_pass->init(color_format, depth_format);
     _gpu_cache->setMaterialDescriptorLayout(_opaque_pass->getMaterialDescriptorLayout());
     _opaque_pass->registerToGraph(_graph);
+
+    _debug_aabb_pass->init(color_format, depth_format);
+    _debug_aabb_pass->registerToGraph(_graph);
 
     _graph.addTask<int>(
         "Fluid Volume Pass",
@@ -60,6 +66,10 @@ void RenderSystem::prepareFrame(const Scene& scene,
     buildDrawLists();
 
     _opaque_pass->setFrameData(&_frame_ctx, &_draw_lists);
+
+    _debug_render_service.setEnabled(_debug_draw_aabb);
+    _debug_render_service.updateFromScene(scene);
+    _debug_aabb_pass->setFrameData(&_frame_ctx, &_debug_render_service);
 }
 
 void RenderSystem::execute(dk::RenderGraphContext& ctx)

@@ -76,6 +76,9 @@ public:
     // 设置渲染目标格式 (用于 Dynamic Rendering)
     PipelineBuilder& setRenderingInfo(const std::vector<vk::Format>& color_formats, vk::Format depth_format);
 
+    // 设置图元拓扑
+    PipelineBuilder& setPrimitiveTopology(vk::PrimitiveTopology topology, bool primitive_restart = false);
+
     // 设置光栅化状态
     PipelineBuilder& setPolygonMode(vk::PolygonMode mode);
     PipelineBuilder& setCullMode(vk::CullModeFlags cull_mode,

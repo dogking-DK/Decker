@@ -107,6 +107,16 @@ namespace {
         }
         return dst;
     }
+
+    AABB compute_mesh_bounds(const MeshData& mesh)
+    {
+        AABB bounds;
+        for (const auto& pos : mesh.positions)
+        {
+            bounds.expand(pos);
+        }
+        return bounds;
+    }
 }
 
 Scene::Scene(std::string name) : _name(std::move(name))
@@ -186,7 +196,6 @@ SceneResourceBinder::SceneResourceBinder(std::vector<AssetMeta> catalog)
 
 void SceneResourceBinder::preloadCPU(Scene& scene, ResourceLoader& loader, ResourceCache& cache)
 {
-    (void)scene;
     (void)cache; // 缓存由 loader 持有的 ResourceCache 注入
     std::unordered_map<AssetType, std::vector<UUID>> batch_ids;
     for (const auto& meta : _catalog)
@@ -208,6 +217,32 @@ void SceneResourceBinder::preloadCPU(Scene& scene, ResourceLoader& loader, Resou
         loader.loadBatch<TextureData>(it->second);
     if (auto it = batch_ids.find(AssetType::Material); it != batch_ids.end())
         loader.loadBatch<MaterialData>(it->second);
+
+    scene.forEachNode([&](SceneNode& node)
+    {
+        auto* mesh_component = node.getComponent<MeshInstanceComponent>();
+        if (!mesh_component)
+        {
+            return;
+        }
+
+        auto mesh = loader.load<MeshData>(mesh_component->mesh_asset);
+        if (!mesh)
+        {
+            return;
+        }
+
+        const AABB bounds = compute_mesh_bounds(*mesh);
+        if (auto* bounds_component = node.getComponent<BoundsComponent>())
+        {
+            bounds_component->local_bounds = bounds;
+        }
+        else
+        {
+            auto& bounds_component = node.addComponent<BoundsComponent>();
+            bounds_component.local_bounds = bounds;
+        }
+    });
 }
 
 void SceneResourceBinder::preloadGPU(Scene& scene)

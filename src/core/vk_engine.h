@@ -190,6 +190,7 @@ public:
     Camera mainCamera;
 
     EngineStats stats;
+    bool        _show_aabb_bounds{false};
 
     std::vector<ComputeEffect> backgroundEffects;
     int currentBackgroundEffect{ 0 };
