@@ -6,6 +6,7 @@
 
 #include <glm/vec3.hpp>
 
+#include "BVH/AABB.hpp"
 #include "Transform.h"
 #include "UUID.hpp"
 
@@ -54,6 +55,12 @@ struct LightComponent final : SceneComponent
 struct EnvironmentComponent final : SceneComponent
 {
     UUID skybox_asset{}; ///< 可选：绑定的环境贴图资源。
+};
+
+/// @brief 包围盒组件，提供节点的本地空间 AABB。
+struct BoundsComponent final : SceneComponent
+{
+    AABB local_bounds{};
 };
 
 /// @brief 场景节点，连接资源层与场景层。

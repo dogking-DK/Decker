@@ -1094,6 +1094,13 @@ void VulkanEngine::run()
                 ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
                 ImGui::Text("triangles %i", stats.triangle_count);
                 ImGui::Text("draws %i", stats.drawcall_count);
+                if (ImGui::Checkbox("Show AABB", &_show_aabb_bounds))
+                {
+                    if (_render_system)
+                    {
+                        _render_system->setDebugDrawAabb(_show_aabb_bounds);
+                    }
+                }
             }
             mainCamera.renderUI();
         }
