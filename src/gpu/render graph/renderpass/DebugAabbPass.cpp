@@ -5,6 +5,7 @@
 
 #include "Vulkan/CommandBuffer.h"
 #include "Vulkan/DescriptorSetLayout.h"
+#include "Vulkan/DescriptorSetPool.h"
 #include "Vulkan/DescriptorWriter.h"
 #include "Vulkan/ShaderModule.h"
 #include "Vulkan/ShaderCompiler.h"

@@ -233,15 +233,13 @@ void SceneResourceBinder::preloadCPU(Scene& scene, ResourceLoader& loader, Resou
         }
 
         const AABB bounds = compute_mesh_bounds(*mesh);
-        if (auto* bounds_component = node.getComponent<BoundsComponent>())
+        auto* bounds_component = node.getComponent<BoundsComponent>();
+        if (bounds_component == nullptr)
         {
-            bounds_component->local_bounds = bounds;
+            bounds_component = &node.addComponent<BoundsComponent>();
         }
-        else
-        {
-            auto& bounds_component = node.addComponent<BoundsComponent>();
-            bounds_component.local_bounds = bounds;
-        }
+        bounds_component->local_bounds = bounds;
+
     });
 }
 
