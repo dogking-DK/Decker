@@ -8,9 +8,14 @@ namespace dk::ui {
 
 bool TranslateGizmo::handleInput(const dk::input::InputState& state, const dk::input::InputContext& ctx)
 {
+    if (!_state)
+    {
+        return false;
+    }
+
     if (!ctx.selectedNode || !isEnabled())
     {
-        _dragging = false;
+        _state->reset();
         return false;
     }
 
@@ -23,24 +28,24 @@ bool TranslateGizmo::handleInput(const dk::input::InputState& state, const dk::i
 
     if (mouse.leftPressed)
     {
-        _dragging        = true;
-        _dragStart       = mouse.position;
-        _startTranslation = ctx.selectedNode->local_transform.translation;
+        _state->beginDrag(mouse.position, GizmoOperation::Translate, GizmoAxis::Screen);
         return true;
     }
 
-    if (_dragging && mouse.leftDown)
+    if (_state->dragging && mouse.leftDown)
     {
-        glm::vec2 delta = mouse.position - _dragStart;
-        float     scale = 0.01f;
-        ctx.selectedNode->local_transform.translation = _startTranslation +
-            glm::vec3(delta.x * scale, -delta.y * scale, 0.0f);
+        glm::vec2 delta = mouse.position - _state->dragStart;
+        float     scale = ctx.translateSensitivity;
+        _state->updateDeltas(delta, glm::vec3(delta.x * scale, -delta.y * scale, 0.0f));
         return true;
     }
 
-    if (_dragging && mouse.leftReleased)
+    if (_state->dragging && mouse.leftReleased)
     {
-        _dragging = false;
+        glm::vec2 delta = mouse.position - _state->dragStart;
+        float     scale = ctx.translateSensitivity;
+        _state->updateDeltas(delta, glm::vec3(delta.x * scale, -delta.y * scale, 0.0f));
+        _state->endDrag();
         return true;
     }
 

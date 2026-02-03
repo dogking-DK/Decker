@@ -200,8 +200,8 @@ void VulkanEngine::init()
     _tool_manager            = std::make_unique<ui::ToolManager>();
     _gizmo_manager           = std::make_unique<ui::GizmoManager>();
 
-    _tool_manager->registerTool(std::make_unique<ui::TranslateTool>());
-    _gizmo_manager->registerGizmo(std::make_unique<ui::TranslateGizmo>());
+    _tool_manager->registerTool(std::make_unique<ui::TranslateTool>(&_gizmo_drag_state));
+    _gizmo_manager->registerGizmo(std::make_unique<ui::TranslateGizmo>(&_gizmo_drag_state));
     _tool_manager->setActiveTool(ui::ToolType::Translate);
     _gizmo_manager->setActiveForTool(_tool_manager->activeType());
 
