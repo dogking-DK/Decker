@@ -9,7 +9,12 @@ void HierarchyPanel::onGui(const std::string& title)
     const bool panel_open = ImGui::Begin(title.c_str());
     if (panel_open)
     {
+        _node_clicked_this_frame = false;
         drawNode(*_roots);
+        if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !_node_clicked_this_frame)
+        {
+            _selected = nullptr;
+        }
     }
     ImGui::End();
 }
@@ -17,11 +22,16 @@ void HierarchyPanel::onGui(const std::string& title)
 void HierarchyPanel::drawNode(SceneNode& n)
 {
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
+    if (_selected == &n)
+    {
+        flags |= ImGuiTreeNodeFlags_Selected;
+    }
     ImGui::PushID(&n);
     bool visible = n.visible;
     if (ImGui::Checkbox("##visible", &visible))
     {
         n.visible = visible;
+        _node_clicked_this_frame = true;
     }
     ImGui::SameLine();
     //bool               open = ImGui::TreeNodeEx(&n.id, flags, "%s", n.name.c_str());
@@ -31,8 +41,9 @@ void HierarchyPanel::drawNode(SceneNode& n)
     ImGui::PopID();
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
     {
-        ImGui::SetItemDefaultFocus();               // 简单高亮演示
         _selected = &n;
+        _node_clicked_this_frame = true;
+        ImGui::SetItemDefaultFocus();               // 简单高亮演示
     }
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
