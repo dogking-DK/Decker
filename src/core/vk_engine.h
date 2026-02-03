@@ -18,6 +18,13 @@
 #include "Scene/Node.h"
 #include "Vulkan/Context.h"
 #include "HierarchyPanel.h"
+#include "input/InputBackend.h"
+#include "input/InputContext.h"
+#include "input/InputRouter.h"
+#include "input/InputState.h"
+#include "ui/gizmo/GizmoManager.h"
+#include "ui/tools/ToolManager.h"
+#include "CameraInputController.h"
 //#include "render/PointCloudRender.h"
 #include "World.h"
 //#include "render/SpringRender.h"
@@ -188,6 +195,13 @@ public:
     GPUSceneData sceneData;
 
     Camera mainCamera;
+    input::InputState _input_state;
+    std::unique_ptr<input::InputBackend> _input_backend;
+    std::unique_ptr<input::InputRouter>  _input_router;
+    input::InputContext                  _input_context;
+    std::unique_ptr<CameraInputController> _camera_input_controller;
+    std::unique_ptr<ui::ToolManager>       _tool_manager;
+    std::unique_ptr<ui::GizmoManager>      _gizmo_manager;
 
     EngineStats stats;
     bool        _show_aabb_bounds{false};

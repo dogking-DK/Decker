@@ -30,7 +30,10 @@ void HierarchyPanel::drawNode(SceneNode& n)
                                   to_string(n.id).c_str());
     ImGui::PopID();
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+    {
         ImGui::SetItemDefaultFocus();               // 简单高亮演示
+        _selected = &n;
+    }
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
         //fmt::print("Double-clicked {} ({})\n", n.name.c_str(), to_string(n.id).c_str());
