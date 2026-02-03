@@ -3,6 +3,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "ui/gizmo/GizmoDragState.h"
 #include "ui/gizmo/IGizmo.h"
 
 namespace dk::ui {
@@ -10,6 +11,8 @@ namespace dk::ui {
 class TranslateGizmo final : public IGizmo
 {
 public:
+    explicit TranslateGizmo(GizmoDragState* state) : _state(state) {}
+
     ToolType toolType() const override { return ToolType::Translate; }
 
     bool handleInput(const dk::input::InputState& state, const dk::input::InputContext& ctx) override;
@@ -19,10 +22,8 @@ public:
     bool isEnabled() const override { return _enabled; }
 
 private:
-    bool      _enabled{false};
-    bool      _dragging{false};
-    glm::vec2 _dragStart{};
-    glm::vec3 _startTranslation{};
+    GizmoDragState* _state{nullptr};
+    bool                 _enabled{false};
 };
 
 } // namespace dk::ui

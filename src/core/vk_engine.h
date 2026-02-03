@@ -22,6 +22,7 @@
 #include "input/InputContext.h"
 #include "input/InputRouter.h"
 #include "input/InputState.h"
+#include "ui/gizmo/GizmoDragState.h"
 #include "ui/gizmo/GizmoManager.h"
 #include "ui/tools/ToolManager.h"
 #include "CameraInputController.h"
@@ -202,6 +203,7 @@ public:
     std::unique_ptr<CameraInputController> _camera_input_controller;
     std::unique_ptr<ui::ToolManager>       _tool_manager;
     std::unique_ptr<ui::GizmoManager>      _gizmo_manager;
+    ui::GizmoDragState                    _gizmo_drag_state;
 
     EngineStats stats;
     bool        _show_aabb_bounds{false};
