@@ -65,6 +65,9 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include <Vulkan/DescriptorWriter.h>
 #include "render/PointCloudRender.h"
 #include "render/SpringRender.h"
+#include "ui/gizmo/TranslateGizmo.h"
+#include "ui/tools/TranslateTool.h"
+#include "ui/tools/ToolContext.h"
 
 template <>
 struct fmt::formatter<glm::vec3>
@@ -190,6 +193,21 @@ void VulkanEngine::init()
     fmt::print("build render data\n");
 
     init_imgui();
+
+    _input_backend           = std::make_unique<input::InputBackend>(_input_state);
+    _input_router            = std::make_unique<input::InputRouter>();
+    _camera_input_controller = std::make_unique<CameraInputController>(mainCamera);
+    _tool_manager            = std::make_unique<ui::ToolManager>();
+    _gizmo_manager           = std::make_unique<ui::GizmoManager>();
+
+    _tool_manager->registerTool(std::make_unique<ui::TranslateTool>());
+    _gizmo_manager->registerGizmo(std::make_unique<ui::TranslateGizmo>());
+    _tool_manager->setActiveTool(ui::ToolType::Translate);
+    _gizmo_manager->setActiveForTool(_tool_manager->activeType());
+
+    _input_router->addConsumer(_gizmo_manager.get(), 100);
+    _input_router->addConsumer(_tool_manager.get(), 50);
+    _input_router->addConsumer(_camera_input_controller.get(), 0);
 
     // everything went fine
     _isInitialized = true;
@@ -980,6 +998,7 @@ void VulkanEngine::run()
     while (!bQuit)
     {
         auto start = std::chrono::system_clock::now();
+        _input_state.beginFrame();
 
         // Handle events on queue
         while (SDL_PollEvent(&e) != 0)
@@ -1006,7 +1025,10 @@ void VulkanEngine::run()
                     bQuit = true;
             }
 
-            mainCamera.processSDLEvent(_context->getWindow()->get_window(), e);
+            if (_input_backend)
+            {
+                _input_backend->feedSDLEvent(e);
+            }
             ImGui_ImplSDL3_ProcessEvent(&e);
         }
 
@@ -1026,6 +1048,23 @@ void VulkanEngine::run()
         if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
         {
             ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+        }
+
+        _input_context.window           = _context->getWindow()->get_window();
+        _input_context.camera           = &mainCamera;
+        _input_context.selectedNode     = hierarchy_panel.selectedNode();
+        _input_context.imguiWantsMouse  = io.WantCaptureMouse;
+        _input_context.imguiWantsKeyboard = io.WantCaptureKeyboard;
+        if (_input_router)
+        {
+            _input_router->route(_input_state, _input_context);
+        }
+        if (_tool_manager)
+        {
+            ui::ToolContext tool_ctx{};
+            tool_ctx.camera       = &mainCamera;
+            tool_ctx.selectedNode = hierarchy_panel.selectedNode();
+            _tool_manager->update(tool_ctx);
         }
         static float time = 0;
         backgroundEffects[currentBackgroundEffect].data.data1.x = mainCamera.position.x;

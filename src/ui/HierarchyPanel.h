@@ -9,9 +9,11 @@ class HierarchyPanel
 public:
     void setRoots(SceneNode* r) { _roots = r; }
     void onGui(const std::string& title = "Hierarchy");
+    SceneNode* selectedNode() const { return _selected; }
 
 private:
     void                                     drawNode(SceneNode& n);
     SceneNode* _roots{nullptr};
+    SceneNode* _selected{nullptr};
 };
 }
