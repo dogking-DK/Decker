@@ -42,6 +42,7 @@ file(GLOB_RECURSE PHYSIC_SOURCES "physics/*.cpp" "physics/*.hpp" "physics/*.h")
 file(GLOB_RECURSE MATH_SOURCES "math/*.cpp" "math/*.hpp" "math/*.h")
 file(GLOB_RECURSE RUNTIME_SOURCES "runtime/*.cpp" "runtime/*.hpp" "runtime/*.h")
 file(GLOB_RECURSE SCENE_SOURCES "scene/*.cpp" "scene/*.hpp" "scene/*.h")
+file(GLOB_RECURSE TOOL_SOURCES "tool/*.cpp" "tool/*.hpp" "tool/*.h")
 
 message(STATUS "Main sources: ${MAIN_SOURCES}")
 message(STATUS "Core sources: ${CORE_SOURCES}")
@@ -64,6 +65,7 @@ set(ALL_SOURCES
     ${MATH_SOURCES}
     ${RUNTIME_SOURCES}
     ${SCENE_SOURCES}
+    ${TOOL_SOURCES}
 )
 
 source_group(TREE ${CMAKE_SOURCE_DIR}/src PREFIX "src" FILES ${ALL_SOURCES})
@@ -83,6 +85,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/src/math
     ${CMAKE_SOURCE_DIR}/src/runtime
     ${CMAKE_SOURCE_DIR}/src/scene
+    ${CMAKE_SOURCE_DIR}/src/tool
     ${Stb_INCLUDE_DIR}
 )
 
