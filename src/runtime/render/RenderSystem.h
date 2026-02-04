@@ -24,6 +24,7 @@ class RenderGraph;
 namespace dk::render {
 class OpaquePass;
 class DebugAabbPass;
+class OutlinePass;
 class UiGizmoPass;
 
 class RenderSystem
@@ -44,6 +45,7 @@ public:
     void setFluidData(const FluidRenderData& data) { _fluid_data = data; }
     void setVoxelData(const VoxelRenderData& data) { _voxel_data = data; }
     void setDebugDrawAabb(bool enabled) { _debug_draw_aabb = enabled; }
+    void setSelectedNodeId(const UUID& id) { _selected_node_id = id; }
     void beginUiFrame() { _ui_render_service.beginFrame(); }
     void finalizeUiFrame() { _ui_render_service.finalize(); }
     UiRenderService& uiRenderService() { return _ui_render_service; }
@@ -62,6 +64,7 @@ private:
     FrameStats                           _stats;
     std::unique_ptr<GpuResourceManager>  _gpu_cache;
     std::unique_ptr<OpaquePass>          _opaque_pass;
+    std::unique_ptr<OutlinePass>         _outline_pass;
     std::unique_ptr<DebugAabbPass>       _debug_aabb_pass;
     std::unique_ptr<UiGizmoPass>         _ui_gizmo_pass;
     RenderGraph                          _graph;
@@ -69,5 +72,6 @@ private:
     std::optional<FluidRenderData>       _fluid_data;
     std::optional<VoxelRenderData>       _voxel_data;
     bool                                 _debug_draw_aabb{false};
+    UUID                                 _selected_node_id{};
 };
 } // namespace dk::render
