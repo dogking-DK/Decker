@@ -23,7 +23,12 @@ public:
 
 private:
     GizmoDragState* _state{nullptr};
-    bool                 _enabled{false};
+    glm::vec3       _dragOrigin{};
+    glm::vec3       _dragStartWorld{};
+    glm::vec3       _dragAxisDir{};
+    glm::vec3       _dragPlaneNormal{};
+    float           _dragStartAxisT{0.0f};
+    bool            _enabled{false};
 };
 
 } // namespace dk::ui
