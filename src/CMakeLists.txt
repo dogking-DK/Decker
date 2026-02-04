@@ -154,3 +154,28 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 target_include_directories(${PROJECT_NAME} PRIVATE 
     "${CMAKE_SOURCE_DIR}/src"
 )
+
+# ================== Tests ==================
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(DeckerPhysicsTests
+        ${CMAKE_SOURCE_DIR}/src/tests/FluidSystemTests.cpp
+        ${CMAKE_SOURCE_DIR}/src/physics/data/MacGrid.cpp
+        ${CMAKE_SOURCE_DIR}/src/physics/solver/StableFliuidsSolver.cpp
+    )
+
+    target_include_directories(DeckerPhysicsTests PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/physics
+    )
+
+    target_link_libraries(DeckerPhysicsTests PRIVATE
+        glm::glm-header-only
+        fmt::fmt
+        tsl::robin_map
+    )
+
+    target_compile_features(DeckerPhysicsTests PRIVATE cxx_std_23)
+
+    add_test(NAME DeckerPhysicsTests COMMAND DeckerPhysicsTests)
+endif()

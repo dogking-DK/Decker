@@ -56,7 +56,7 @@ void DebugAabbPass::init(vk::Format color_format, vk::Format depth_format)
                        .setMeshShaders(mesh_module->getHandle(), frag_module->getHandle())
                        .setRenderingInfo({color_format}, depth_format)
                        .setCullMode(vk::CullModeFlagBits::eNone)
-                       .enableDepthTest(false, vk::CompareOp::eLessOrEqual)
+                       .enableDepthTest(false, vk::CompareOp::eAlways)
                        .setColorBlendingAlpha()
                        .build();
 
