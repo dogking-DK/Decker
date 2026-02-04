@@ -68,6 +68,7 @@ void RenderWorld::extractFromScene(const Scene& scene, ResourceLoader& loader, G
                     const AABB local_bounds = getMeshBounds(mesh_component->mesh_asset, *cpu_mesh);
                     proxy.world_bounds      = local_bounds.transform(world);
 
+                    // 关键入口：RenderWorld::_node_map 映射 SceneNode -> RenderProxy 索引。
                     _node_map[node->id] = _proxies.size();
                     _proxies.push_back(std::move(proxy));
                 }
@@ -82,6 +83,15 @@ void RenderWorld::extractFromScene(const Scene& scene, ResourceLoader& loader, G
             }
         }
     }
+}
+
+std::optional<size_t> RenderWorld::findProxyIndex(const UUID& node_id) const
+{
+    if (auto it = _node_map.find(node_id); it != _node_map.end())
+    {
+        return it->second;
+    }
+    return std::nullopt;
 }
 
 AABB RenderWorld::getAllBound() const

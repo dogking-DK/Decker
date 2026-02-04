@@ -23,6 +23,7 @@ class RenderGraph;
 namespace dk::render {
 class OpaquePass;
 class DebugAabbPass;
+class OutlinePass;
 
 class RenderSystem
 {
@@ -42,6 +43,7 @@ public:
     void setFluidData(const FluidRenderData& data) { _fluid_data = data; }
     void setVoxelData(const VoxelRenderData& data) { _voxel_data = data; }
     void setDebugDrawAabb(bool enabled) { _debug_draw_aabb = enabled; }
+    void setSelectedNodeId(const UUID& id) { _selected_node_id = id; }
 
     const FrameStats& stats() const { return _stats; }
     const RenderWorld& getRenderWorld() const { return _render_world; }
@@ -56,11 +58,13 @@ private:
     FrameStats                           _stats;
     std::unique_ptr<GpuResourceManager>  _gpu_cache;
     std::unique_ptr<OpaquePass>          _opaque_pass;
+    std::unique_ptr<OutlinePass>         _outline_pass;
     std::unique_ptr<DebugAabbPass>       _debug_aabb_pass;
     RenderGraph                          _graph;
     bool                                 _compiled{false};
     std::optional<FluidRenderData>       _fluid_data;
     std::optional<VoxelRenderData>       _voxel_data;
     bool                                 _debug_draw_aabb{false};
+    UUID                                 _selected_node_id{};
 };
 } // namespace dk::render

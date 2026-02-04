@@ -25,11 +25,13 @@ struct DrawItem
 struct DrawLists
 {
     std::vector<DrawItem> opaque;
+    std::vector<DrawItem> outline;
     std::vector<DrawItem> transparent;
 
     void reset()
     {
         opaque.clear();
+        outline.clear();
         transparent.clear();
     }
 };

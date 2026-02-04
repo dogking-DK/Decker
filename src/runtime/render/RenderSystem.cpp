@@ -4,6 +4,7 @@
 
 #include "BVH/Frustum.hpp"
 #include "gpu/render graph/renderpass/DebugAabbPass.h"
+#include "gpu/render graph/renderpass/OutlinePass.h"
 #include "render graph/renderpass/OpaquePass.h"
 #include "render/RenderTypes.h"
 
@@ -14,6 +15,7 @@ RenderSystem::RenderSystem(vkcore::VulkanContext& ctx, vkcore::UploadContext& up
 {
     _gpu_cache   = std::make_unique<GpuResourceManager>(ctx, upload_ctx, loader);
     _opaque_pass = std::make_unique<OpaquePass>(ctx);
+    _outline_pass = std::make_unique<OutlinePass>(ctx);
     _debug_aabb_pass = std::make_unique<DebugAabbPass>(ctx);
 }
 
@@ -26,6 +28,9 @@ void RenderSystem::init(vk::Format color_format, vk::Format depth_format)
     _opaque_pass->init(color_format, depth_format);
     _gpu_cache->setMaterialDescriptorLayout(_opaque_pass->getMaterialDescriptorLayout());
     _opaque_pass->registerToGraph(_graph);
+
+    _outline_pass->init(color_format, depth_format);
+    _outline_pass->registerToGraph(_graph);
 
     _debug_aabb_pass->init(color_format, depth_format);
     _debug_aabb_pass->registerToGraph(_graph);
@@ -62,10 +67,12 @@ void RenderSystem::prepareFrame(const Scene& scene,
     _frame_ctx.camera_position = camera_position;
     _frame_ctx.viewport        = viewport;
 
+    _render_world.setSelectedNode(_selected_node_id);
     _render_world.extractFromScene(scene, _cpu_loader, *_gpu_cache);
     buildDrawLists();
 
     _opaque_pass->setFrameData(&_frame_ctx, &_draw_lists);
+    _outline_pass->setFrameData(&_frame_ctx, &_draw_lists);
 
     _debug_render_service.setEnabled(_debug_draw_aabb);
     _debug_render_service.updateFromScene(scene);
@@ -121,6 +128,25 @@ void RenderSystem::buildDrawLists()
         item.depth = view_pos.z;
 
         _draw_lists.opaque.push_back(item);
+    }
+
+    // 关键入口：RenderSystem 根据选中节点筛选描边绘制列表。
+    if (const auto selected_index = _render_world.findProxyIndex(_selected_node_id))
+    {
+        if (*selected_index < proxies.size())
+        {
+            const auto& proxy = proxies[*selected_index];
+            if (proxy.visible && proxy.gpu_mesh)
+            {
+                DrawItem outline_item{};
+                outline_item.proxy_index = static_cast<uint32_t>(*selected_index);
+                outline_item.mesh        = proxy.gpu_mesh;
+                outline_item.material    = proxy.gpu_material;
+                outline_item.world       = proxy.world_transform;
+                outline_item.depth       = 0.0f;
+                _draw_lists.outline.push_back(outline_item);
+            }
+        }
     }
 
     _stats.visible_proxies = _draw_lists.opaque.size();

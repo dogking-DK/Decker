@@ -1263,6 +1263,12 @@ void VulkanEngine::update_scene()
 
     if (_render_system && m_scene_system)
     {
+        UUID selected_id{};
+        if (auto* selected = hierarchy_panel.selectedNode())
+        {
+            selected_id = selected->id;
+        }
+        _render_system->setSelectedNodeId(selected_id);
         _render_system->prepareFrame(*m_scene_system->currentScene(),
                                      sceneData.view,
                                      sceneData.proj,

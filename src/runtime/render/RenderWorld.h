@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <optional>
 
 #include <glm/mat4x4.hpp>
 
@@ -32,6 +33,9 @@ public:
 
     const std::vector<RenderProxy>& proxies() const { return _proxies; }
     std::vector<RenderProxy>&       proxies() { return _proxies; }
+    void setSelectedNode(const UUID& id) { _selected_node = id; }
+    const UUID& selectedNode() const { return _selected_node; }
+    std::optional<size_t> findProxyIndex(const UUID& node_id) const;
     AABB getAllBound() const;
 private:
     AABB getMeshBounds(const UUID& mesh_id, const MeshData& mesh);
@@ -39,5 +43,6 @@ private:
     std::vector<RenderProxy>               _proxies;
     std::unordered_map<UUID, size_t>       _node_map;
     std::unordered_map<UUID, AABB>         _mesh_bounds_cache;
+    UUID                                   _selected_node{};
 };
 } // namespace dk::render
