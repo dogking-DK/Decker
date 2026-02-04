@@ -21,15 +21,19 @@ void UiGizmoPass::init(vk::Format color_format, vk::Format depth_format)
     vkcore::ShaderCompiler::initGlslang();
 
     std::unique_ptr<vkcore::ShaderModule> mesh_module;
+    std::unique_ptr<vkcore::ShaderModule> solid_mesh_module;
     std::unique_ptr<vkcore::ShaderModule> frag_module;
     try
     {
         namespace fs = std::filesystem;
         fs::path current_dir = get_exe_dir();
         fs::path target_file_mesh = absolute(current_dir / "assets/shaders/spv/common/debug_aabb.mesh.spv");
+        fs::path target_file_solid_mesh = absolute(current_dir / "assets/shaders/spv/common/ui_gizmo_solid.mesh.spv");
         fs::path target_file_frag = absolute(current_dir / "assets/shaders/spv/common/debug_aabb.frag.spv");
 
         mesh_module = std::make_unique<vkcore::ShaderModule>(&_context, vkcore::loadSpirvFromFile(target_file_mesh));
+        solid_mesh_module =
+            std::make_unique<vkcore::ShaderModule>(&_context, vkcore::loadSpirvFromFile(target_file_solid_mesh));
         frag_module = std::make_unique<vkcore::ShaderModule>(&_context, vkcore::loadSpirvFromFile(target_file_frag));
     }
     catch (const std::runtime_error& e)
@@ -60,6 +64,14 @@ void UiGizmoPass::init(vk::Format color_format, vk::Format depth_format)
                        .setColorBlendingAlpha()
                        .build();
 
+    _solid_pipeline = builder.setLayout(_pipeline_layout.get())
+                             .setMeshShaders(solid_mesh_module->getHandle(), frag_module->getHandle())
+                             .setRenderingInfo({color_format}, depth_format)
+                             .setCullMode(vk::CullModeFlagBits::eNone)
+                             .enableDepthTest(false, vk::CompareOp::eLessOrEqual)
+                             .setColorBlendingAlpha()
+                             .build();
+
     vkcore::ShaderCompiler::finalizeGlslang();
 }
 
@@ -79,19 +91,19 @@ void UiGizmoPass::registerToGraph(RenderGraph& graph)
 
 void UiGizmoPass::record(RenderGraphContext& ctx) const
 {
-    if (!_frame_ctx || !_ui_service || !_pipeline)
+    if (!_frame_ctx || !_ui_service || !_pipeline || !_solid_pipeline)
     {
         return;
     }
 
     const auto& batches = _ui_service->lineBatches();
-    if (batches.empty())
+    const auto& triangle_batches = _ui_service->triangleBatches();
+    if (batches.empty() && triangle_batches.empty())
     {
         return;
     }
 
     auto cmd = ctx.frame_data->command_buffer_graphic->getHandle();
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->getHandle());
 
     const vk::Viewport viewport{
         0.0f,
@@ -109,6 +121,38 @@ void UiGizmoPass::record(RenderGraphContext& ctx) const
     };
     cmd.setScissor(0, 1, &scissor);
 
+    if (!triangle_batches.empty())
+    {
+        cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, _solid_pipeline->getHandle());
+        for (const auto& batch : triangle_batches)
+        {
+            if (!batch.buffer || batch.triangle_count == 0)
+            {
+                continue;
+            }
+
+            vk::DescriptorSet frame_set = ctx.frame_data->_dynamicDescriptorAllocator->allocate(*_descriptor_set_layout);
+            vkcore::DescriptorSetWriter writer;
+            writer.writeBuffer(0, vk::DescriptorType::eStorageBuffer, batch.buffer->getDescriptorInfo());
+            writer.update(*ctx.vkCtx, frame_set);
+            cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline_layout->getHandle(), 0, {frame_set}, {});
+
+            PushConstants push{};
+            push.viewproj = _frame_ctx->viewproj;
+            push.color = batch.color;
+            cmd.pushConstants(_pipeline_layout->getHandle(),
+                              vk::ShaderStageFlagBits::eMeshEXT | vk::ShaderStageFlagBits::eFragment,
+                              0,
+                              sizeof(PushConstants),
+                              &push);
+
+            constexpr uint32_t workgroup_size = 64;
+            uint32_t group_count = (batch.triangle_count + workgroup_size - 1) / workgroup_size;
+            cmd.drawMeshTasksEXT(group_count, 1, 1);
+        }
+    }
+
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->getHandle());
     for (const auto& batch : batches)
     {
         if (!batch.buffer || batch.line_count == 0)

@@ -1,0 +1,56 @@
+#version 460
+#extension GL_EXT_mesh_shader : require
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(triangles) out;
+layout(max_vertices = 192, max_primitives = 64) out;
+
+layout(set = 0, binding = 0) readonly buffer TriangleBuffer {
+    vec4 positions[];
+} triangleBuffer;
+
+layout(push_constant) uniform PushConstants
+{
+    mat4 viewproj;
+    vec4 color;
+} pc;
+
+layout(location = 0) out PerVertexData {
+    vec4 color;
+} outData[];
+
+void main()
+{
+    uint triIndex = gl_GlobalInvocationID.x;
+    uint triCount = triangleBuffer.positions.length() / 3;
+    if (triIndex >= triCount)
+    {
+        return;
+    }
+
+    uint localIndex = gl_LocalInvocationIndex;
+    uint baseVertex = localIndex * 3;
+    uint baseBufferIndex = triIndex * 3;
+
+    vec4 p0 = triangleBuffer.positions[baseBufferIndex + 0];
+    vec4 p1 = triangleBuffer.positions[baseBufferIndex + 1];
+    vec4 p2 = triangleBuffer.positions[baseBufferIndex + 2];
+
+    gl_MeshVerticesEXT[baseVertex + 0].gl_Position = pc.viewproj * p0;
+    gl_MeshVerticesEXT[baseVertex + 1].gl_Position = pc.viewproj * p1;
+    gl_MeshVerticesEXT[baseVertex + 2].gl_Position = pc.viewproj * p2;
+
+    outData[baseVertex + 0].color = pc.color;
+    outData[baseVertex + 1].color = pc.color;
+    outData[baseVertex + 2].color = pc.color;
+
+    gl_PrimitiveTriangleIndicesEXT[localIndex] = uvec3(baseVertex + 0, baseVertex + 1, baseVertex + 2);
+
+    if (localIndex == 0)
+    {
+        uint remaining = triCount - gl_WorkGroupID.x * gl_WorkGroupSize.x;
+        uint trisInGroup = min(gl_WorkGroupSize.x, remaining);
+        SetMeshOutputsEXT(trisInGroup * 3, trisInGroup);
+    }
+}
