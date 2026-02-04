@@ -32,6 +32,20 @@ public:
         size_t   buffer_size{0};
     };
 
+    struct TriangleVertex
+    {
+        glm::vec4 position{};
+    };
+
+    struct TriangleBatch
+    {
+        glm::vec4 color{};
+        std::vector<TriangleVertex> vertices;
+        std::unique_ptr<vkcore::BufferResource> buffer;
+        uint32_t triangle_count{0};
+        size_t   buffer_size{0};
+    };
+
     UiRenderService(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx);
 
     void beginFrame();
@@ -46,16 +60,26 @@ public:
                    float maxExtent,
                    const glm::vec4& color);
     void drawPoint(const glm::vec3& position, float size, const glm::vec4& color);
+    void drawTriangle(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color);
+    void drawQuad(const glm::vec3& p0,
+                  const glm::vec3& p1,
+                  const glm::vec3& p2,
+                  const glm::vec3& p3,
+                  const glm::vec4& color);
 
     const std::vector<LineBatch>& lineBatches() const { return _line_batches; }
+    const std::vector<TriangleBatch>& triangleBatches() const { return _triangle_batches; }
 
 private:
     LineBatch& getOrCreateBatch(const glm::vec4& color);
     void ensureLineBuffer(LineBatch& batch, size_t bytes);
+    TriangleBatch& getOrCreateTriangleBatch(const glm::vec4& color);
+    void ensureTriangleBuffer(TriangleBatch& batch, size_t bytes);
 
     vkcore::VulkanContext& _context;
     vkcore::UploadContext& _upload_ctx;
     std::vector<LineBatch> _line_batches;
+    std::vector<TriangleBatch> _triangle_batches;
 };
 
 } // namespace dk::render

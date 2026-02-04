@@ -19,6 +19,12 @@ void UiRenderService::beginFrame()
         batch.vertices.clear();
         batch.line_count = 0;
     }
+
+    for (auto& batch : _triangle_batches)
+    {
+        batch.vertices.clear();
+        batch.triangle_count = 0;
+    }
 }
 
 void UiRenderService::finalize()
@@ -41,6 +47,26 @@ void UiRenderService::finalize()
                                              0,
                                              vkcore::BufferUsage::StorageBuffer);
         batch.line_count = vertex_count / 2;
+    }
+
+    for (auto& batch : _triangle_batches)
+    {
+        const uint32_t vertex_count = static_cast<uint32_t>(batch.vertices.size());
+        if (vertex_count == 0)
+        {
+            batch.triangle_count = 0;
+            continue;
+        }
+
+        const size_t bytes = sizeof(TriangleVertex) * batch.vertices.size();
+        ensureTriangleBuffer(batch, bytes);
+        vkcore::upload_buffer_data_immediate(_upload_ctx,
+                                             batch.vertices.data(),
+                                             static_cast<vk::DeviceSize>(bytes),
+                                             *batch.buffer,
+                                             0,
+                                             vkcore::BufferUsage::StorageBuffer);
+        batch.triangle_count = vertex_count / 3;
     }
 }
 
@@ -82,6 +108,24 @@ void UiRenderService::drawPoint(const glm::vec3& position, float size, const glm
     drawLine(position + glm::vec3(0.0f, 0.0f, -half), position + glm::vec3(0.0f, 0.0f, half), color);
 }
 
+void UiRenderService::drawTriangle(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color)
+{
+    auto& batch = getOrCreateTriangleBatch(color);
+    batch.vertices.push_back({glm::vec4(p0, 1.0f)});
+    batch.vertices.push_back({glm::vec4(p1, 1.0f)});
+    batch.vertices.push_back({glm::vec4(p2, 1.0f)});
+}
+
+void UiRenderService::drawQuad(const glm::vec3& p0,
+                               const glm::vec3& p1,
+                               const glm::vec3& p2,
+                               const glm::vec3& p3,
+                               const glm::vec4& color)
+{
+    drawTriangle(p0, p1, p2, color);
+    drawTriangle(p2, p3, p0, color);
+}
+
 UiRenderService::LineBatch& UiRenderService::getOrCreateBatch(const glm::vec4& color)
 {
     auto iter = std::find_if(_line_batches.begin(), _line_batches.end(),
@@ -101,6 +145,40 @@ UiRenderService::LineBatch& UiRenderService::getOrCreateBatch(const glm::vec4& c
 }
 
 void UiRenderService::ensureLineBuffer(LineBatch& batch, size_t bytes)
+{
+    if (batch.buffer && batch.buffer_size >= bytes)
+    {
+        return;
+    }
+
+    vkcore::BufferResource::Builder builder;
+    builder.setSize(bytes)
+           .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst)
+           .withVmaUsage(VMA_MEMORY_USAGE_GPU_ONLY);
+
+    batch.buffer = builder.buildUnique(_context);
+    batch.buffer_size = bytes;
+}
+
+UiRenderService::TriangleBatch& UiRenderService::getOrCreateTriangleBatch(const glm::vec4& color)
+{
+    auto iter = std::find_if(_triangle_batches.begin(), _triangle_batches.end(),
+                             [&](const TriangleBatch& batch)
+                             {
+                                 return batch.color == color;
+                             });
+    if (iter != _triangle_batches.end())
+    {
+        return *iter;
+    }
+
+    TriangleBatch batch{};
+    batch.color = color;
+    _triangle_batches.push_back(std::move(batch));
+    return _triangle_batches.back();
+}
+
+void UiRenderService::ensureTriangleBuffer(TriangleBatch& batch, size_t bytes)
 {
     if (batch.buffer && batch.buffer_size >= bytes)
     {

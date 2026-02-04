@@ -45,6 +45,7 @@ private:
     std::unique_ptr<vkcore::DescriptorSetLayout> _descriptor_set_layout;
     std::unique_ptr<vkcore::PipelineLayout> _pipeline_layout;
     std::unique_ptr<vkcore::Pipeline> _pipeline;
+    std::unique_ptr<vkcore::Pipeline> _solid_pipeline;
     const FrameContext* _frame_ctx{nullptr};
     const UiRenderService* _ui_service{nullptr};
 };
