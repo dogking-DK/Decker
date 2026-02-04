@@ -9,6 +9,7 @@
 #include <glm/vec4.hpp>
 #include <SDL3/SDL_video.h>
 
+#include "camera.h"
 #include "core/input/InputContext.h"
 
 namespace dk::tool {
