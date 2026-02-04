@@ -47,11 +47,17 @@ void TranslateTool::update(const ToolContext& ctx)
         case GizmoAxis::Z:
             delta = glm::vec3(0.0f, 0.0f, delta.z);
             break;
+        case GizmoAxis::XY:
+            delta = glm::vec3(delta.x, delta.y, 0.0f);
+            break;
+        case GizmoAxis::YZ:
+            delta = glm::vec3(0.0f, delta.y, delta.z);
+            break;
+        case GizmoAxis::ZX:
+            delta = glm::vec3(delta.x, 0.0f, delta.z);
+            break;
         case GizmoAxis::Screen:
         case GizmoAxis::None:
-        case GizmoAxis::XY:
-        case GizmoAxis::YZ:
-        case GizmoAxis::ZX:
         default:
             break;
         }

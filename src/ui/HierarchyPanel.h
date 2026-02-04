@@ -15,5 +15,6 @@ private:
     void                                     drawNode(SceneNode& n);
     SceneNode* _roots{nullptr};
     SceneNode* _selected{nullptr};
+    bool       _node_clicked_this_frame{false};
 };
 }

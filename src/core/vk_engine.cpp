@@ -1239,6 +1239,20 @@ void VulkanEngine::update_scene()
 
     glm::mat4 view = mainCamera.getViewMatrix();
 
+    if (_render_system)
+    {
+        _render_system->beginUiFrame();
+        if (_gizmo_manager)
+        {
+            ui::GizmoContext gizmo_ctx{};
+            gizmo_ctx.camera = &mainCamera;
+            gizmo_ctx.selectedNode = hierarchy_panel.selectedNode();
+            gizmo_ctx.uiRenderService = &_render_system->uiRenderService();
+            _gizmo_manager->render(gizmo_ctx);
+        }
+        _render_system->finalizeUiFrame();
+    }
+
     // camera projection
     glm::mat4 projection = glm::perspective(glm::radians(60.f),
                                             static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.
