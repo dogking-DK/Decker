@@ -1,10 +1,9 @@
 // GaussianBlurPass.cpp
 #include "GaussianBlurPass.h"
-#include "vk_engine.h"            // 里面有 device 等
-#include "vk_images.h"
-#include "vk_initializers.h"      // 你自己的 helper，如果有
+#include "vk_types.h"
 #include "render graph/RenderGraph.h"
 #include "render graph/ResourceTexture.h"
+#include "Vulkan/CommandBuffer.h"
 #include "Vulkan/DescriptorSetLayout.h"
 #include "Vulkan/DescriptorSetPool.h"
 #include "Vulkan/DescriptorWriter.h"
@@ -159,13 +158,15 @@ void GaussianBlurPass::recordBlur(RenderGraphContext& ctx,
     //VkCommandBuffer cmd    = ctx.frame_data->command_buffer_graphic->getHandle();
     auto cmd = ctx.frame_data->command_buffer_graphic->getHandle();
     // 1. 布局转换：src 用作 sampled image，dst 用作 storage image
-    vkutil::transition_image(cmd, src->getVkImage(),
-                             VK_IMAGE_LAYOUT_GENERAL,           // 你当前记录的 layout
-                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    ctx.frame_data->command_buffer_graphic->transitionImage(
+        src->getVkImage(),
+        vk::ImageLayout::eGeneral,
+        vk::ImageLayout::eShaderReadOnlyOptimal);
 
-    vkutil::transition_image(cmd, dst->getVkImage(),
-                             VK_IMAGE_LAYOUT_UNDEFINED,
-                             VK_IMAGE_LAYOUT_GENERAL); // storage image 一般用 GENERAL
+    ctx.frame_data->command_buffer_graphic->transitionImage(
+        dst->getVkImage(),
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eGeneral);
 
 
     DescriptorSet frame_set = ctx.frame_data->_dynamicDescriptorAllocator->allocate(*_desc_layout);

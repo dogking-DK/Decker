@@ -3,18 +3,17 @@
 #include <memory>
 
 #include "Vulkan/DescriptorSetLayout.h"
+#include "Vulkan/Texture.h"
 
 namespace dk {
 namespace vkcore {
     class SamplerResource;
-    class ImageViewResource;
-    class ImageResource;
+    class TextureResource;
 }
 
 struct GPUTexture
 {
-    std::unique_ptr<vkcore::ImageResource>     image;
-    std::unique_ptr<vkcore::ImageViewResource> view;
+    std::shared_ptr<vkcore::TextureResource>   texture;
     std::unique_ptr<vkcore::SamplerResource>   sampler;
     vk::ImageLayout                            layout{vk::ImageLayout::eUndefined};
 };

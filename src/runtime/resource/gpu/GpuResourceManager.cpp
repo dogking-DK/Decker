@@ -18,7 +18,7 @@
 #include "Vulkan/DescriptorSetLayout.h"
 #include "Vulkan/DescriptorSetPool.h"
 #include "Vulkan/DescriptorWriter.h"
-#include "Vulkan/ImageView.h"
+#include "Vulkan/Texture.h"
 #include "Vulkan/Sampler.h"
 
 using namespace dk::vkcore;
@@ -147,7 +147,7 @@ void GpuResourceManager::ensureMaterialDescriptorSet(GPUMaterial& material)
 
     auto texture = material.base_color_tex ? material.base_color_tex : getDefaultWhiteTexture();
     vk::DescriptorImageInfo image_info = vkcore::makeCombinedImageInfo(
-        texture->view->getHandle(),
+        texture->texture ? texture->texture->getDefaultView() : vk::ImageView{},
         texture->sampler->getHandle(),
         texture->layout);
 
@@ -162,24 +162,25 @@ std::shared_ptr<GPUTexture> GpuResourceManager::uploadTextureData(const TextureD
 {
     const vk::DeviceSize image_size = texture.width * texture.height * texture.depth * 4;
 
-    ImageResource::Builder image_builder;
-    auto                   image = image_builder.setFormat(vk::Format::eR8G8B8A8Unorm)
-                                                .setExtent({texture.width, texture.height, 1})
-                                                .setUsage(
-                                                     vk::ImageUsageFlagBits::eTransferDst |
-                                                     vk::ImageUsageFlagBits::eSampled)
-                                                .buildUnique(_context);
+    vkcore::TextureResource::Builder tex_builder;
+    tex_builder.setFormat(vk::Format::eR8G8B8A8Unorm)
+               .setExtent({texture.width, texture.height, 1})
+               .setUsage(vk::ImageUsageFlagBits::eTransferDst |
+                         vk::ImageUsageFlagBits::eSampled)
+               .withVmaUsage(VMA_MEMORY_USAGE_AUTO);
 
-    upload_image_data_immediate(_upload_ctx, texture.pixels.data(), image_size, *image, ImageUsage::Sampled);
+    auto tex_resource = tex_builder.buildShared(_context);
+    if (auto* image = tex_resource ? tex_resource->getImageResource() : nullptr)
+    {
+        upload_image_data_immediate(_upload_ctx, texture.pixels.data(), image_size, *image, ImageUsage::Sampled);
+    }
 
-    auto view    = ImageViewResource::create2D(_context, *image, vk::Format::eR8G8B8A8Unorm);
     auto sampler = std::make_unique<SamplerResource>(_context, makeLinearRepeatSamplerInfo());
 
-    auto gpu_tex     = std::make_shared<GPUTexture>();
-    gpu_tex->image   = std::move(image);
-    gpu_tex->view    = std::move(view);
-    gpu_tex->sampler = std::move(sampler);
-    gpu_tex->layout  = vk::ImageLayout::eShaderReadOnlyOptimal;
+    auto gpu_tex      = std::make_shared<GPUTexture>();
+    gpu_tex->texture  = std::move(tex_resource);
+    gpu_tex->sampler  = std::move(sampler);
+    gpu_tex->layout   = vk::ImageLayout::eShaderReadOnlyOptimal;
     return gpu_tex;
 }
 

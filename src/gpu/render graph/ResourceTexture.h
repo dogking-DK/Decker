@@ -1,8 +1,7 @@
 #pragma once
 #include "Resource.h"
 #include "Vulkan/Context.h"
-#include "Vulkan/Image.h"
-#include "Vulkan/ImageView.h"
+#include "Vulkan/Texture.h"
 
 namespace dk {
 struct ImageDesc
@@ -32,46 +31,19 @@ public:
     // 统一对外的取 VkImage / VkImageView 接口
     vk::Image getVkImage() const
     {
-        return isExternal
-                   ? externalImage
-                   : (image ? image->getHandle() : VK_NULL_HANDLE);
+        return texture ? texture->getImage() : VK_NULL_HANDLE;
     }
 
     vk::ImageView getVkImageView() const
     {
-        return isExternal
-                   ? externalImageView
-                   : (view ? view->getHandle() : VK_NULL_HANDLE);
+        return texture ? texture->getDefaultView() : VK_NULL_HANDLE;
     }
 
-    // 只有内部资源才会用到的 helper
-    vkcore::ImageResource*           getImage() { return image.get(); }
-    const vkcore::ImageResource*     getImage() const { return image.get(); }
-    vkcore::ImageViewResource*       getView() { return view.get(); }
-    const vkcore::ImageViewResource* getView() const { return view.get(); }
-
-    // 方便构造一个“包了外部句柄”的 FG image
-    static FrameGraphImage makeExternal(vk::Image image, vk::ImageView view)
-    {
-        FrameGraphImage r;
-        r.isExternal        = true;
-        r.externalImage     = image;
-        r.externalImageView = view;
-        return r;
-    }
+    vkcore::TextureResource*       getTexture() { return texture.get(); }
+    const vkcore::TextureResource* getTexture() const { return texture.get(); }
 
 private:
-    // 标记是否是外部资源
-    bool isExternal = false;
-
-    // ---- FG 自己管理的路径（Transient / Persistent）----
-    // 用 unique_ptr 确保销毁顺序：先 view 后 image
-    std::unique_ptr<vkcore::ImageResource>     image{ nullptr };
-    std::unique_ptr<vkcore::ImageViewResource> view{ nullptr };  // 默认 view（可选）
-
-    // ---- 外部资源路径（swapchain / drawImage 等）----
-    vk::Image     externalImage = VK_NULL_HANDLE;
-    vk::ImageView externalImageView = VK_NULL_HANDLE;
+    std::shared_ptr<vkcore::TextureResource> texture{nullptr};
     friend class RGResource<ImageDesc, FrameGraphImage>;
 };
 
@@ -91,8 +63,8 @@ public:
 
     Actual*     get() const { return actual.get(); }
     const Desc& desc() const { return _desc; }
-    // ★ 新增：把外部 VkImage / VkImageView 塞进来
-    void setExternal(vk::Image image, vk::ImageView view);
+    // ★ 新增：把外部 TextureResource 塞进来
+    void setExternal(const std::shared_ptr<vkcore::TextureResource>& texture);
 
     void realize(RenderGraphContext& ctx) override;
     void derealize(RenderGraphContext& ctx) override;

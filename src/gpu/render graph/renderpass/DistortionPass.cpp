@@ -1,10 +1,9 @@
 #include "DistortionPass.h"
 
-#include "vk_engine.h"
-#include "vk_images.h"
-#include "vk_initializers.h"
+#include "vk_types.h"
 #include "render graph/RenderGraph.h"
 #include "render graph/ResourceTexture.h"
+#include "Vulkan/CommandBuffer.h"
 #include "Vulkan/DescriptorSetLayout.h"
 #include "Vulkan/DescriptorSetPool.h"
 #include "Vulkan/DescriptorWriter.h"
@@ -100,13 +99,15 @@ void DistortionPass::recordDistortion(RenderGraphContext& ctx,
 {
     auto cmd = ctx.frame_data->command_buffer_graphic->getHandle();
 
-    vkutil::transition_image(cmd, src->getVkImage(),
-                             VK_IMAGE_LAYOUT_GENERAL,
-                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    ctx.frame_data->command_buffer_graphic->transitionImage(
+        src->getVkImage(),
+        vk::ImageLayout::eGeneral,
+        vk::ImageLayout::eShaderReadOnlyOptimal);
 
-    vkutil::transition_image(cmd, dst->getVkImage(),
-                             VK_IMAGE_LAYOUT_UNDEFINED,
-                             VK_IMAGE_LAYOUT_GENERAL);
+    ctx.frame_data->command_buffer_graphic->transitionImage(
+        dst->getVkImage(),
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eGeneral);
 
     DescriptorSet frame_set = ctx.frame_data->_dynamicDescriptorAllocator->allocate(*_desc_layout);
 

@@ -1,7 +1,5 @@
 #include "BlitPass.h"
 
-#include "vk_images.h"
-#include "vk_initializers.h"
 #include "render graph/RenderGraph.h"
 #include "render graph/RenderTaskBuilder.h"
 #include "render graph/ResourceTexture.h"
@@ -64,13 +62,15 @@ void BlitPass::record(RenderGraphContext& ctx, const BlitPassData& data)
     VkImage     dst      = dstImg->getVkImage();
     //ctx.frame_data->command_buffer_graphic->begin();
     // 1. 做布局转换（照抄你原来 copy_image_to_image 前的逻辑）
-    vkutil::transition_image(ctx.frame_data->command_buffer_graphic->getHandle(), src,
-                                        VK_IMAGE_LAYOUT_GENERAL, // 这里按你 draw_main 结束时的布局来填
-                             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    ctx.frame_data->command_buffer_graphic->transitionImage(
+        src,
+        vk::ImageLayout::eGeneral,
+        vk::ImageLayout::eTransferSrcOptimal);
 
-    vkutil::transition_image(ctx.frame_data->command_buffer_graphic->getHandle(), dst,
-        VK_IMAGE_LAYOUT_UNDEFINED, // 当前刚 acquire 的 swapchain image
-                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    ctx.frame_data->command_buffer_graphic->transitionImage(
+        dst,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eTransferDstOptimal);
 
     // 2. 填 blit 区域（全屏 blit）
     VkImageBlit blitRegion{};
@@ -104,13 +104,15 @@ void BlitPass::record(RenderGraphContext& ctx, const BlitPassData& data)
 
     // 3. 把 swapchain image 布局准备给后续（比如 imgui / present）
     //    你之前是先转 COLOR_ATTACHMENT_OPTIMAL 画 imgui，再转 PRESENT
-    vkutil::transition_image(ctx.frame_data->command_buffer_graphic->getHandle(), dst,
-                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_GENERAL);
+    ctx.frame_data->command_buffer_graphic->transitionImage(
+        dst,
+        vk::ImageLayout::eTransferDstOptimal,
+        vk::ImageLayout::eGeneral);
 
-    vkutil::transition_image(ctx.frame_data->command_buffer_graphic->getHandle(), src,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        VK_IMAGE_LAYOUT_GENERAL);
+    ctx.frame_data->command_buffer_graphic->transitionImage(
+        src,
+        vk::ImageLayout::eTransferSrcOptimal,
+        vk::ImageLayout::eGeneral);
     //ctx.frame_data->command_buffer_graphic->end();
 }
 

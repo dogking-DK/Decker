@@ -16,19 +16,20 @@ Camera::Camera()
 
 void Camera::update()
 {
-    glm::mat4 cameraRotation = getRotationMatrix();
+    cameraRotation = getRotationMatrix();
 
     position += glm::vec3(cameraRotation * glm::vec4(velocity, 0.f)) * velocity_coefficient;
-}
 
-glm::mat4 Camera::getViewMatrix()
-{
     // to create a correct model view, we need to move the world in opposite
     // direction to the camera
     //  so we will create the camera model matrix and invert
     glm::mat4 cameraTranslation = translate(glm::mat4(1.f), position);
-    glm::mat4 cameraRotation    = getRotationMatrix();
-    return inverse(cameraTranslation * cameraRotation);
+    view = inverse(cameraTranslation * cameraRotation);
+}
+
+glm::mat4 Camera::getViewMatrix()
+{
+    return view;
 }
 
 glm::mat4 Camera::getRotationMatrix()
@@ -38,6 +39,30 @@ glm::mat4 Camera::getRotationMatrix()
     glm::quat pitchRotation = angleAxis(pitch, glm::vec3{1.f, 0.f, 0.f});
     glm::quat yawRotation   = angleAxis(yaw, glm::vec3{0.f, -1.f, 0.f});
     return toMat4(yawRotation) * toMat4(pitchRotation);
+}
+
+glm::mat4 Camera::getProjectMatrix()
+{
+    if (view_mode == VIEW_MODE::perspective)
+    {
+        return projection;
+    }
+    else if (view_mode == VIEW_MODE::orthographic)
+    {
+        return ortho;
+    }
+}
+
+glm::mat4 Camera::getPVMatrix()
+{
+    if (view_mode == VIEW_MODE::perspective)
+    {
+        return projection * view;
+    }
+    else if (view_mode == VIEW_MODE::orthographic)
+    {
+        return ortho * view;
+    }
 }
 
 void Camera::processSDLEvent(SDL_Window* window, const SDL_Event& e)

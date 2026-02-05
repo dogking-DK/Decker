@@ -14,6 +14,7 @@ enum class ImageUsage
     TransferDst,
     TransferSrc,
     Sampled,             // Fragment/compute 采样
+    Storage,             // General layout storage image
     ColorAttachment,
     DepthStencilAttachment,
     Present

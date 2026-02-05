@@ -174,9 +174,26 @@ public:
                          vk::AccessFlags2        dst_access =
                              vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite);
 
+    void transitionImage(vk::Image               image,
+                         vk::ImageLayout         old_layout,
+                         vk::ImageLayout         new_layout,
+                         vk::ImageAspectFlags    aspect_mask = vk::ImageAspectFlagBits::eColor,
+                         vk::PipelineStageFlags2 src_stage   = vk::PipelineStageFlagBits2::eAllCommands,
+                         vk::AccessFlags2        src_access  = vk::AccessFlagBits2::eMemoryWrite,
+                         vk::PipelineStageFlags2 dst_stage   = vk::PipelineStageFlagBits2::eAllCommands,
+                         vk::AccessFlags2        dst_access  =
+                             vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite);
+
     void transitionImage(ImageResource& image, const ImageUsage& new_usage);
 
     void copyImageToImage(const ImageResource& source, const ImageResource& destination);
+    void blitImage(vk::Image      source,
+                   vk::ImageLayout source_layout,
+                   vk::Image      destination,
+                   vk::ImageLayout destination_layout,
+                   vk::Extent3D   source_extent,
+                   vk::Extent3D   destination_extent,
+                   vk::Filter     filter = vk::Filter::eLinear);
 
     void generateMipmaps(ImageResource& image, vk::Extent2D image_size);
 

@@ -1,6 +1,8 @@
 #include <fmt/core.h>
 #include <fmt/color.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 
 #define VMA_IMPLEMENTATION

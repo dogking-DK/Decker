@@ -11,9 +11,6 @@
 #include <memory>
 
 #include <camera.h>
-#include <vk_descriptors.h>
-#include <vk_loader.h>
-#include <vk_pipelines.h>
 
 #include "Scene/Node.h"
 #include "Vulkan/Context.h"
@@ -82,58 +79,6 @@ struct EngineStats
     float mesh_draw_time;
 };
 
-struct GLTFMetallic_Roughness
-{
-    MaterialPipeline opaquePipeline;
-    MaterialPipeline transparentPipeline;
-
-    VkDescriptorSetLayout materialLayout;
-
-    struct MaterialConstants
-    {
-        glm::vec4 colorFactors;
-        glm::vec4 metal_rough_factors;
-        // padding, we need it anyway for uniform buffers
-        uint32_t colorTexID;
-        uint32_t metalRoughTexID;
-        uint32_t normalTexID;
-        uint32_t pad1;
-        glm::vec4 extra[13];
-    };
-
-    struct MaterialResources
-    {
-        AllocatedImage colorImage;
-        VkSampler colorSampler;
-        AllocatedImage metalRoughImage;
-        VkSampler metalRoughSampler;
-        AllocatedImage normal_image;
-        VkSampler normal_sampler;
-        VkBuffer dataBuffer;
-        uint32_t dataBufferOffset;
-    };
-
-    DescriptorWriter writer;
-
-    void build_pipelines(VulkanEngine* engine);
-    void clear_resources(VkDevice device);
-
-    MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources,
-        DescriptorAllocatorGrowable& descriptorAllocator);
-};
-
-struct TextureID
-{
-    uint32_t Index;
-};
-
-struct TextureCache
-{
-    std::vector<VkDescriptorImageInfo> Cache;
-    std::unordered_map<std::string, TextureID> NameMap;
-    TextureID AddTexture(const VkImageView& image, VkSampler sampler);
-};
-
 class VulkanEngine
 {
 public:
@@ -146,32 +91,12 @@ public:
 
     VkExtent2D _windowExtent{ 1280, 720 };
 
-    AllocatedBuffer _defaultGLTFMaterialData;
-
     std::array<FrameData, FRAME_OVERLAP> _frames;
-
-    VkExtent2D _drawExtent;
-    VkDescriptorPool _descriptorPool;
-
-    DescriptorAllocator globalDescriptorAllocator;
-
-    VkPipeline _gradientPipeline;
-    VkPipelineLayout _gradientPipelineLayout;
-
-
-
-    VkDescriptorSet _drawImageDescriptors;
-    VkDescriptorSetLayout _drawImageDescriptorLayout;
 
     DeletionQueue _mainDeletionQueue;
 
-    VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
-
-    GLTFMetallic_Roughness metalRoughMaterial;
-
-    // draw resources
-    AllocatedImage _drawImage;
-    AllocatedImage _depthImage;
+    vk::Format _color_format{vk::Format::eR16G16B16A16Sfloat};
+    vk::Format _depth_format{vk::Format::eD32Sfloat};
 
     std::shared_ptr<RGResource<ImageDesc, FrameGraphImage>> color_image;
 
@@ -180,20 +105,8 @@ public:
     VkCommandBuffer _immCommandBuffer;
     VkCommandPool _immCommandPool;
 
-    AllocatedImage _whiteImage;
-    AllocatedImage _blackImage;
-    AllocatedImage _greyImage;
-    AllocatedImage _errorCheckerboardImage;
-
     VkSampler _defaultSamplerLinear;
     VkSampler _defaultSamplerNearest;
-
-    TextureCache texCache;
-
-    GPUMeshBuffers rectangle;
-    DrawContext drawCommands;
-
-    GPUSceneData sceneData;
 
     Camera mainCamera;
     input::InputState _input_state;
@@ -208,9 +121,6 @@ public:
     EngineStats stats;
     bool        _show_aabb_bounds{false};
     bool        _translate_gizmo_enabled{true};
-
-    std::vector<ComputeEffect> backgroundEffects;
-    int currentBackgroundEffect{ 0 };
 
     HierarchyPanel hierarchy_panel;
 
@@ -246,35 +156,14 @@ public:
     void draw_main(VkCommandBuffer cmd);
     void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
-    void render_nodes();
-
-    void draw_geometry(VkCommandBuffer cmd);
-
     // run main loop
     void run();
 
     void update_scene();
 
-    // upload a mesh into a pair of gpu buffers. If descriptor allocator is not
-    // null, it will also create a descriptor that points to the vertex buffer
-    GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
-
     FrameData& get_current_frame();
     FrameData& get_frame(const int id);
     FrameData& get_last_frame();
-
-    AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-
-    AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-    AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
-        bool mipmapped = false);
-
-    void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
-
-    std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
-
-    void destroy_image(const AllocatedImage& img);
-    void destroy_buffer(const AllocatedBuffer& buffer);
 
     bool resize_requested{ false };
     bool freeze_rendering{ false };
@@ -284,13 +173,9 @@ private:
 
     void init_swapchain();
 
-
     void resize_swapchain();
 
     void init_commands();
-
-    void init_pipelines();
-    void init_background_pipelines();
 
     void init_descriptors();
 

@@ -8,10 +8,12 @@
 #include "gpu/render graph/renderpass/UiGizmoPass.h"
 #include "render graph/renderpass/OpaquePass.h"
 #include "render/RenderTypes.h"
+#include "Vulkan/Texture.h"
 
 namespace dk::render {
 RenderSystem::RenderSystem(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx, ResourceLoader& loader)
-    : _cpu_loader(loader)
+    : _context(ctx)
+    , _cpu_loader(loader)
     , _debug_render_service(ctx, upload_ctx)
     , _ui_render_service(ctx, upload_ctx)
 {
@@ -28,6 +30,9 @@ RenderSystem::~RenderSystem()
 
 void RenderSystem::init(vk::Format color_format, vk::Format depth_format)
 {
+    _color_format = color_format;
+    _depth_format = depth_format;
+
     _opaque_pass->init(color_format, depth_format);
     _gpu_cache->setMaterialDescriptorLayout(_opaque_pass->getMaterialDescriptorLayout());
     _opaque_pass->registerToGraph(_graph);
@@ -59,6 +64,50 @@ void RenderSystem::init(vk::Format color_format, vk::Format depth_format)
 
     _graph.compile();
     _compiled = true;
+}
+
+void RenderSystem::resizeRenderTargets(const vk::Extent2D& extent)
+{
+    if (extent.width == 0 || extent.height == 0)
+    {
+        return;
+    }
+
+    if (_target_extent.width == extent.width && _target_extent.height == extent.height &&
+        _color_target && _depth_target)
+    {
+        return;
+    }
+
+    _target_extent = extent;
+
+    vkcore::TextureResource::Builder color_builder;
+    color_builder.setFormat(_color_format)
+                 .setExtent({extent.width, extent.height, 1})
+                 .setUsage(vk::ImageUsageFlagBits::eTransferSrc |
+                           vk::ImageUsageFlagBits::eStorage |
+                           vk::ImageUsageFlagBits::eColorAttachment)
+                 .withVmaUsage(VMA_MEMORY_USAGE_AUTO);
+
+    vkcore::TextureViewDesc color_view{};
+    color_view.format = _color_format;
+    color_view.aspectMask = vk::ImageAspectFlagBits::eColor;
+    color_builder.withDefaultView(color_view);
+
+    _color_target = color_builder.buildShared(_context);
+
+    vkcore::TextureResource::Builder depth_builder;
+    depth_builder.setFormat(_depth_format)
+                 .setExtent({extent.width, extent.height, 1})
+                 .setUsage(vk::ImageUsageFlagBits::eDepthStencilAttachment)
+                 .withVmaUsage(VMA_MEMORY_USAGE_AUTO);
+
+    vkcore::TextureViewDesc depth_view{};
+    depth_view.format = _depth_format;
+    depth_view.aspectMask = vk::ImageAspectFlagBits::eDepth;
+    depth_builder.withDefaultView(depth_view);
+
+    _depth_target = depth_builder.buildShared(_context);
 }
 
 void RenderSystem::prepareFrame(const Scene& scene,

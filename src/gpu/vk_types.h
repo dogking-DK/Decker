@@ -59,42 +59,6 @@ static std::filesystem::path get_exe_dir()
 }
 
 
-// we will add our main reusable types here
-struct AllocatedImage
-{
-    VkImage image;
-    VkImageView imageView;
-    VmaAllocation allocation;
-    VkExtent3D imageExtent;
-    VkFormat imageFormat;
-};
-
-struct AllocatedBuffer
-{
-    VkBuffer buffer;
-    VmaAllocation allocation;
-    VmaAllocationInfo info;
-};
-
-struct GPUGLTFMaterial
-{
-    glm::vec4 colorFactors;
-    glm::vec4 metal_rough_factors;
-    glm::vec4 extra[14];
-};
-
-static_assert(sizeof(GPUGLTFMaterial) == 256);
-
-struct GPUSceneData
-{
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::mat4 viewproj;
-    glm::vec4 ambientColor;
-    glm::vec4 sunlightDirection; // w for sun power
-    glm::vec4 sunlightColor;
-};
-
 // Camera UBO
 struct CameraData
 {
@@ -140,14 +104,6 @@ struct Vertex
     glm::vec3 normal;
     float uv_y;
     glm::vec4 color;
-};
-
-// holds the resources needed for a mesh
-struct GPUMeshBuffers
-{
-    AllocatedBuffer indexBuffer;
-    AllocatedBuffer vertexBuffer;
-    VkDeviceAddress vertexBufferAddress;
 };
 
 // push constants for our mesh object draws

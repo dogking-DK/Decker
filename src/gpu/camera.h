@@ -25,7 +25,9 @@ public:
 	glm::vec3 camera_up = glm::vec3(0.0f);
 	glm::vec3 camera_direction = glm::vec3(0.0f);
 	glm::mat4 projection;
-	glm::mat4 ortho;
+    glm::mat4 ortho;
+    glm::mat4 view;
+    glm::mat4 cameraRotation;
 
 	float velocity_coefficient = 1.0f;
 	// vertical rotation
@@ -35,7 +37,8 @@ public:
 
 	glm::mat4 getViewMatrix();
 	glm::mat4 getRotationMatrix();
-
+    glm::mat4 getProjectMatrix();
+    glm::mat4 getPVMatrix();
 	void processSDLEvent(SDL_Window* window, const SDL_Event& e);
 
 	void renderUI();

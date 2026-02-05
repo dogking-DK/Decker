@@ -15,6 +15,7 @@
 namespace dk::vkcore {
 class VulkanContext;
 struct UploadContext;
+class TextureResource;
 }
 
 namespace dk {
@@ -33,6 +34,12 @@ public:
     RenderSystem(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx, ResourceLoader& loader);
     ~RenderSystem();
     void init(vk::Format color_format, vk::Format depth_format);
+    void resizeRenderTargets(const vk::Extent2D& extent);
+    const std::shared_ptr<vkcore::TextureResource>& colorTarget() const { return _color_target; }
+    const std::shared_ptr<vkcore::TextureResource>& depthTarget() const { return _depth_target; }
+    vk::Extent2D targetExtent() const { return _target_extent; }
+    vk::Format colorFormat() const { return _color_format; }
+    vk::Format depthFormat() const { return _depth_format; }
 
     void prepareFrame(const Scene& scene,
                       const glm::mat4& view,
@@ -55,6 +62,7 @@ public:
 private:
     void buildDrawLists();
 
+    vkcore::VulkanContext&            _context;
     ResourceLoader&                     _cpu_loader;
     RenderWorld                          _render_world;
     DebugRenderService                   _debug_render_service;
@@ -69,6 +77,11 @@ private:
     std::unique_ptr<UiGizmoPass>         _ui_gizmo_pass;
     RenderGraph                          _graph;
     bool                                 _compiled{false};
+    vk::Format                           _color_format{vk::Format::eUndefined};
+    vk::Format                           _depth_format{vk::Format::eUndefined};
+    vk::Extent2D                         _target_extent{};
+    std::shared_ptr<vkcore::TextureResource> _color_target{};
+    std::shared_ptr<vkcore::TextureResource> _depth_target{};
     std::optional<FluidRenderData>       _fluid_data;
     std::optional<VoxelRenderData>       _voxel_data;
     bool                                 _debug_draw_aabb{false};

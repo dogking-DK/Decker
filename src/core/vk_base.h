@@ -1,7 +1,8 @@
 #pragma once
+#include <functional>
+#include <glm/vec4.hpp>
 #include <vulkan/vulkan_core.h>
 
-#include "vk_descriptors.h"
 
 namespace dk{
 namespace vkcore {
@@ -55,7 +56,6 @@ struct FrameData
     VkSemaphore _swapchainSemaphore, _renderSemaphore;
     VkFence     _renderFence;
 
-    DescriptorAllocatorGrowable                          _frameDescriptors;
     std::shared_ptr<vkcore::GrowableDescriptorAllocator> _dynamicDescriptorAllocator{nullptr};
     DeletionQueue                                        _deletionQueue;
     vkcore::CommandPool*                                 _command_pool_graphic{ nullptr };

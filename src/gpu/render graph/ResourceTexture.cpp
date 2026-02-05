@@ -1,20 +1,14 @@
 #include "ResourceTexture.h"
 
 namespace dk {
-void RGResource<ImageDesc, FrameGraphImage>::setExternal(vk::Image image, vk::ImageView view)
+void RGResource<ImageDesc, FrameGraphImage>::setExternal(const std::shared_ptr<vkcore::TextureResource>& texture)
 {
     if (!actual)
     {
         actual = std::make_unique<Actual>();
     }
-
-    actual->isExternal        = true;
-    actual->externalImage     = image;
-    actual->externalImageView = view;
-
-    // 确保不会误用内部路径
-    actual->image.reset();
-    actual->view.reset();
+    actual->texture = texture;
+    glm::vec3 test = glm::vec3{1, 1, 1} * glm::vec3{3, 3, 3};
 }
 
 void RGResource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
@@ -40,23 +34,27 @@ void RGResource<ImageDesc, FrameGraphImage>::realize(RenderGraphContext& ctx)
     {
         actual = std::make_unique<Actual>();
 
-        // 1. 用你的 ImageBuilder 创建 ImageResource
-        vkcore::ImageResource::Builder builder;
+        vkcore::TextureResource::Builder builder;
         builder.setFormat(_desc.format)
                .setExtent(vk::Extent3D{_desc.width, _desc.height, _desc.depth})
                .setUsage(_desc.usage)
                .setTiling(_desc.tiling)
                .setImageType(_desc.type)
-               .withVmaUsage(VMA_MEMORY_USAGE_AUTO);
+               .setSamples(_desc.samples)
+               .setMipLevels(_desc.mipLevels)
+               .setArrayLayers(_desc.arrayLayers)
+               .withVmaUsage(_desc.memoryUsage);
 
-        actual->image = builder.buildUnique(*ctx.vkCtx);
-        actual->image->setDebugName(_name);
-        // 2. 创建一个默认的 ImageViewResource（比如 color attachment / sampled view）
-        if (_desc.type == vk::ImageType::e2D)
+        vkcore::TextureViewDesc view_desc{};
+        view_desc.format = _desc.format;
+        view_desc.aspectMask = _desc.aspectMask;
+        builder.withDefaultView(view_desc);
+
+        actual->texture = builder.buildShared(*ctx.vkCtx);
+        if (auto* image = actual->texture ? actual->texture->getImageResource() : nullptr)
         {
-            actual->view = vkcore::ImageViewResource::create2D(*ctx.vkCtx, *actual->image, _desc.format, _desc.aspectMask);
+            image->setDebugName(_name);
         }
-        
     }
     if (ctx.compiled_)
     {

@@ -4,8 +4,6 @@
 #include "CommandPool.h"
 #include "Image.h"
 
-#include "vk_initializers.h"
-
 #include <Eigen/Eigen>
 
 namespace {
@@ -30,6 +28,7 @@ vk::ImageLayout layout_for_usage(const ImageUsage& usage)
     case ImageUsage::TransferDst: return vk::ImageLayout::eTransferDstOptimal;
     case ImageUsage::TransferSrc: return vk::ImageLayout::eTransferSrcOptimal;
     case ImageUsage::Sampled: return vk::ImageLayout::eShaderReadOnlyOptimal;
+    case ImageUsage::Storage: return vk::ImageLayout::eGeneral;
     case ImageUsage::ColorAttachment: return vk::ImageLayout::eColorAttachmentOptimal;
     case ImageUsage::DepthStencilAttachment: return vk::ImageLayout::eDepthStencilAttachmentOptimal;
     case ImageUsage::Present: return vk::ImageLayout::ePresentSrcKHR;
@@ -55,6 +54,13 @@ StageAccess stage_access_for_usage(const ImageUsage& usage, const bool is_src)
         return {
             vk::PipelineStageFlagBits2::eFragmentShader | vk::PipelineStageFlagBits2::eComputeShader,
             vk::AccessFlagBits2::eShaderRead
+        };
+    case ImageUsage::Storage:
+        return {
+            vk::PipelineStageFlagBits2::eFragmentShader | vk::PipelineStageFlagBits2::eComputeShader,
+            is_src
+                ? vk::AccessFlagBits2::eShaderStorageWrite
+                : (vk::AccessFlagBits2::eShaderStorageRead | vk::AccessFlagBits2::eShaderStorageWrite)
         };
 
     case ImageUsage::ColorAttachment:
@@ -169,7 +175,13 @@ void CommandBuffer::generateMipmaps(ImageResource& image, vk::Extent2D image_siz
         image_barrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
 
         constexpr vk::ImageAspectFlags aspect_mask  = vk::ImageAspectFlagBits::eColor;
-        image_barrier.subresourceRange              = vkinit::image_subresource_range(aspect_mask);
+        image_barrier.subresourceRange              = vk::ImageSubresourceRange{
+            aspect_mask,
+            0,
+            1,
+            0,
+            1
+        };
         image_barrier.subresourceRange.levelCount   = 1;
         image_barrier.subresourceRange.baseMipLevel = mip;
         image_barrier.image                         = image.getHandle();
@@ -307,10 +319,33 @@ void CommandBuffer::transitionImage(ImageResource&          image, vk::ImageLayo
     image_barrier.oldLayout = image.getCurrentLayout();
     image_barrier.newLayout = new_layout;
 
-    const vk::ImageAspectFlags aspect_mask = (new_layout == vk::ImageLayout::eDepthAttachmentOptimal)
+    auto is_depth_layout = [](vk::ImageLayout layout)
+    {
+        switch (layout)
+        {
+        case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+        case vk::ImageLayout::eDepthAttachmentOptimal:
+        case vk::ImageLayout::eDepthReadOnlyOptimal:
+        case vk::ImageLayout::eDepthStencilReadOnlyOptimal:
+        case vk::ImageLayout::eDepthReadOnlyStencilAttachmentOptimal:
+        case vk::ImageLayout::eStencilAttachmentOptimal:
+        case vk::ImageLayout::eStencilReadOnlyOptimal:
+            return true;
+        default:
+            return false;
+        }
+    };
+
+    const vk::ImageAspectFlags aspect_mask = is_depth_layout(new_layout)
                                                  ? vk::ImageAspectFlagBits::eDepth
                                                  : vk::ImageAspectFlagBits::eColor;
-    image_barrier.subresourceRange = vkinit::image_subresource_range(aspect_mask);
+    image_barrier.subresourceRange = vk::ImageSubresourceRange{
+        aspect_mask,
+        0,
+        1,
+        0,
+        1
+    };
     image_barrier.image            = image.getHandle();
 
     vk::DependencyInfo dep_info;
@@ -323,6 +358,37 @@ void CommandBuffer::transitionImage(ImageResource&          image, vk::ImageLayo
     _handle.pipelineBarrier2(&dep_info);
 
     image.setCurrentLayout(new_layout);
+}
+
+void CommandBuffer::transitionImage(vk::Image               image,
+                                    vk::ImageLayout         old_layout,
+                                    vk::ImageLayout         new_layout,
+                                    vk::ImageAspectFlags    aspect_mask,
+                                    vk::PipelineStageFlags2 src_stage,
+                                    vk::AccessFlags2        src_access,
+                                    vk::PipelineStageFlags2 dst_stage,
+                                    vk::AccessFlags2        dst_access)
+{
+    vk::ImageMemoryBarrier2 image_barrier{};
+    image_barrier.srcStageMask  = src_stage;
+    image_barrier.srcAccessMask = src_access;
+    image_barrier.dstStageMask  = dst_stage;
+    image_barrier.dstAccessMask = dst_access;
+    image_barrier.oldLayout     = old_layout;
+    image_barrier.newLayout     = new_layout;
+    image_barrier.subresourceRange = vk::ImageSubresourceRange{
+        aspect_mask,
+        0,
+        1,
+        0,
+        1
+    };
+    image_barrier.image = image;
+
+    vk::DependencyInfo dep_info{};
+    dep_info.imageMemoryBarrierCount = 1;
+    dep_info.pImageMemoryBarriers    = &image_barrier;
+    _handle.pipelineBarrier2(&dep_info);
 }
 
 void CommandBuffer::transitionImage(ImageResource& image, const ImageUsage& new_usage)
@@ -369,6 +435,46 @@ void CommandBuffer::copyImageToImage(const ImageResource& source, const ImageRes
     blit_info.srcImage       = source.getHandle();
     blit_info.srcImageLayout = source.getCurrentLayout();
     blit_info.filter         = vk::Filter::eLinear;
+    blit_info.regionCount    = 1;
+    blit_info.pRegions       = &blit_region;
+
+    _handle.blitImage2(&blit_info);
+}
+
+void CommandBuffer::blitImage(vk::Image       source,
+                              vk::ImageLayout source_layout,
+                              vk::Image       destination,
+                              vk::ImageLayout destination_layout,
+                              vk::Extent3D    source_extent,
+                              vk::Extent3D    destination_extent,
+                              vk::Filter      filter)
+{
+    vk::ImageBlit2 blit_region{};
+
+    blit_region.srcOffsets[1].x = static_cast<int32_t>(source_extent.width);
+    blit_region.srcOffsets[1].y = static_cast<int32_t>(source_extent.height);
+    blit_region.srcOffsets[1].z = static_cast<int32_t>(source_extent.depth);
+
+    blit_region.dstOffsets[1].x = static_cast<int32_t>(destination_extent.width);
+    blit_region.dstOffsets[1].y = static_cast<int32_t>(destination_extent.height);
+    blit_region.dstOffsets[1].z = static_cast<int32_t>(destination_extent.depth);
+
+    blit_region.srcSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
+    blit_region.srcSubresource.baseArrayLayer = 0;
+    blit_region.srcSubresource.layerCount     = 1;
+    blit_region.srcSubresource.mipLevel       = 0;
+
+    blit_region.dstSubresource.aspectMask     = vk::ImageAspectFlagBits::eColor;
+    blit_region.dstSubresource.baseArrayLayer = 0;
+    blit_region.dstSubresource.layerCount     = 1;
+    blit_region.dstSubresource.mipLevel       = 0;
+
+    vk::BlitImageInfo2 blit_info{};
+    blit_info.srcImage       = source;
+    blit_info.srcImageLayout = source_layout;
+    blit_info.dstImage       = destination;
+    blit_info.dstImageLayout = destination_layout;
+    blit_info.filter         = filter;
     blit_info.regionCount    = 1;
     blit_info.pRegions       = &blit_region;
 
