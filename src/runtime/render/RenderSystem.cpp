@@ -6,12 +6,17 @@
 #include "gpu/render graph/renderpass/DebugAabbPass.h"
 #include "gpu/render graph/renderpass/OutlinePass.h"
 #include "gpu/render graph/renderpass/UiGizmoPass.h"
+#include "gpu/render graph/renderpass/BlitPass.h"
+#include "gpu/render graph/renderpass/DistortionPass.h"
+#include "gpu/render graph/renderpass/GaussianBlurPass.h"
 #include "render graph/renderpass/OpaquePass.h"
+#include "render graph/ResourceTexture.h"
 #include "render/RenderTypes.h"
 
 namespace dk::render {
 RenderSystem::RenderSystem(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx, ResourceLoader& loader)
-    : _cpu_loader(loader)
+    : _context(ctx)
+    , _cpu_loader(loader)
     , _debug_render_service(ctx, upload_ctx)
     , _ui_render_service(ctx, upload_ctx)
 {
@@ -95,6 +100,123 @@ void RenderSystem::execute(dk::RenderGraphContext& ctx)
         _compiled = true;
     }
     _graph.execute(ctx);
+}
+
+void RenderSystem::setPostProcessSettings(const PostProcessSettings& settings)
+{
+    if (settings.enable_distortion != _postprocess_settings.enable_distortion ||
+        settings.enable_gaussian_blur != _postprocess_settings.enable_gaussian_blur)
+    {
+        _postprocess_dirty = true;
+    }
+    _postprocess_settings = settings;
+}
+
+void RenderSystem::executePostProcess(dk::RenderGraphContext& ctx,
+                                      VkImage                image,
+                                      VkImageView            image_view,
+                                      const vk::Extent3D&    extent,
+                                      vk::Format             format)
+{
+    if (!_postprocess_settings.enable_distortion && !_postprocess_settings.enable_gaussian_blur)
+    {
+        return;
+    }
+
+    if (!_postprocess_graph || _postprocess_dirty)
+    {
+        rebuildPostProcessGraph(image, image_view, extent, format);
+    }
+
+    if (_postprocess_graph)
+    {
+        _postprocess_graph->execute(ctx);
+    }
+}
+
+void RenderSystem::rebuildPostProcessGraph(VkImage             image,
+                                           VkImageView         image_view,
+                                           const vk::Extent3D& extent,
+                                           vk::Format          format)
+{
+    using MyRes = RGResource<ImageDesc, FrameGraphImage>;
+
+    struct CreateTempData
+    {
+        MyRes* distortion = nullptr;
+        MyRes* blur       = nullptr;
+    };
+
+    _postprocess_graph = std::make_shared<RenderGraph>();
+    if (!_postprocess_blit_pass)
+    {
+        _postprocess_blit_pass = std::make_shared<BlitPass>();
+    }
+    if (!_gaussian_blur_pass)
+    {
+        _gaussian_blur_pass = std::make_shared<GaussianBlurPass>();
+        _gaussian_blur_pass->init(&_context);
+    }
+    if (!_distortion_pass)
+    {
+        _distortion_pass = std::make_shared<DistortionPass>();
+        _distortion_pass->init(&_context);
+    }
+
+    ImageDesc desc{
+        .width = extent.width,
+        .height = extent.height,
+        .depth = extent.depth,
+        .format = format
+    };
+    _postprocess_color_image = std::make_shared<MyRes>("color src", desc, ResourceLifetime::External);
+    _postprocess_color_image->setExternal(image, image_view);
+    _postprocess_blit_pass->setSrc(_postprocess_color_image.get());
+
+    MyRes* distortion_output = nullptr;
+    MyRes* blur_output       = nullptr;
+    _postprocess_graph->addTask<CreateTempData>(
+        "Create postprocess temp data",
+        [&](CreateTempData& data, RenderTaskBuilder& builder)
+        {
+            ImageDesc temp_desc{
+                .width = extent.width,
+                .height = extent.height,
+                .format = format,
+                .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment |
+                         vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
+            };
+            if (_postprocess_settings.enable_distortion)
+            {
+                data.distortion   = builder.create<MyRes>("color_distortion", temp_desc);
+                distortion_output = data.distortion;
+            }
+            if (_postprocess_settings.enable_gaussian_blur)
+            {
+                data.blur  = builder.create<MyRes>("color_after_blur", temp_desc);
+                blur_output = data.blur;
+            }
+        },
+        [](const CreateTempData&, dk::RenderGraphContext&) {}
+    );
+
+    MyRes* current_input = _postprocess_color_image.get();
+    if (_postprocess_settings.enable_distortion && distortion_output)
+    {
+        _distortion_pass->registerToGraph(*_postprocess_graph, current_input, distortion_output);
+        current_input = distortion_output;
+    }
+    if (_postprocess_settings.enable_gaussian_blur && blur_output)
+    {
+        _gaussian_blur_pass->registerToGraph(*_postprocess_graph, current_input, blur_output);
+        current_input = blur_output;
+    }
+    if (current_input != _postprocess_color_image.get())
+    {
+        _postprocess_blit_pass->registerToGraph(*_postprocess_graph, current_input, _postprocess_color_image.get());
+    }
+    _postprocess_graph->compile();
+    _postprocess_dirty = false;
 }
 
 void RenderSystem::buildDrawLists()
