@@ -14,6 +14,15 @@
 #include "Vulkan/ShaderModule.h"
 
 namespace dk {
+BlitPass::BlitPass()
+{
+}
+
+BlitPass::~BlitPass()
+{
+
+}
+
 void BlitPass::init(vkcore::VulkanContext& ctx)
 {
 }

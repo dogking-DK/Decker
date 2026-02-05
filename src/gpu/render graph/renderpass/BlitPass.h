@@ -12,11 +12,14 @@ namespace vkcore {
     class DescriptorSetLayout;
     class BufferResource;
     class VulkanContext;
+    //class GrowableDescriptorAllocator;
 }
 
 class BlitPass
 {
 public:
+    BlitPass();
+    ~BlitPass();
     struct BlitPassData
     {
         RGResource<ImageDesc, FrameGraphImage>* src;
@@ -52,7 +55,7 @@ private:
 
     // 描述符相关
     std::unique_ptr<vkcore::DescriptorSetLayout>         _layout;
-    std::unique_ptr<vkcore::GrowableDescriptorAllocator> _frame_allocator;
+    //std::unique_ptr<vkcore::GrowableDescriptorAllocator> _frame_allocator;
 
     // 管线相关
     std::unique_ptr<vkcore::PipelineLayout> _pipeline_layout;
