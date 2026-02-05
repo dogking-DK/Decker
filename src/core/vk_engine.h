@@ -51,11 +51,6 @@ namespace dk::render {
 class RenderSystem;
 }
 
-namespace dk {
-class GaussianBlurPass;
-class DistortionPass;
-}
-
 namespace dk::vkcore {
 class GrowableDescriptorAllocator;
 }
@@ -65,14 +60,10 @@ namespace fastgltf
 }
 
 namespace dk {
-struct ImageDesc;
-class FrameGraphImage;
 class SpringRenderer;
 class PointCloudRenderer;   // ← 前置声明（不需要包含头）
-class BlitPass;
 class MacGridPointRenderer;
 class MacGridVectorRenderer;
-class RenderGraph;
 
 struct EngineStats
 {
@@ -173,8 +164,6 @@ public:
     AllocatedImage _drawImage;
     AllocatedImage _depthImage;
 
-    std::shared_ptr<RGResource<ImageDesc, FrameGraphImage>> color_image;
-
     // immediate submit structures
     VkFence _immFence;
     VkCommandBuffer _immCommandBuffer;
@@ -217,10 +206,6 @@ public:
     std::shared_ptr<SpringRenderer> m_spring_renderer;
     std::shared_ptr<MacGridVectorRenderer> m_vector_render;
     std::shared_ptr<MacGridPointRenderer> m_grid_point_render;
-    std::shared_ptr<RenderGraph> render_graph;
-    std::shared_ptr<BlitPass> m_blit_pass;
-    std::shared_ptr<GaussianBlurPass> m_gaussian_blur_pass;
-    std::shared_ptr<DistortionPass> m_distortion_pass;
     std::shared_ptr<SceneSystem> m_scene_system;
 
     std::unique_ptr<World> physic_world;
@@ -301,7 +286,6 @@ private:
 
     void init_default_data();
 
-    void test_render_graph();
 
 };
 
