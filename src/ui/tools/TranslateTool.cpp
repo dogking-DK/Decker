@@ -11,7 +11,7 @@ bool TranslateTool::handleInput(const dk::input::InputState& /*state*/, const dk
 
 void TranslateTool::update(const ToolContext& ctx)
 {
-    if (!_state)
+    if (!_state || !ctx.translateEnabled)
     {
         return;
     }

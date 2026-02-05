@@ -16,6 +16,7 @@ struct InputContext
     dk::SceneNode* selectedNode{nullptr};
     bool imguiWantsMouse{false};
     bool imguiWantsKeyboard{false};
+    bool translateEnabled{true};
 };
 
 } // namespace dk::input

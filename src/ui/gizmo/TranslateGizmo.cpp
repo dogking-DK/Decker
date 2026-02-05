@@ -8,7 +8,7 @@ namespace dk::ui {
 
 bool TranslateGizmo::handleInput(const dk::input::InputState& state, const dk::input::InputContext& ctx)
 {
-    if (!_state)
+    if (!_state || !ctx.translateEnabled)
     {
         return false;
     }

@@ -207,6 +207,7 @@ public:
 
     EngineStats stats;
     bool        _show_aabb_bounds{false};
+    bool        _translate_gizmo_enabled{true};
 
     std::vector<ComputeEffect> backgroundEffects;
     int currentBackgroundEffect{ 0 };

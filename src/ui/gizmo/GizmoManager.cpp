@@ -37,6 +37,10 @@ void GizmoManager::render(const GizmoContext& ctx)
 {
     if (_active && _active->isEnabled())
     {
+        if (_active->toolType() == ToolType::Translate && !ctx.translateEnabled)
+        {
+            return;
+        }
         _active->render(ctx);
     }
 }
