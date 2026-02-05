@@ -17,6 +17,7 @@ struct GizmoContext
     dk::SceneNode* selectedNode{nullptr};
     dk::render::UiRenderService* uiRenderService{nullptr};
     float          translateSensitivity{0.01f};
+    bool           translateEnabled{true};
 };
 
 } // namespace dk::ui

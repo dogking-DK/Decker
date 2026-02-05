@@ -975,6 +975,7 @@ void VulkanEngine::run()
         _input_context.selectedNode     = hierarchy_panel.selectedNode();
         _input_context.imguiWantsMouse  = io.WantCaptureMouse;
         _input_context.imguiWantsKeyboard = io.WantCaptureKeyboard;
+        _input_context.translateEnabled = _translate_gizmo_enabled;
         if (_input_router)
         {
             _input_router->route(_input_state, _input_context);
@@ -984,6 +985,7 @@ void VulkanEngine::run()
             ui::ToolContext tool_ctx{};
             tool_ctx.camera       = &mainCamera;
             tool_ctx.selectedNode = hierarchy_panel.selectedNode();
+            tool_ctx.translateEnabled = _translate_gizmo_enabled;
             _tool_manager->update(tool_ctx);
         }
         static float time = 0;
@@ -993,6 +995,10 @@ void VulkanEngine::run()
         const bool settings_open = ImGui::Begin("设置面板", nullptr, ImGuiWindowFlags_NoCollapse);
         if (settings_open)
         {
+            if (ImGui::CollapsingHeader("工具设置", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Checkbox("启用平移", &_translate_gizmo_enabled);
+            }
             if (ImGui::CollapsingHeader("背景设置", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];

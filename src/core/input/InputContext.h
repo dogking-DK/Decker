@@ -17,6 +17,7 @@ struct InputContext
     float translateSensitivity{ 0.2 };
     bool imguiWantsMouse{false};
     bool imguiWantsKeyboard{false};
+    bool translateEnabled{true};
 };
 
 } // namespace dk::input
