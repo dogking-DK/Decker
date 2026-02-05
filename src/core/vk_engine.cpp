@@ -34,6 +34,10 @@
 #include "data/MACInit.h"
 #include "fluid/FluidSystem.h"
 #include "force/DampingForce.h"
+#include "render graph/RenderGraph.h"
+#include "render graph/Resource.h"
+#include "render graph/ResourceTexture.h"
+#include "render graph/renderpass/BlitPass.h"
 #include "render/MacGridPointRender.h"
 #include "render/MacGridVectorRenderer.h"
 #include "solver/PBDSolver.h"
@@ -43,6 +47,8 @@
 # include <vk_mem_alloc.h>
 
 #include "Scene.h"
+#include "render graph/renderpass/GaussianBlurPass.h"
+#include "render graph/renderpass/DistortionPass.h"
 #include "resource/cpu/MeshLoader.h"
 #include "render/RenderSystem.h"
 
@@ -158,6 +164,9 @@ void VulkanEngine::init()
     point_cloud_renderer = std::make_unique<PointCloudRenderer>(_context);
     point_cloud_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
     fmt::print("build point cloud render\n");
+
+    test_render_graph();
+
 
     m_spring_renderer = std::make_unique<SpringRenderer>(_context);
     m_spring_renderer->init(vk::Format::eR16G16B16A16Sfloat, vk::Format::eD32Sfloat);
@@ -305,6 +314,79 @@ void VulkanEngine::init_default_data()
     });
 }
 
+void VulkanEngine::test_render_graph()
+{
+    using MyRes = RGResource<ImageDesc, FrameGraphImage>;
+
+    MyRes* res1 = nullptr;
+    MyRes* res2 = nullptr;
+
+    // Task A
+    struct CreateTempData
+    {
+        MyRes* distortion = nullptr;
+        MyRes* blur       = nullptr;
+    };
+
+    if (render_graph == nullptr)
+    {
+        render_graph         = std::make_shared<RenderGraph>();
+        m_blit_pass          = std::make_shared<BlitPass>();
+        m_gaussian_blur_pass = std::make_shared<GaussianBlurPass>();
+        m_distortion_pass    = std::make_shared<DistortionPass>();
+        m_gaussian_blur_pass->init(_context);
+        m_distortion_pass->init(_context);
+    }
+    ImageDesc desc{
+        .width = _drawImage.imageExtent.width,
+        .height = _drawImage.imageExtent.height,
+        .depth = _drawImage.imageExtent.depth,
+        .format = static_cast<vk::Format>(_drawImage.imageFormat)
+    };
+    color_image = make_shared<MyRes>("color src", desc, ResourceLifetime::External);
+    color_image->setExternal(
+        _drawImage.image,
+        _drawImage.imageView  // 或者你封装里的 view
+    );
+    m_blit_pass->setSrc(color_image.get());
+
+    render_graph->addTask<CreateTempData>(
+        "Create temp data",
+        // setup
+        [&](CreateTempData& data, RenderTaskBuilder& b)
+        {
+            ImageDesc desc{
+                .width = _drawImage.imageExtent.width,
+                .height = _drawImage.imageExtent.height,
+                .format = static_cast<vk::Format>(_drawImage.imageFormat),
+                .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment |
+                         vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
+            };
+            auto* r1        = b.create<MyRes>("color_temp", desc);
+            auto* r2        = b.create<MyRes>("color_after_blur", desc);
+            auto* distort   = b.create<MyRes>("color_distortion", desc);
+            res1            = r1;
+            res2            = distort;
+            data.distortion = distort;
+            data.blur       = r2;
+        },
+        // execute
+        [&](const CreateTempData& data, RenderGraphContext& ctx)
+        {
+            (void)data;
+        }
+    );
+    m_blit_pass->registerToGraph(*render_graph, color_image.get(), res1);
+    //m_distortion_pass->registerToGraph(*render_graph, res1, color_image.get());
+    //m_gaussian_blur_pass->registerToGraph(*render_graph, res2, color_image.get());
+    RenderGraphContext ctx;
+    ctx.vkCtx      = _context;
+    ctx.frame_data = &get_current_frame();
+    // 编译 + 执行
+    render_graph->compile();
+    //render_graph->execute(ctx);
+}
+
 void VulkanEngine::cleanup()
 {
     if (_isInitialized)
@@ -332,6 +414,11 @@ void VulkanEngine::cleanup()
             point_cloud_renderer->cleanup();
             point_cloud_renderer.reset();
         }
+        color_image.reset();
+        render_graph.reset();
+        m_blit_pass.reset();
+        m_gaussian_blur_pass.reset();
+        m_distortion_pass.reset();
         m_scene_system.reset();
         _render_system.reset();
         if (_upload_pool)
@@ -573,14 +660,7 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     RenderGraphContext ctx;
     ctx.vkCtx      = _context;
     ctx.frame_data = &get_current_frame();
-    if (_render_system)
-    {
-        _render_system->executePostProcess(ctx,
-                                           _drawImage.image,
-                                           _drawImage.imageView,
-                                           _drawImage.imageExtent,
-                                           static_cast<vk::Format>(_drawImage.imageFormat));
-    }
+    render_graph->execute(ctx);
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)
@@ -1059,28 +1139,6 @@ void VulkanEngine::run()
                 ImGui::Text("drawtime %f ms", stats.mesh_draw_time);
                 ImGui::Text("triangles %i", stats.triangle_count);
                 ImGui::Text("draws %i", stats.drawcall_count);
-                if (_render_system)
-                {
-                    auto settings = _render_system->postProcessSettings();
-                    bool distortion_enabled = settings.enable_distortion;
-                    bool blur_enabled       = settings.enable_gaussian_blur;
-                    bool postprocess_changed = false;
-
-                    if (ImGui::Checkbox("Distortion Pass", &distortion_enabled))
-                    {
-                        settings.enable_distortion = distortion_enabled;
-                        postprocess_changed = true;
-                    }
-                    if (ImGui::Checkbox("Gaussian Blur Pass", &blur_enabled))
-                    {
-                        settings.enable_gaussian_blur = blur_enabled;
-                        postprocess_changed = true;
-                    }
-                    if (postprocess_changed)
-                    {
-                        _render_system->setPostProcessSettings(settings);
-                    }
-                }
                 if (ImGui::Checkbox("Show AABB", &_show_aabb_bounds))
                 {
                     if (_render_system)
