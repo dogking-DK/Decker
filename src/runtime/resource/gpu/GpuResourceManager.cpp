@@ -125,7 +125,7 @@ std::shared_ptr<GPUTexture> GpuResourceManager::getDefaultWhiteTexture()
     texture.height   = 1;
     texture.depth    = 1;
     texture.channels = 4;
-    texture.pixels   = {255, 255, 255, 255};
+    texture.pixels   = {128, 128, 128, 128};
 
     _default_white_texture = uploadTextureData(texture);
     return _default_white_texture;

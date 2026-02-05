@@ -128,11 +128,11 @@ void UiRenderService::drawQuad(const glm::vec3& p0,
 
 UiRenderService::LineBatch& UiRenderService::getOrCreateBatch(const glm::vec4& color)
 {
-    auto iter = std::find_if(_line_batches.begin(), _line_batches.end(),
-                             [&](const LineBatch& batch)
-                             {
-                                 return batch.color == color;
-                             });
+    auto iter = std::ranges::find_if(_line_batches,
+                                     [&](const LineBatch& batch)
+                                     {
+                                         return batch.color == color;
+                                     });
     if (iter != _line_batches.end())
     {
         return *iter;

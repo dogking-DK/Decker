@@ -34,10 +34,10 @@ void HierarchyPanel::drawNode(SceneNode& n)
         _node_clicked_this_frame = true;
     }
     ImGui::SameLine();
-    //bool               open = ImGui::TreeNodeEx(&n.id, flags, "%s", n.name.c_str());
-    bool               open  = ImGui::TreeNodeEx(&n.id, flags,
-                                  "%s  [%s]", n.name.c_str(),
-                                  to_string(n.id).c_str());
+    bool               open = ImGui::TreeNodeEx(&n.id, flags, "%s", n.name.c_str());
+    //bool               open  = ImGui::TreeNodeEx(&n.id, flags,
+    //                              "%s  [%s]", n.name.c_str(),
+    //                              to_string(n.id).c_str());
     ImGui::PopID();
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
     {
