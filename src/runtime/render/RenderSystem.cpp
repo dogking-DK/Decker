@@ -35,35 +35,12 @@ void RenderSystem::init(vk::Format color_format, vk::Format depth_format)
 
     _opaque_pass->init(color_format, depth_format);
     _gpu_cache->setMaterialDescriptorLayout(_opaque_pass->getMaterialDescriptorLayout());
-    _opaque_pass->registerToGraph(_graph);
 
     _outline_pass->init(color_format, depth_format);
-    _outline_pass->registerToGraph(_graph);
 
     _debug_aabb_pass->init(color_format, depth_format);
-    _debug_aabb_pass->registerToGraph(_graph);
 
     _ui_gizmo_pass->init(color_format, depth_format);
-    _ui_gizmo_pass->registerToGraph(_graph);
-
-    _graph.addTask<int>(
-        "Fluid Volume Pass",
-        [](int&, RenderTaskBuilder&) {},
-        [](const int&, RenderGraphContext&)
-        {
-            // TODO: 接入体渲染/体素流体的 Raymarch 或参与光照的体积合成。
-        });
-
-    _graph.addTask<int>(
-        "Voxel Pass",
-        [](int&, RenderTaskBuilder&) {},
-        [](const int&, RenderGraphContext&)
-        {
-            // TODO: 接入体素表面或 SDF 可视化。
-        });
-
-    _graph.compile();
-    _compiled = true;
 }
 
 void RenderSystem::resizeRenderTargets(const vk::Extent2D& extent)
@@ -108,6 +85,8 @@ void RenderSystem::resizeRenderTargets(const vk::Extent2D& extent)
     depth_builder.withDefaultView(depth_view);
 
     _depth_target = depth_builder.buildShared(_context);
+
+    buildGraph();
 }
 
 void RenderSystem::prepareFrame(const Scene& scene,
@@ -138,12 +117,108 @@ void RenderSystem::prepareFrame(const Scene& scene,
 
 void RenderSystem::execute(dk::RenderGraphContext& ctx)
 {
+    if (!_graph_built)
+    {
+        if (_color_target && _depth_target)
+        {
+            buildGraph();
+        }
+        else
+        {
+            return;
+        }
+    }
     if (!_compiled)
     {
         _graph.compile();
         _compiled = true;
     }
     _graph.execute(ctx);
+}
+
+void RenderSystem::buildGraph()
+{
+    if (!_color_target || !_depth_target)
+    {
+        return;
+    }
+
+    _graph = RenderGraph{};
+    _rg_color = nullptr;
+    _rg_depth = nullptr;
+    _graph_built = false;
+    _compiled = false;
+
+    struct TargetData
+    {
+    };
+
+    _graph.addTask<TargetData>(
+        "Render Targets",
+        [this](TargetData&, RenderTaskBuilder& builder)
+        {
+            const auto color_extent = _color_target->getExtent();
+            ImageDesc color_desc{};
+            color_desc.width = color_extent.width;
+            color_desc.height = color_extent.height;
+            color_desc.depth = color_extent.depth;
+            color_desc.format = _color_target->getFormat();
+            color_desc.usage = vk::ImageUsageFlagBits::eColorAttachment |
+                               vk::ImageUsageFlagBits::eTransferSrc |
+                               vk::ImageUsageFlagBits::eStorage;
+            color_desc.aspectMask = vk::ImageAspectFlagBits::eColor;
+
+            auto* color_res = builder.create<RGResource<ImageDesc, FrameGraphImage>>(
+                "scene_color",
+                color_desc,
+                ResourceLifetime::External);
+            color_res->setExternal(_color_target);
+            _rg_color = color_res;
+
+            const auto depth_extent = _depth_target->getExtent();
+            ImageDesc depth_desc{};
+            depth_desc.width = depth_extent.width;
+            depth_desc.height = depth_extent.height;
+            depth_desc.depth = depth_extent.depth;
+            depth_desc.format = _depth_target->getFormat();
+            depth_desc.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+            depth_desc.aspectMask = vk::ImageAspectFlagBits::eDepth;
+
+            auto* depth_res = builder.create<RGResource<ImageDesc, FrameGraphImage>>(
+                "scene_depth",
+                depth_desc,
+                ResourceLifetime::External);
+            depth_res->setExternal(_depth_target);
+            _rg_depth = depth_res;
+        },
+        [](const TargetData&, RenderGraphContext&)
+        {
+        });
+
+    _opaque_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+    _outline_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+    _debug_aabb_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+    _ui_gizmo_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+
+    _graph.addTask<int>(
+        "Fluid Volume Pass",
+        [](int&, RenderTaskBuilder&) {},
+        [](const int&, RenderGraphContext&)
+        {
+            // TODO: 接入体渲染/体素流体的 Raymarch 或参与光照的体积合成。
+        });
+
+    _graph.addTask<int>(
+        "Voxel Pass",
+        [](int&, RenderTaskBuilder&) {},
+        [](const int&, RenderGraphContext&)
+        {
+            // TODO: 接入体素表面或 SDF 可视化。
+        });
+
+    _graph.compile();
+    _compiled = true;
+    _graph_built = true;
 }
 
 void RenderSystem::buildDrawLists()

@@ -6,6 +6,7 @@
 
 #include "render graph/RenderGraph.h"
 #include "render graph/RenderTaskBuilder.h"
+#include "render graph/ResourceTexture.h"
 #include "render/DrawList.h"
 #include "Vulkan/Context.h"
 #include "Vulkan/Pipeline.h"
@@ -18,7 +19,9 @@ public:
     explicit OutlinePass(vkcore::VulkanContext& ctx);
 
     void init(vk::Format color_format, vk::Format depth_format);
-    void registerToGraph(RenderGraph& graph);
+    void registerToGraph(RenderGraph& graph,
+                         RGResource<ImageDesc, FrameGraphImage>* color,
+                         RGResource<ImageDesc, FrameGraphImage>* depth);
 
     void setFrameData(const FrameContext* frame, const DrawLists* lists)
     {
@@ -29,6 +32,8 @@ public:
 private:
     struct OutlinePassData
     {
+        RGResource<ImageDesc, FrameGraphImage>* color{nullptr};
+        RGResource<ImageDesc, FrameGraphImage>* depth{nullptr};
     };
 
     struct PushConstants
@@ -38,7 +43,7 @@ private:
         glm::vec4 params;
     };
 
-    void record(::dk::RenderGraphContext& ctx) const;
+    void record(::dk::RenderGraphContext& ctx, const OutlinePassData& data) const;
 
     vkcore::VulkanContext&              _context;
     std::unique_ptr<vkcore::PipelineLayout> _pipeline_layout;

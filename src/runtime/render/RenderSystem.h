@@ -11,6 +11,7 @@
 #include "render/UiRenderService.h"
 #include "render/SimulationRenderData.h"
 #include "render graph/RenderGraph.h"
+#include "render graph/ResourceTexture.h"
 
 namespace dk::vkcore {
 class VulkanContext;
@@ -61,6 +62,7 @@ public:
     const RenderWorld& getRenderWorld() const { return _render_world; }
 private:
     void buildDrawLists();
+    void buildGraph();
 
     vkcore::VulkanContext&            _context;
     ResourceLoader&                     _cpu_loader;
@@ -77,11 +79,14 @@ private:
     std::unique_ptr<UiGizmoPass>         _ui_gizmo_pass;
     RenderGraph                          _graph;
     bool                                 _compiled{false};
+    bool                                 _graph_built{false};
     vk::Format                           _color_format{vk::Format::eUndefined};
     vk::Format                           _depth_format{vk::Format::eUndefined};
     vk::Extent2D                         _target_extent{};
     std::shared_ptr<vkcore::TextureResource> _color_target{};
     std::shared_ptr<vkcore::TextureResource> _depth_target{};
+    RGResource<ImageDesc, FrameGraphImage>* _rg_color{nullptr};
+    RGResource<ImageDesc, FrameGraphImage>* _rg_depth{nullptr};
     std::optional<FluidRenderData>       _fluid_data;
     std::optional<VoxelRenderData>       _voxel_data;
     bool                                 _debug_draw_aabb{false};

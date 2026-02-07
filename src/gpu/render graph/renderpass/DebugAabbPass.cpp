@@ -63,21 +63,33 @@ void DebugAabbPass::init(vk::Format color_format, vk::Format depth_format)
     vkcore::ShaderCompiler::finalizeGlslang();
 }
 
-void DebugAabbPass::registerToGraph(RenderGraph& graph)
+void DebugAabbPass::registerToGraph(RenderGraph& graph,
+                                    RGResource<ImageDesc, FrameGraphImage>* color,
+                                    RGResource<ImageDesc, FrameGraphImage>* depth)
 {
     graph.addTask<DebugAabbPassData>(
         "Debug AABB Pass",
-        [](DebugAabbPassData&, RenderTaskBuilder&)
+        [color, depth](DebugAabbPassData& data, RenderTaskBuilder& builder)
         {
+            data.color = color;
+            data.depth = depth;
+            if (data.color)
+            {
+                builder.write(data.color);
+            }
+            if (data.depth)
+            {
+                builder.read(data.depth);
+            }
         },
-        [this](const DebugAabbPassData&, RenderGraphContext& ctx)
+        [this](const DebugAabbPassData& data, RenderGraphContext& ctx)
         {
-            record(ctx);
+            record(ctx, data);
         }
     );
 }
 
-void DebugAabbPass::record(RenderGraphContext& ctx) const
+void DebugAabbPass::record(RenderGraphContext& ctx, const DebugAabbPassData& data) const
 {
     if (!_frame_ctx || !_debug_service || !_pipeline)
     {
@@ -95,6 +107,39 @@ void DebugAabbPass::record(RenderGraphContext& ctx) const
     {
         return;
     }
+
+    if (!data.color || !data.depth)
+    {
+        return;
+    }
+
+    auto* color_image = data.color->get();
+    auto* depth_image = data.depth->get();
+    if (!color_image || !depth_image)
+    {
+        return;
+    }
+
+    const auto& color_desc = data.color->desc();
+    const vk::Rect2D render_area{
+        {0, 0},
+        {color_desc.width, color_desc.height}
+    };
+
+    vk::RenderingAttachmentInfo color_attachment{};
+    color_attachment.imageView   = color_image->getVkImageView();
+    color_attachment.imageLayout = vk::ImageLayout::eGeneral;
+    color_attachment.loadOp      = vk::AttachmentLoadOp::eLoad;
+    color_attachment.storeOp     = vk::AttachmentStoreOp::eStore;
+
+    vk::RenderingAttachmentInfo depth_attachment{};
+    depth_attachment.imageView   = depth_image->getVkImageView();
+    depth_attachment.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    depth_attachment.loadOp      = vk::AttachmentLoadOp::eLoad;
+    depth_attachment.storeOp     = vk::AttachmentStoreOp::eStore;
+
+    auto& command_buffer = *ctx.frame_data->command_buffer_graphic;
+    command_buffer.beginRenderingColor(render_area, color_attachment, &depth_attachment);
 
     auto cmd = ctx.frame_data->command_buffer_graphic->getHandle();
 
@@ -131,5 +176,7 @@ void DebugAabbPass::record(RenderGraphContext& ctx) const
     constexpr uint32_t workgroup_size = 64;
     uint32_t group_count = (line_count + workgroup_size - 1) / workgroup_size;
     cmd.drawMeshTasksEXT(group_count, 1, 1);
+
+    command_buffer.endRendering();
 }
 } // namespace dk::render

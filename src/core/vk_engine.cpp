@@ -486,7 +486,14 @@ void VulkanEngine::draw_main(VkCommandBuffer cmd)
     RenderGraphContext ctx;
     ctx.vkCtx      = _context;
     ctx.frame_data = &get_current_frame();
-    render_graph->execute(ctx);
+    if (_render_system)
+    {
+        _render_system->execute(ctx);
+    }
+    else if (render_graph)
+    {
+        render_graph->execute(ctx);
+    }
 }
 
 void VulkanEngine::draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView)

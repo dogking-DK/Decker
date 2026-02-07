@@ -75,21 +75,33 @@ void UiGizmoPass::init(vk::Format color_format, vk::Format depth_format)
     vkcore::ShaderCompiler::finalizeGlslang();
 }
 
-void UiGizmoPass::registerToGraph(RenderGraph& graph)
+void UiGizmoPass::registerToGraph(RenderGraph& graph,
+                                  RGResource<ImageDesc, FrameGraphImage>* color,
+                                  RGResource<ImageDesc, FrameGraphImage>* depth)
 {
     graph.addTask<UiGizmoPassData>(
         "UI Gizmo Pass",
-        [](UiGizmoPassData&, RenderTaskBuilder&)
+        [color, depth](UiGizmoPassData& data, RenderTaskBuilder& builder)
         {
+            data.color = color;
+            data.depth = depth;
+            if (data.color)
+            {
+                builder.write(data.color);
+            }
+            if (data.depth)
+            {
+                builder.read(data.depth);
+            }
         },
-        [this](const UiGizmoPassData&, RenderGraphContext& ctx)
+        [this](const UiGizmoPassData& data, RenderGraphContext& ctx)
         {
-            record(ctx);
+            record(ctx, data);
         }
     );
 }
 
-void UiGizmoPass::record(RenderGraphContext& ctx) const
+void UiGizmoPass::record(RenderGraphContext& ctx, const UiGizmoPassData& data) const
 {
     if (!_frame_ctx || !_ui_service || !_pipeline || !_solid_pipeline)
     {
@@ -102,6 +114,39 @@ void UiGizmoPass::record(RenderGraphContext& ctx) const
     {
         return;
     }
+
+    if (!data.color || !data.depth)
+    {
+        return;
+    }
+
+    auto* color_image = data.color->get();
+    auto* depth_image = data.depth->get();
+    if (!color_image || !depth_image)
+    {
+        return;
+    }
+
+    const auto& color_desc = data.color->desc();
+    const vk::Rect2D render_area{
+        {0, 0},
+        {color_desc.width, color_desc.height}
+    };
+
+    vk::RenderingAttachmentInfo color_attachment{};
+    color_attachment.imageView   = color_image->getVkImageView();
+    color_attachment.imageLayout = vk::ImageLayout::eGeneral;
+    color_attachment.loadOp      = vk::AttachmentLoadOp::eLoad;
+    color_attachment.storeOp     = vk::AttachmentStoreOp::eStore;
+
+    vk::RenderingAttachmentInfo depth_attachment{};
+    depth_attachment.imageView   = depth_image->getVkImageView();
+    depth_attachment.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    depth_attachment.loadOp      = vk::AttachmentLoadOp::eLoad;
+    depth_attachment.storeOp     = vk::AttachmentStoreOp::eStore;
+
+    auto& command_buffer = *ctx.frame_data->command_buffer_graphic;
+    command_buffer.beginRenderingColor(render_area, color_attachment, &depth_attachment);
 
     auto cmd = ctx.frame_data->command_buffer_graphic->getHandle();
 
@@ -179,5 +224,7 @@ void UiGizmoPass::record(RenderGraphContext& ctx) const
         uint32_t group_count = (batch.line_count + workgroup_size - 1) / workgroup_size;
         cmd.drawMeshTasksEXT(group_count, 1, 1);
     }
+
+    command_buffer.endRendering();
 }
 } // namespace dk::render

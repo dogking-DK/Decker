@@ -6,6 +6,7 @@
 
 #include "render graph/RenderGraph.h"
 #include "render graph/RenderTaskBuilder.h"
+#include "render graph/ResourceTexture.h"
 #include "render/DrawList.h"
 #include "resource/gpu/GPUMesh.h"
 #include "Vulkan/Context.h"
@@ -20,7 +21,9 @@ public:
     explicit OpaquePass(vkcore::VulkanContext& ctx);
 
     void init(vk::Format color_format, vk::Format depth_format);
-    void registerToGraph(RenderGraph& graph);
+    void registerToGraph(RenderGraph& graph,
+                         RGResource<ImageDesc, FrameGraphImage>* color,
+                         RGResource<ImageDesc, FrameGraphImage>* depth);
     vkcore::DescriptorSetLayout* getMaterialDescriptorLayout() const { return _material_set_layout.get(); }
 
     void setFrameData(const FrameContext* frame, const DrawLists* lists)
@@ -32,6 +35,8 @@ public:
 private:
     struct OpaquePassData
     {
+        RGResource<ImageDesc, FrameGraphImage>* color{nullptr};
+        RGResource<ImageDesc, FrameGraphImage>* depth{nullptr};
     };
 
     struct PushConstants
@@ -40,7 +45,7 @@ private:
         glm::mat4 model;
     };
 
-    void record(::dk::RenderGraphContext& ctx) const;
+    void record(::dk::RenderGraphContext& ctx, const OpaquePassData& data) const;
 
     vkcore::VulkanContext&       _context;
     std::unique_ptr<vkcore::DescriptorSetLayout> _material_set_layout;

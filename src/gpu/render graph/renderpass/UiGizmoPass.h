@@ -6,6 +6,7 @@
 
 #include "render graph/RenderGraph.h"
 #include "render graph/RenderTaskBuilder.h"
+#include "render graph/ResourceTexture.h"
 #include "render/DrawList.h"
 #include "render/UiRenderService.h"
 #include "Vulkan/Context.h"
@@ -20,7 +21,9 @@ public:
     explicit UiGizmoPass(vkcore::VulkanContext& ctx);
 
     void init(vk::Format color_format, vk::Format depth_format);
-    void registerToGraph(RenderGraph& graph);
+    void registerToGraph(RenderGraph& graph,
+                         RGResource<ImageDesc, FrameGraphImage>* color,
+                         RGResource<ImageDesc, FrameGraphImage>* depth);
 
     void setFrameData(const FrameContext* frame, const UiRenderService* ui_service)
     {
@@ -31,6 +34,8 @@ public:
 private:
     struct UiGizmoPassData
     {
+        RGResource<ImageDesc, FrameGraphImage>* color{nullptr};
+        RGResource<ImageDesc, FrameGraphImage>* depth{nullptr};
     };
 
     struct PushConstants
@@ -39,7 +44,7 @@ private:
         glm::vec4 color;
     };
 
-    void record(::dk::RenderGraphContext& ctx) const;
+    void record(::dk::RenderGraphContext& ctx, const UiGizmoPassData& data) const;
 
     vkcore::VulkanContext& _context;
     std::unique_ptr<vkcore::DescriptorSetLayout> _descriptor_set_layout;
