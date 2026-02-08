@@ -1,6 +1,7 @@
 #include "RenderSystem.h"
 
 #include <algorithm>
+#include <array>
 
 #include "BVH/Frustum.hpp"
 #include "gpu/render graph/renderpass/DebugAabbPass.h"
@@ -8,6 +9,7 @@
 #include "gpu/render graph/renderpass/UiGizmoPass.h"
 #include "render graph/renderpass/OpaquePass.h"
 #include "render/RenderTypes.h"
+#include "Vulkan/CommandBuffer.h"
 #include "Vulkan/Texture.h"
 
 namespace dk::render {
@@ -193,6 +195,70 @@ void RenderSystem::buildGraph()
         },
         [](const TargetData&, RenderGraphContext&)
         {
+        });
+
+    struct ClearTargetsData
+    {
+        RGResource<ImageDesc, FrameGraphImage>* color{nullptr};
+        RGResource<ImageDesc, FrameGraphImage>* depth{nullptr};
+    };
+
+    _graph.addTask<ClearTargetsData>(
+        "Clear Render Targets",
+        [this](ClearTargetsData& data, RenderTaskBuilder& builder)
+        {
+            data.color = _rg_color;
+            data.depth = _rg_depth;
+            if (data.color)
+            {
+                builder.write(data.color);
+            }
+            if (data.depth)
+            {
+                builder.write(data.depth);
+            }
+        },
+        [](const ClearTargetsData& data, RenderGraphContext& ctx)
+        {
+            if (!ctx.frame_data || !ctx.frame_data->command_buffer_graphic)
+            {
+                return;
+            }
+            if (!data.color || !data.depth)
+            {
+                return;
+            }
+
+            auto* color_image = data.color->get();
+            auto* depth_image = data.depth->get();
+            if (!color_image || !depth_image)
+            {
+                return;
+            }
+
+            const auto& color_desc = data.color->desc();
+            const vk::Rect2D render_area{
+                {0, 0},
+                {color_desc.width, color_desc.height}
+            };
+
+            vk::RenderingAttachmentInfo color_attachment{};
+            color_attachment.imageView   = color_image->getVkImageView();
+            color_attachment.imageLayout = vk::ImageLayout::eGeneral;
+            color_attachment.loadOp      = vk::AttachmentLoadOp::eClear;
+            color_attachment.storeOp     = vk::AttachmentStoreOp::eStore;
+            color_attachment.clearValue  = vk::ClearValue{vk::ClearColorValue{std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f}}};
+
+            vk::RenderingAttachmentInfo depth_attachment{};
+            depth_attachment.imageView   = depth_image->getVkImageView();
+            depth_attachment.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+            depth_attachment.loadOp      = vk::AttachmentLoadOp::eClear;
+            depth_attachment.storeOp     = vk::AttachmentStoreOp::eStore;
+            depth_attachment.clearValue  = vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0}};
+
+            auto& command_buffer = *ctx.frame_data->command_buffer_graphic;
+            command_buffer.beginRenderingColor(render_area, color_attachment, &depth_attachment);
+            command_buffer.endRendering();
         });
 
     _opaque_pass->registerToGraph(_graph, _rg_color, _rg_depth);
