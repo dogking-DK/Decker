@@ -18,6 +18,7 @@ struct GizmoContext
     dk::render::UiRenderService* uiRenderService{nullptr};
     float          translateSensitivity{0.01f};
     bool           translateEnabled{true};
+    bool           rotateEnabled{true};
 };
 
 } // namespace dk::ui

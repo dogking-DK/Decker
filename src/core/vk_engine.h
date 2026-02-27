@@ -121,6 +121,7 @@ public:
     EngineStats stats;
     bool        _show_aabb_bounds{false};
     bool        _translate_gizmo_enabled{true};
+    bool        _rotate_gizmo_enabled{true};
 
     HierarchyPanel hierarchy_panel;
 

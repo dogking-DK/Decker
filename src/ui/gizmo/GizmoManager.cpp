@@ -41,6 +41,10 @@ void GizmoManager::render(const GizmoContext& ctx)
         {
             return;
         }
+        if (_active->toolType() == ToolType::Rotate && !ctx.rotateEnabled)
+        {
+            return;
+        }
         _active->render(ctx);
     }
 }

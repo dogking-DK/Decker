@@ -18,6 +18,7 @@ struct InputContext
     bool imguiWantsMouse{false};
     bool imguiWantsKeyboard{false};
     bool translateEnabled{true};
+    bool rotateEnabled{true};
 };
 
 } // namespace dk::input

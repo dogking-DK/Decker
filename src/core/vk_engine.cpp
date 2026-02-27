@@ -62,7 +62,9 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include <Vulkan/DescriptorWriter.h>
 #include "render/PointCloudRender.h"
 #include "render/SpringRender.h"
+#include "ui/gizmo/RotateGizmo.h"
 #include "ui/gizmo/TranslateGizmo.h"
+#include "ui/tools/RotateTool.h"
 #include "ui/tools/TranslateTool.h"
 #include "ui/tools/ToolContext.h"
 
@@ -196,7 +198,9 @@ void VulkanEngine::init()
     _gizmo_manager           = std::make_unique<ui::GizmoManager>();
 
     _tool_manager->registerTool(std::make_unique<ui::TranslateTool>(&_gizmo_drag_state));
+    _tool_manager->registerTool(std::make_unique<ui::RotateTool>(&_gizmo_drag_state));
     _gizmo_manager->registerGizmo(std::make_unique<ui::TranslateGizmo>(&_gizmo_drag_state));
+    _gizmo_manager->registerGizmo(std::make_unique<ui::RotateGizmo>(&_gizmo_drag_state));
     _tool_manager->setActiveTool(ui::ToolType::Translate);
     _gizmo_manager->setActiveForTool(_tool_manager->activeType());
 
@@ -720,6 +724,7 @@ void VulkanEngine::run()
         _input_context.imguiWantsMouse  = io.WantCaptureMouse;
         _input_context.imguiWantsKeyboard = io.WantCaptureKeyboard;
         _input_context.translateEnabled = _translate_gizmo_enabled;
+        _input_context.rotateEnabled = _rotate_gizmo_enabled;
         if (_input_router)
         {
             _input_router->route(_input_state, _input_context);
@@ -730,6 +735,7 @@ void VulkanEngine::run()
             tool_ctx.camera       = &mainCamera;
             tool_ctx.selectedNode = hierarchy_panel.selectedNode();
             tool_ctx.translateEnabled = _translate_gizmo_enabled;
+            tool_ctx.rotateEnabled = _rotate_gizmo_enabled;
             _tool_manager->update(tool_ctx);
         }
         static float time = 0;
@@ -739,7 +745,29 @@ void VulkanEngine::run()
         {
             if (ImGui::CollapsingHeader("工具设置", ImGuiTreeNodeFlags_DefaultOpen))
             {
+                const bool translate_active = _tool_manager && _tool_manager->activeType() == ui::ToolType::Translate;
+                const bool rotate_active = _tool_manager && _tool_manager->activeType() == ui::ToolType::Rotate;
+                if (ImGui::RadioButton("平移工具", translate_active))
+                {
+                    if (_tool_manager && _gizmo_manager)
+                    {
+                        _gizmo_drag_state.reset();
+                        _tool_manager->setActiveTool(ui::ToolType::Translate);
+                        _gizmo_manager->setActiveForTool(_tool_manager->activeType());
+                    }
+                }
+                ImGui::SameLine();
+                if (ImGui::RadioButton("旋转工具", rotate_active))
+                {
+                    if (_tool_manager && _gizmo_manager)
+                    {
+                        _gizmo_drag_state.reset();
+                        _tool_manager->setActiveTool(ui::ToolType::Rotate);
+                        _gizmo_manager->setActiveForTool(_tool_manager->activeType());
+                    }
+                }
                 ImGui::Checkbox("启用平移", &_translate_gizmo_enabled);
+                ImGui::Checkbox("启用旋转", &_rotate_gizmo_enabled);
             }
             if (ImGui::CollapsingHeader("位置信息", ImGuiTreeNodeFlags_DefaultOpen))
             {
@@ -899,6 +927,8 @@ void VulkanEngine::update_scene()
             gizmo_ctx.camera = &mainCamera;
             gizmo_ctx.selectedNode = hierarchy_panel.selectedNode();
             gizmo_ctx.uiRenderService = &_render_system->uiRenderService();
+            gizmo_ctx.translateEnabled = _translate_gizmo_enabled;
+            gizmo_ctx.rotateEnabled = _rotate_gizmo_enabled;
             _gizmo_manager->render(gizmo_ctx);
         }
         _render_system->finalizeUiFrame();

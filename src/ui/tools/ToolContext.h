@@ -12,6 +12,7 @@ struct ToolContext
     dk::Camera*    camera{nullptr};
     dk::SceneNode* selectedNode{nullptr};
     bool           translateEnabled{true};
+    bool           rotateEnabled{true};
 };
 
 } // namespace dk::ui

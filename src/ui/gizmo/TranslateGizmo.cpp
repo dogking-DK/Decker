@@ -193,12 +193,17 @@ bool TranslateGizmo::handleInput(const dk::input::InputState& state, const dk::i
         return false;
     }
 
+    const auto& mouse = state.mouse();
+
     if (ctx.imguiWantsMouse)
     {
+        if (_state->dragging && mouse.leftReleased)
+        {
+            _state->endDrag();
+            return true;
+        }
         return false;
     }
-
-    const auto& mouse = state.mouse();
 
     if (mouse.leftPressed)
     {
@@ -210,9 +215,9 @@ bool TranslateGizmo::handleInput(const dk::input::InputState& state, const dk::i
 
         const glm::mat4 world = worldTransform(ctx.selectedNode);
         const glm::vec3 origin = computeGizmoOrigin(ctx.selectedNode, world);
-        const glm::vec3 axisX = glm::normalize(glm::vec3(world[0]));
-        const glm::vec3 axisY = glm::normalize(glm::vec3(world[1]));
-        const glm::vec3 axisZ = glm::normalize(glm::vec3(world[2]));
+        const glm::vec3 axisX = safeNormalize(glm::vec3(world[0]), glm::vec3(1.0f, 0.0f, 0.0f));
+        const glm::vec3 axisY = safeNormalize(glm::vec3(world[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+        const glm::vec3 axisZ = safeNormalize(glm::vec3(world[2]), glm::vec3(0.0f, 0.0f, 1.0f));
         const float axisLength = computeGizmoScale(origin, *ctx.camera);
         HitResult hit = pickAxis(ray, origin, axisX, axisY, axisZ, axisLength);
         if (hit.axis == GizmoAxis::None)
@@ -306,9 +311,9 @@ void TranslateGizmo::render(const GizmoContext& ctx)
 
     const glm::mat4 world = worldTransform(ctx.selectedNode);
     const glm::vec3 origin = computeGizmoOrigin(ctx.selectedNode, world);
-    const glm::vec3 axisX = glm::normalize(glm::vec3(world[0]));
-    const glm::vec3 axisY = glm::normalize(glm::vec3(world[1]));
-    const glm::vec3 axisZ = glm::normalize(glm::vec3(world[2]));
+    const glm::vec3 axisX = safeNormalize(glm::vec3(world[0]), glm::vec3(1.0f, 0.0f, 0.0f));
+    const glm::vec3 axisY = safeNormalize(glm::vec3(world[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::vec3 axisZ = safeNormalize(glm::vec3(world[2]), glm::vec3(0.0f, 0.0f, 1.0f));
     const float axisLength = computeGizmoScale(origin, *ctx.camera);
     const float planeMin = axisLength * 0.2f;
     const float planeMax = axisLength * 0.45f;
