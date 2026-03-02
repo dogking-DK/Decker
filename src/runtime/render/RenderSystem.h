@@ -1,9 +1,11 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include <vulkan/vulkan.hpp>
@@ -15,6 +17,8 @@
 #include "render/SimulationRenderData.h"
 #include "render graph/RenderGraph.h"
 #include "render graph/GraphAsset.h"
+#include "render graph/GraphCompiler.h"
+#include "render graph/PassRegistry.h"
 #include "render graph/ResourceBuffer.h"
 #include "render graph/ResourceTexture.h"
 
@@ -37,6 +41,23 @@ class UiGizmoPass;
 class RenderSystem
 {
 public:
+    // 节点输入 pin 的解析结果（按资源类型分组）。
+    struct ResolvedNodeResources
+    {
+        std::unordered_map<std::string, std::string> inputResourceNames;
+        std::unordered_map<std::string, RGResource<ImageDesc, FrameGraphImage>*> inputImages;
+        std::unordered_map<std::string, RGResource<BufferDesc, FrameGraphBuffer>*> inputBuffers;
+    };
+
+    using NodeOutputs = std::unordered_map<std::string, std::string>;
+    using RuntimePassExecutor = std::function<bool(
+        const CompiledGraphNode&,
+        const GraphNodeAsset&,
+        const PassTypeInfo&,
+        ResolvedNodeResources&,
+        NodeOutputs&,
+        std::string&)>;
+
     RenderSystem(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx, ResourceLoader& loader);
     ~RenderSystem();
     void init(vk::Format color_format, vk::Format depth_format);
@@ -58,6 +79,10 @@ public:
     // 供外部系统注册可被 graph 引用的 External Buffer。
     void setExternalBufferResource(const std::string& external_key,
                                    const std::shared_ptr<vkcore::BufferResource>& buffer);
+    // 注册 runtime pass 执行器，支持后续脚本或工具链扩展 pass 行为。
+    void registerRuntimePassExecutor(std::string_view pass_type,
+                                     RuntimePassExecutor executor,
+                                     bool contributes_render_pass = false);
 
     void setFluidData(const FluidRenderData& data) { _fluid_data = data; }
     void setVoxelData(const VoxelRenderData& data) { _voxel_data = data; }
@@ -74,6 +99,7 @@ private:
     void buildGraph();
     bool buildGraphFromAsset();
     void buildGraphLegacy();
+    void registerBuiltinRuntimePassExecutors();
     void addRenderTargetResourcesTask();
     // 从 graph asset 统一注册 Image/Buffer 资源。
     bool addAssetResourcesTask(const GraphAsset& graph_asset);
@@ -112,6 +138,12 @@ private:
     std::unordered_map<std::string, RGResource<ImageDesc, FrameGraphImage>*> _named_image_resources;
     std::unordered_map<std::string, RGResource<BufferDesc, FrameGraphBuffer>*> _named_buffer_resources;
     std::unordered_map<std::string, std::shared_ptr<vkcore::BufferResource>> _external_buffer_resources;
+    struct RuntimePassExecutorEntry
+    {
+        RuntimePassExecutor execute;
+        bool contributesRenderPass{false};
+    };
+    std::unordered_map<std::string, RuntimePassExecutorEntry> _runtime_pass_executors;
     std::optional<FluidRenderData>       _fluid_data;
     std::optional<VoxelRenderData>       _voxel_data;
     bool                                 _debug_draw_aabb{false};
