@@ -24,15 +24,26 @@
 
 namespace {
 using ImageRGResource = dk::RGResource<dk::ImageDesc, dk::FrameGraphImage>;
+using BufferRGResource = dk::RGResource<dk::BufferDesc, dk::FrameGraphBuffer>;
 
-// 节点解析后的标准输入，供分发表统一消费。
-struct ResolvedNodeInputs
+// 节点输入 pin 的解析结果（按资源类型分组）。
+struct ResolvedNodeResources
 {
-    std::string colorName;
-    std::string depthName;
-    ImageRGResource* color{nullptr};
-    ImageRGResource* depth{nullptr};
+    std::unordered_map<std::string, std::string> inputResourceNames;
+    std::unordered_map<std::string, ImageRGResource*> inputImages;
+    std::unordered_map<std::string, BufferRGResource*> inputBuffers;
 };
+
+std::string pin_alias_without_input_suffix(std::string_view pin_name)
+{
+    constexpr std::string_view input_suffix = "_in";
+    if (pin_name.size() <= input_suffix.size() || !pin_name.ends_with(input_suffix))
+    {
+        return std::string{pin_name};
+    }
+
+    return std::string{pin_name.substr(0, pin_name.size() - input_suffix.size())};
+}
 
 const std::string* find_string_param(const dk::GraphNodeAsset* node, std::string_view name)
 {
@@ -593,10 +604,20 @@ bool RenderSystem::buildGraphFromAsset()
     std::unordered_map<GraphNodeId, NodeOutputs> node_outputs;
     node_outputs.reserve(compiled_asset.nodes.size());
 
-    auto find_image = [this](const std::string& name) -> RGResource<ImageDesc, FrameGraphImage>*
+    auto find_image = [this](const std::string& name) -> ImageRGResource*
     {
         const auto it = _named_image_resources.find(name);
         if (it == _named_image_resources.end())
+        {
+            return nullptr;
+        }
+        return it->second;
+    };
+
+    auto find_buffer = [this](const std::string& name) -> BufferRGResource*
+    {
+        const auto it = _named_buffer_resources.find(name);
+        if (it == _named_buffer_resources.end())
         {
             return nullptr;
         }
@@ -628,18 +649,26 @@ bool RenderSystem::buildGraphFromAsset()
             return *direct;
         }
 
-        std::string alias{pin_name};
-        constexpr std::string_view input_suffix = "_in";
-        if (alias.ends_with(input_suffix))
-        {
-            alias.resize(alias.size() - input_suffix.size());
-        }
+        const std::string alias = pin_alias_without_input_suffix(pin_name);
         if (const auto* by_alias = find_string_param(node_asset, alias))
         {
             return *by_alias;
         }
 
         return std::string{fallback_name};
+    };
+
+    auto default_fallback_for_pin = [this](std::string_view pin_name) -> std::string
+    {
+        if (pin_name == "color_in")
+        {
+            return _rg_color_name;
+        }
+        if (pin_name == "depth_in")
+        {
+            return _rg_depth_name;
+        }
+        return {};
     };
 
     bool clear_added = false;
@@ -649,37 +678,70 @@ bool RenderSystem::buildGraphFromAsset()
     using NodeHandler = std::function<bool(
         const CompiledGraphNode&,
         const GraphNodeAsset&,
-        const ResolvedNodeInputs&,
+        const PassTypeInfo&,
+        const ResolvedNodeResources&,
         NodeOutputs&)>;
     std::unordered_map<std::string, NodeHandler> node_handlers;
     node_handlers.reserve(8);
 
-    auto write_outputs = [](NodeOutputs& outputs,
-                            const ResolvedNodeInputs& inputs,
-                            bool write_color,
-                            bool write_depth)
+    // 约定：若存在 x_in -> x_out 命名对，则自动做资源名透传。
+    auto write_passthrough_outputs = [](const PassTypeInfo& pass_info,
+                                        const ResolvedNodeResources& inputs,
+                                        NodeOutputs& outputs)
     {
-        if (write_color && inputs.color)
+        constexpr std::string_view output_suffix = "_out";
+        for (const auto& pin : pass_info.pins)
         {
-            outputs["color_out"] = inputs.colorName;
-        }
-        if (write_depth && inputs.depth)
-        {
-            outputs["depth_out"] = inputs.depthName;
+            if (pin.direction != PinDirection::Output)
+            {
+                continue;
+            }
+
+            std::string input_pin_name = pin.name;
+            if (std::string_view pin_name_view{pin.name};
+                pin_name_view.size() > output_suffix.size() && pin_name_view.ends_with(output_suffix))
+            {
+                input_pin_name = std::string{
+                    pin_name_view.substr(0, pin_name_view.size() - output_suffix.size())};
+                input_pin_name += "_in";
+            }
+
+            const auto input_it = inputs.inputResourceNames.find(input_pin_name);
+            if (input_it == inputs.inputResourceNames.end())
+            {
+                continue;
+            }
+            outputs[pin.name] = input_it->second;
         }
     };
 
-    auto require_color_depth_inputs = [](std::string_view pass_name, const ResolvedNodeInputs& inputs) -> bool
+    auto get_image_input = [](const ResolvedNodeResources& inputs, std::string_view pin_name) -> ImageRGResource*
     {
-        if (inputs.color && inputs.depth)
+        const auto it = inputs.inputImages.find(std::string(pin_name));
+        if (it == inputs.inputImages.end())
+        {
+            return nullptr;
+        }
+        return it->second;
+    };
+
+    auto require_color_depth_inputs = [&](std::string_view pass_name,
+                                          const ResolvedNodeResources& inputs,
+                                          ImageRGResource*& out_color,
+                                          ImageRGResource*& out_depth) -> bool
+    {
+        out_color = get_image_input(inputs, "color_in");
+        out_depth = get_image_input(inputs, "depth_in");
+        if (out_color && out_depth)
         {
             return true;
         }
+
         std::cerr << "[RenderSystem] " << pass_name << " missing color/depth inputs\n";
         return false;
     };
 
-    // 统一注册「读写 color/depth」的常规图形 pass。
+    // 注册「读写 color/depth」的常规图形 pass。
     auto register_raster_pass_handler = [&](std::string_view type,
                                             const std::function<void(ImageRGResource*, ImageRGResource*)>& register_fn,
                                             std::string_view pass_name)
@@ -689,17 +751,20 @@ bool RenderSystem::buildGraphFromAsset()
             [&, register_fn, pass_name = std::string(pass_name)](
                 const CompiledGraphNode&,
                 const GraphNodeAsset&,
-                const ResolvedNodeInputs& inputs,
+                const PassTypeInfo& pass_info,
+                const ResolvedNodeResources& inputs,
                 NodeOutputs& outputs) -> bool
             {
-                if (!require_color_depth_inputs(pass_name, inputs))
+                ImageRGResource* color = nullptr;
+                ImageRGResource* depth = nullptr;
+                if (!require_color_depth_inputs(pass_name, inputs, color, depth))
                 {
                     return false;
                 }
 
-                register_fn(inputs.color, inputs.depth);
+                register_fn(color, depth);
                 has_render_passes = true;
-                write_outputs(outputs, inputs, true, true);
+                write_passthrough_outputs(pass_info, inputs, outputs);
                 return true;
             });
     };
@@ -707,28 +772,43 @@ bool RenderSystem::buildGraphFromAsset()
     const NodeHandler clear_handler =
         [&](const CompiledGraphNode&,
             const GraphNodeAsset&,
-            const ResolvedNodeInputs& raw_inputs,
+            const PassTypeInfo& pass_info,
+            const ResolvedNodeResources& raw_inputs,
             NodeOutputs& outputs) -> bool
         {
-            ResolvedNodeInputs inputs = raw_inputs;
-            if (!inputs.color)
+            ResolvedNodeResources inputs = raw_inputs;
+
+            ImageRGResource* color = get_image_input(inputs, "color_in");
+            if (!color)
             {
-                inputs.color = _rg_color;
-                inputs.colorName = _rg_color_name;
+                color = _rg_color;
+                if (color)
+                {
+                    inputs.inputImages["color_in"] = color;
+                    inputs.inputResourceNames["color_in"] = _rg_color_name;
+                }
             }
-            if (!inputs.depth)
+
+            ImageRGResource* depth = get_image_input(inputs, "depth_in");
+            if (!depth)
             {
-                inputs.depth = _rg_depth;
-                inputs.depthName = _rg_depth_name;
+                depth = _rg_depth;
+                if (depth)
+                {
+                    inputs.inputImages["depth_in"] = depth;
+                    inputs.inputResourceNames["depth_in"] = _rg_depth_name;
+                }
             }
-            if (!require_color_depth_inputs("ClearTargets", inputs))
+
+            if (!color || !depth)
             {
+                std::cerr << "[RenderSystem] ClearTargets missing color/depth inputs\n";
                 return false;
             }
 
-            addClearTargetsTask(inputs.color, inputs.depth);
+            addClearTargetsTask(color, depth);
             clear_added = true;
-            write_outputs(outputs, inputs, true, true);
+            write_passthrough_outputs(pass_info, inputs, outputs);
             return true;
         };
 
@@ -771,7 +851,8 @@ bool RenderSystem::buildGraphFromAsset()
         RenderPassRegistry::normalizeTypeName("FluidVolumePass"),
         [&](const CompiledGraphNode&,
             const GraphNodeAsset&,
-            const ResolvedNodeInputs& inputs,
+            const PassTypeInfo& pass_info,
+            const ResolvedNodeResources& inputs,
             NodeOutputs& outputs) -> bool
         {
             _graph.addTask<int>(
@@ -781,7 +862,7 @@ bool RenderSystem::buildGraphFromAsset()
                 {
                     // TODO: 接入体渲染/体素流体的 Raymarch 或参与光照的体积合成。
                 });
-            write_outputs(outputs, inputs, true, true);
+            write_passthrough_outputs(pass_info, inputs, outputs);
             return true;
         });
 
@@ -789,7 +870,8 @@ bool RenderSystem::buildGraphFromAsset()
         RenderPassRegistry::normalizeTypeName("VoxelPass"),
         [&](const CompiledGraphNode&,
             const GraphNodeAsset&,
-            const ResolvedNodeInputs& inputs,
+            const PassTypeInfo& pass_info,
+            const ResolvedNodeResources& inputs,
             NodeOutputs& outputs) -> bool
         {
             _graph.addTask<int>(
@@ -799,7 +881,7 @@ bool RenderSystem::buildGraphFromAsset()
                 {
                     // TODO: 接入体素表面或 SDF 可视化。
                 });
-            write_outputs(outputs, inputs, true, true);
+            write_passthrough_outputs(pass_info, inputs, outputs);
             return true;
         });
 
@@ -812,13 +894,80 @@ bool RenderSystem::buildGraphFromAsset()
         }
 
         const GraphNodeAsset* node_asset = node_it->second;
-        ResolvedNodeInputs inputs{};
-        inputs.colorName = resolve_input_resource_name(compiled_node, node_asset, "color_in", _rg_color_name);
-        inputs.depthName = resolve_input_resource_name(compiled_node, node_asset, "depth_in", _rg_depth_name);
-        inputs.color = find_image(inputs.colorName);
-        inputs.depth = find_image(inputs.depthName);
-
         auto& outputs = node_outputs[compiled_node.id];
+
+        const auto* pass_info = pass_registry.find(compiled_node.type);
+        if (!pass_info)
+        {
+            std::cerr << "[RenderSystem] Missing pass schema for node type: " << compiled_node.type
+                << " (id=" << compiled_node.id << ")\n";
+            continue;
+        }
+
+        ResolvedNodeResources inputs{};
+        bool missing_required_resource = false;
+        for (const auto& pin : pass_info->pins)
+        {
+            if (pin.direction != PinDirection::Input)
+            {
+                continue;
+            }
+
+            const std::string fallback_name = default_fallback_for_pin(pin.name);
+            const std::string resource_name = resolve_input_resource_name(
+                compiled_node,
+                node_asset,
+                pin.name,
+                fallback_name);
+            if (resource_name.empty())
+            {
+                continue;
+            }
+
+            inputs.inputResourceNames.emplace(pin.name, resource_name);
+            bool resolved = false;
+            if (pin.kind == ResourceKind::Image)
+            {
+                if (auto* image = find_image(resource_name))
+                {
+                    inputs.inputImages.emplace(pin.name, image);
+                    resolved = true;
+                }
+            }
+            else if (pin.kind == ResourceKind::Buffer)
+            {
+                if (auto* buffer = find_buffer(resource_name))
+                {
+                    inputs.inputBuffers.emplace(pin.name, buffer);
+                    resolved = true;
+                }
+            }
+            else
+            {
+                if (auto* image = find_image(resource_name))
+                {
+                    inputs.inputImages.emplace(pin.name, image);
+                    resolved = true;
+                }
+                else if (auto* buffer = find_buffer(resource_name))
+                {
+                    inputs.inputBuffers.emplace(pin.name, buffer);
+                    resolved = true;
+                }
+            }
+
+            if (!resolved && !pin.optional)
+            {
+                std::cerr << "[RenderSystem] Node " << compiled_node.id << " missing bound resource \""
+                    << resource_name << "\" for pin \"" << pin.name << "\"\n";
+                missing_required_resource = true;
+            }
+        }
+        if (missing_required_resource)
+        {
+            continue;
+        }
+
         const std::string normalized_type = RenderPassRegistry::normalizeTypeName(compiled_node.type);
         const auto handler_it = node_handlers.find(normalized_type);
         if (handler_it == node_handlers.end())
@@ -828,7 +977,7 @@ bool RenderSystem::buildGraphFromAsset()
             continue;
         }
 
-        if (!handler_it->second(compiled_node, *node_asset, inputs, outputs))
+        if (!handler_it->second(compiled_node, *node_asset, *pass_info, inputs, outputs))
         {
             continue;
         }
