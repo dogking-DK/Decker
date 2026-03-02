@@ -16,12 +16,34 @@ bool parseResourceKind(const std::string& text, ResourceKind& out)
     return false;
 }
 
+const char* toResourceKindText(ResourceKind kind)
+{
+    switch (kind)
+    {
+    case ResourceKind::Image: return "Image";
+    case ResourceKind::Buffer: return "Buffer";
+    case ResourceKind::Unknown: return "Unknown";
+    }
+    return "Unknown";
+}
+
 bool parseResourceLifetime(const std::string& text, ResourceLifetime& out)
 {
     if (text == "Transient") { out = ResourceLifetime::Transient; return true; }
     if (text == "External") { out = ResourceLifetime::External; return true; }
     if (text == "Persistent") { out = ResourceLifetime::Persistent; return true; }
     return false;
+}
+
+const char* toResourceLifetimeText(ResourceLifetime lifetime)
+{
+    switch (lifetime)
+    {
+    case ResourceLifetime::Transient: return "Transient";
+    case ResourceLifetime::External: return "External";
+    case ResourceLifetime::Persistent: return "Persistent";
+    }
+    return "Transient";
 }
 
 bool parseParamType(const std::string& text, ParamType& out)
@@ -34,6 +56,21 @@ bool parseParamType(const std::string& text, ParamType& out)
     if (text == "Vec4") { out = ParamType::Vec4; return true; }
     if (text == "String") { out = ParamType::String; return true; }
     return false;
+}
+
+const char* toParamTypeText(ParamType type)
+{
+    switch (type)
+    {
+    case ParamType::Bool: return "Bool";
+    case ParamType::Int: return "Int";
+    case ParamType::Float: return "Float";
+    case ParamType::Vec2: return "Vec2";
+    case ParamType::Vec3: return "Vec3";
+    case ParamType::Vec4: return "Vec4";
+    case ParamType::String: return "String";
+    }
+    return "Float";
 }
 
 template <typename T>
@@ -303,6 +340,131 @@ bool parseGraphJson(const json& root, GraphAsset& out_graph, std::string& out_er
     if (!parseEdges(root, out_graph, out_error)) return false;
     return true;
 }
+
+json paramValueToJson(const GraphParam& param)
+{
+    switch (param.type)
+    {
+    case ParamType::Bool:
+        return std::get<bool>(param.value);
+    case ParamType::Int:
+        return std::get<std::int32_t>(param.value);
+    case ParamType::Float:
+        return std::get<float>(param.value);
+    case ParamType::String:
+        return std::get<std::string>(param.value);
+    case ParamType::Vec2:
+    {
+        const auto value = std::get<std::array<float, 2>>(param.value);
+        return json::array({value[0], value[1]});
+    }
+    case ParamType::Vec3:
+    {
+        const auto value = std::get<std::array<float, 3>>(param.value);
+        return json::array({value[0], value[1], value[2]});
+    }
+    case ParamType::Vec4:
+    {
+        const auto value = std::get<std::array<float, 4>>(param.value);
+        return json::array({value[0], value[1], value[2], value[3]});
+    }
+    }
+    return nullptr;
+}
+
+bool writeGraphJson(const GraphAsset& graph, json& out_root, std::string& out_error)
+{
+    out_root = json::object();
+    out_root["schema_version"] = graph.schemaVersion;
+    out_root["name"] = graph.name;
+
+    auto& resources_json = out_root["resources"] = json::array();
+    for (const auto& resource : graph.resources)
+    {
+        json resource_json = json::object();
+        resource_json["name"] = resource.name;
+        resource_json["kind"] = toResourceKindText(resource.kind);
+        resource_json["lifetime"] = toResourceLifetimeText(resource.lifetime);
+        if (!resource.externalKey.empty())
+        {
+            resource_json["external_key"] = resource.externalKey;
+        }
+
+        json desc_json = json::object();
+        if (resource.kind == ResourceKind::Image)
+        {
+            if (!std::holds_alternative<GraphImageDesc>(resource.payload))
+            {
+                out_error = "Resource \"" + resource.name + "\" kind/payload mismatch while saving";
+                return false;
+            }
+            const auto& image = std::get<GraphImageDesc>(resource.payload);
+            desc_json["width"] = image.width;
+            desc_json["height"] = image.height;
+            desc_json["depth"] = image.depth;
+            desc_json["mip_levels"] = image.mipLevels;
+            desc_json["array_layers"] = image.arrayLayers;
+            desc_json["format"] = image.format;
+            desc_json["usage"] = image.usage;
+            desc_json["samples"] = image.samples;
+            desc_json["aspect_mask"] = image.aspectMask;
+        }
+        else if (resource.kind == ResourceKind::Buffer)
+        {
+            if (!std::holds_alternative<GraphBufferDesc>(resource.payload))
+            {
+                out_error = "Resource \"" + resource.name + "\" kind/payload mismatch while saving";
+                return false;
+            }
+            const auto& buffer = std::get<GraphBufferDesc>(resource.payload);
+            desc_json["size"] = buffer.size;
+            desc_json["usage"] = buffer.usage;
+        }
+        else
+        {
+            out_error = "Resource \"" + resource.name + "\" has unsupported kind while saving";
+            return false;
+        }
+        resource_json["desc"] = std::move(desc_json);
+        resources_json.push_back(std::move(resource_json));
+    }
+
+    auto& nodes_json = out_root["nodes"] = json::array();
+    for (const auto& node : graph.nodes)
+    {
+        json node_json = json::object();
+        node_json["id"] = node.id;
+        node_json["type"] = node.type;
+
+        auto& params_json = node_json["params"] = json::array();
+        for (const auto& param : node.params)
+        {
+            params_json.push_back(
+                {
+                    {"name", param.name},
+                    {"type", toParamTypeText(param.type)},
+                    {"value", paramValueToJson(param)},
+                });
+        }
+
+        nodes_json.push_back(std::move(node_json));
+    }
+
+    auto& edges_json = out_root["edges"] = json::array();
+    for (const auto& edge : graph.edges)
+    {
+        edges_json.push_back(
+            {
+                {"id", edge.id},
+                {"from_node", edge.fromNode},
+                {"from_pin", edge.fromPin},
+                {"to_node", edge.toNode},
+                {"to_pin", edge.toPin},
+            });
+    }
+
+    return true;
+}
 }
 
 bool loadGraphAssetFromJsonFile(const std::filesystem::path& path, GraphAsset& out_graph, std::string& out_error)
@@ -333,5 +495,48 @@ bool loadGraphAssetFromJsonText(const std::string& json_text, GraphAsset& out_gr
     }
 }
 
+bool saveGraphAssetToJsonFile(const std::filesystem::path& path, const GraphAsset& graph, std::string& out_error)
+{
+    std::string json_text;
+    if (!saveGraphAssetToJsonText(graph, json_text, out_error))
+    {
+        return false;
+    }
+
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out.is_open())
+    {
+        out_error = "Failed to open graph asset file for write: " + toString(path);
+        return false;
+    }
+
+    out << json_text;
+    if (!out.good())
+    {
+        out_error = "Failed to write graph asset file: " + toString(path);
+        return false;
+    }
+
+    return true;
 }
 
+bool saveGraphAssetToJsonText(const GraphAsset& graph, std::string& out_json_text, std::string& out_error)
+{
+    try
+    {
+        json root = json::object();
+        if (!writeGraphJson(graph, root, out_error))
+        {
+            return false;
+        }
+        out_json_text = root.dump(2);
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        out_error = e.what();
+        return false;
+    }
+}
+
+}

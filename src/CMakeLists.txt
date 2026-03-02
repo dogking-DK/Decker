@@ -47,6 +47,12 @@ file(GLOB_RECURSE RUNTIME_SOURCES "runtime/*.cpp" "runtime/*.hpp" "runtime/*.h")
 file(GLOB_RECURSE SCENE_SOURCES "scene/*.cpp" "scene/*.hpp" "scene/*.h")
 file(GLOB_RECURSE TOOL_SOURCES "tool/*.cpp" "tool/*.hpp" "tool/*.h")
 
+# Python 绑定模块文件不应编入主可执行程序，单独作为扩展模块构建。
+set(RENDER_GRAPH_PYBIND_SOURCE "${CMAKE_SOURCE_DIR}/src/runtime/python/RenderGraphPythonBindings.cpp")
+if(EXISTS "${RENDER_GRAPH_PYBIND_SOURCE}")
+    list(REMOVE_ITEM RUNTIME_SOURCES "${RENDER_GRAPH_PYBIND_SOURCE}")
+endif()
+
 message(STATUS "Main sources: ${MAIN_SOURCES}")
 message(STATUS "Core sources: ${CORE_SOURCES}")
 message(STATUS "asset sources: ${ASSET_SOURCES}")
@@ -131,6 +137,40 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLM_ENABLE_EXPERIMENTAL VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
+
+if(EXISTS "${RENDER_GRAPH_PYBIND_SOURCE}")
+    pybind11_add_module(decker_render_graph MODULE
+        "${RENDER_GRAPH_PYBIND_SOURCE}"
+        "${CMAKE_SOURCE_DIR}/src/gpu/render graph/GraphAssetBuilder.cpp"
+        "${CMAKE_SOURCE_DIR}/src/gpu/render graph/GraphAssetIO.cpp"
+        "${CMAKE_SOURCE_DIR}/src/gpu/render graph/GraphCompiler.cpp"
+        "${CMAKE_SOURCE_DIR}/src/gpu/render graph/PassRegistry.cpp"
+        "${CMAKE_SOURCE_DIR}/src/gpu/render graph/BuiltinPassRegistry.cpp"
+    )
+
+    target_include_directories(decker_render_graph PRIVATE
+        "${CMAKE_SOURCE_DIR}/src"
+        "${CMAKE_SOURCE_DIR}/src/core"
+        "${CMAKE_SOURCE_DIR}/src/gpu"
+    )
+
+    target_link_libraries(decker_render_graph PRIVATE
+        pybind11::module
+        nlohmann_json::nlohmann_json
+        Vulkan::Headers
+        GPUOpen::VulkanMemoryAllocator
+        Tracy::TracyClient
+    )
+
+    target_compile_features(decker_render_graph PRIVATE cxx_std_23)
+    target_compile_definitions(decker_render_graph PRIVATE
+        GLM_ENABLE_EXPERIMENTAL
+        VULKAN_HPP_DISPATCH_LOADER_DYNAMIC
+    )
+    if(MSVC)
+        target_compile_options(decker_render_graph PRIVATE /utf-8)
+    endif()
+endif()
 
 # --------------------------------------------------------
 # 核心修改 A: 建立依赖

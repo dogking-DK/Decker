@@ -11,6 +11,13 @@
 #include <limits>
 #include <memory>
 
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <Windows.h>
+#endif
+
 //#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
 #include <filesystem>
