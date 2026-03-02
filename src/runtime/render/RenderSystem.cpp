@@ -184,6 +184,25 @@ void RenderSystem::execute(dk::RenderGraphContext& ctx)
     _graph.execute(ctx);
 }
 
+void RenderSystem::setExternalBufferResource(const std::string& external_key,
+                                             const std::shared_ptr<vkcore::BufferResource>& buffer)
+{
+    const std::string normalized_key = RenderPassRegistry::normalizeTypeName(external_key);
+    if (normalized_key.empty())
+    {
+        return;
+    }
+
+    if (buffer)
+    {
+        _external_buffer_resources[normalized_key] = buffer;
+    }
+    else
+    {
+        _external_buffer_resources.erase(normalized_key);
+    }
+}
+
 void RenderSystem::buildGraph()
 {
     if (!_color_target || !_depth_target)
@@ -400,8 +419,21 @@ bool RenderSystem::addAssetResourcesTask(const GraphAsset& graph_asset)
                     if (resource.lifetime == ResourceLifetime::External)
                     {
                         const std::string external_key = resource.externalKey.empty() ? resource.name : resource.externalKey;
-                        std::cerr << "[RenderSystem] Unsupported external buffer key: "
-                            << external_key << " for resource \"" << resource.name << "\"\n";
+                        const std::string normalized_key = RenderPassRegistry::normalizeTypeName(external_key);
+                        const auto external_it = _external_buffer_resources.find(normalized_key);
+                        if (external_it == _external_buffer_resources.end() || !external_it->second)
+                        {
+                            std::cerr << "[RenderSystem] Missing external buffer binding: "
+                                << external_key << " for resource \"" << resource.name << "\"\n";
+                            continue;
+                        }
+
+                        auto* buffer_res = builder.create<RGResource<BufferDesc, FrameGraphBuffer>>(
+                            resource.name,
+                            buffer_desc,
+                            resource.lifetime);
+                        buffer_res->setExternal(external_it->second);
+                        _named_buffer_resources[resource.name] = buffer_res;
                         continue;
                     }
 

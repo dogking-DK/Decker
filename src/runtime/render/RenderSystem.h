@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <unordered_map>
 
 #include <vulkan/vulkan.hpp>
@@ -53,6 +54,10 @@ public:
 
     void execute(dk::RenderGraphContext& ctx);
 
+    // 供外部系统注册可被 graph 引用的 External Buffer。
+    void setExternalBufferResource(const std::string& external_key,
+                                   const std::shared_ptr<vkcore::BufferResource>& buffer);
+
     void setFluidData(const FluidRenderData& data) { _fluid_data = data; }
     void setVoxelData(const VoxelRenderData& data) { _voxel_data = data; }
     void setDebugDrawAabb(bool enabled) { _debug_draw_aabb = enabled; }
@@ -102,6 +107,7 @@ private:
     // 运行时按资源名查询图中资源句柄，供节点绑定解析使用。
     std::unordered_map<std::string, RGResource<ImageDesc, FrameGraphImage>*> _named_image_resources;
     std::unordered_map<std::string, RGResource<BufferDesc, FrameGraphBuffer>*> _named_buffer_resources;
+    std::unordered_map<std::string, std::shared_ptr<vkcore::BufferResource>> _external_buffer_resources;
     std::optional<FluidRenderData>       _fluid_data;
     std::optional<VoxelRenderData>       _voxel_data;
     bool                                 _debug_draw_aabb{false};
