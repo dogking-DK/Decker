@@ -13,6 +13,7 @@
 #include "render graph/GraphAssetIO.h"
 #include "render graph/BuiltinPassRegistry.h"
 #include "render graph/GraphCompiler.h"
+#include "render graph/PassRegistryJson.h"
 #include "gpu/render graph/renderpass/DebugAabbPass.h"
 #include "gpu/render graph/renderpass/OutlinePass.h"
 #include "gpu/render graph/renderpass/UiGizmoPass.h"
@@ -488,6 +489,17 @@ bool RenderSystem::buildGraphFromAsset()
     CompiledGraphAsset compiled_asset{};
     std::string compile_error;
     const RenderPassRegistry pass_registry = createBuiltinRenderPassRegistry();
+
+    // 导出 schema，便于可视化编辑器直接读取 pin/param 元数据。
+    {
+        std::string schema_error;
+        const fs::path schema_path = absolute(get_exe_dir() / "assets/config/render_pass_schema.json");
+        if (!savePassRegistrySchemaJsonFile(pass_registry, schema_path, schema_error))
+        {
+            std::cerr << "[RenderSystem] Pass schema export failed: " << schema_error << "\n";
+        }
+    }
+
     if (!compileGraphAsset(graph_asset, compiled_asset, compile_error, &pass_registry))
     {
         std::cerr << "[RenderSystem] Graph asset compile failed: " << compile_error << "\n";
