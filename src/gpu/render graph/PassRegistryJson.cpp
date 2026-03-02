@@ -104,6 +104,7 @@ nlohmann::json build_pass_type_json(const PassTypeInfo& pass_info)
             {
                 {"name", param.name},
                 {"type", to_string(param.type)},
+                {"optional", param.optional},
             });
     }
 
@@ -162,4 +163,3 @@ bool savePassRegistrySchemaJsonFile(const RenderPassRegistry& registry,
 }
 
 }
-

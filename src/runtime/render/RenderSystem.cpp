@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <iostream>
@@ -63,6 +64,26 @@ const std::string* find_string_param(const dk::GraphNodeAsset* node, std::string
             return text;
         }
         return nullptr;
+    }
+
+    return nullptr;
+}
+
+template <typename T>
+const T* find_typed_param(const dk::GraphNodeAsset* node, std::string_view name)
+{
+    if (!node)
+    {
+        return nullptr;
+    }
+
+    for (const auto& param : node->params)
+    {
+        if (param.name != name)
+        {
+            continue;
+        }
+        return std::get_if<T>(&param.value);
     }
 
     return nullptr;
@@ -481,20 +502,29 @@ bool RenderSystem::addAssetResourcesTask(const GraphAsset& graph_asset)
 }
 
 void RenderSystem::addClearTargetsTask(RGResource<ImageDesc, FrameGraphImage>* color,
-                                       RGResource<ImageDesc, FrameGraphImage>* depth)
+                                       RGResource<ImageDesc, FrameGraphImage>* depth,
+                                       const std::array<float, 4>& clear_color,
+                                       float clear_depth,
+                                       std::uint32_t clear_stencil)
 {
     struct ClearTargetsData
     {
         RGResource<ImageDesc, FrameGraphImage>* color{nullptr};
         RGResource<ImageDesc, FrameGraphImage>* depth{nullptr};
+        std::array<float, 4> clearColor{1.0f, 1.0f, 1.0f, 1.0f};
+        float clearDepth{1.0f};
+        std::uint32_t clearStencil{0};
     };
 
     _graph.addTask<ClearTargetsData>(
         "Clear Render Targets",
-        [color, depth](ClearTargetsData& data, RenderTaskBuilder& builder)
+        [color, depth, clear_color, clear_depth, clear_stencil](ClearTargetsData& data, RenderTaskBuilder& builder)
         {
             data.color = color;
             data.depth = depth;
+            data.clearColor = clear_color;
+            data.clearDepth = clear_depth;
+            data.clearStencil = clear_stencil;
             if (data.color)
             {
                 builder.write(data.color, ResourceUsage::ColorAttachment);
@@ -533,14 +563,14 @@ void RenderSystem::addClearTargetsTask(RGResource<ImageDesc, FrameGraphImage>* c
             color_attachment.imageLayout = vk::ImageLayout::eGeneral;
             color_attachment.loadOp      = vk::AttachmentLoadOp::eClear;
             color_attachment.storeOp     = vk::AttachmentStoreOp::eStore;
-            color_attachment.clearValue  = vk::ClearValue{vk::ClearColorValue{std::array<float, 4>{1.0f, 1.0f, 1.0f, 1.0f}}};
+            color_attachment.clearValue  = vk::ClearValue{vk::ClearColorValue{data.clearColor}};
 
             vk::RenderingAttachmentInfo depth_attachment{};
             depth_attachment.imageView   = depth_image->getVkImageView();
             depth_attachment.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
             depth_attachment.loadOp      = vk::AttachmentLoadOp::eClear;
             depth_attachment.storeOp     = vk::AttachmentStoreOp::eStore;
-            depth_attachment.clearValue  = vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0}};
+            depth_attachment.clearValue  = vk::ClearValue{vk::ClearDepthStencilValue{data.clearDepth, data.clearStencil}};
 
             auto& command_buffer = *ctx.frame_data->command_buffer_graphic;
             command_buffer.beginRenderingColor(render_area, color_attachment, &depth_attachment);
@@ -771,7 +801,7 @@ bool RenderSystem::buildGraphFromAsset()
 
     const NodeHandler clear_handler =
         [&](const CompiledGraphNode&,
-            const GraphNodeAsset&,
+            const GraphNodeAsset& node_asset,
             const PassTypeInfo& pass_info,
             const ResolvedNodeResources& raw_inputs,
             NodeOutputs& outputs) -> bool
@@ -806,7 +836,25 @@ bool RenderSystem::buildGraphFromAsset()
                 return false;
             }
 
-            addClearTargetsTask(color, depth);
+            std::array<float, 4> clear_color{1.0f, 1.0f, 1.0f, 1.0f};
+            if (const auto* color_param = find_typed_param<std::array<float, 4>>(&node_asset, "clear_color"))
+            {
+                clear_color = *color_param;
+            }
+
+            float clear_depth = 1.0f;
+            if (const auto* depth_param = find_typed_param<float>(&node_asset, "clear_depth"))
+            {
+                clear_depth = *depth_param;
+            }
+
+            std::uint32_t clear_stencil = 0;
+            if (const auto* stencil_param = find_typed_param<std::int32_t>(&node_asset, "clear_stencil"))
+            {
+                clear_stencil = *stencil_param < 0 ? 0u : static_cast<std::uint32_t>(*stencil_param);
+            }
+
+            addClearTargetsTask(color, depth, clear_color, clear_depth, clear_stencil);
             clear_added = true;
             write_passthrough_outputs(pass_info, inputs, outputs);
             return true;

@@ -315,6 +315,87 @@ bool validateRequiredInputPins(const GraphAsset& graph,
     return true;
 }
 
+bool doesParamValueMatchDeclaredType(const GraphParam& param)
+{
+    switch (param.type)
+    {
+    case ParamType::Bool: return std::holds_alternative<bool>(param.value);
+    case ParamType::Int: return std::holds_alternative<std::int32_t>(param.value);
+    case ParamType::Float: return std::holds_alternative<float>(param.value);
+    case ParamType::Vec2: return std::holds_alternative<std::array<float, 2>>(param.value);
+    case ParamType::Vec3: return std::holds_alternative<std::array<float, 3>>(param.value);
+    case ParamType::Vec4: return std::holds_alternative<std::array<float, 4>>(param.value);
+    case ParamType::String: return std::holds_alternative<std::string>(param.value);
+    }
+    return false;
+}
+
+// 校验节点参数是否符合 pass schema：参数名存在、类型匹配、无重复定义。
+bool validateNodeParams(const GraphAsset& graph,
+                        const std::unordered_map<GraphNodeId, const PassTypeInfo*>& pass_info_by_node,
+                        std::string& out_error)
+{
+    for (const auto& node : graph.nodes)
+    {
+        const auto pass_it = pass_info_by_node.find(node.id);
+        if (pass_it == pass_info_by_node.end())
+        {
+            out_error = "Internal compile error: missing pass info for node " + std::to_string(node.id);
+            return false;
+        }
+
+        std::unordered_set<std::string> seen_param_names;
+        seen_param_names.reserve(node.params.size());
+
+        for (const auto& param : node.params)
+        {
+            if (!seen_param_names.insert(param.name).second)
+            {
+                out_error = "Node " + std::to_string(node.id) + " has duplicate param \"" + param.name + "\"";
+                return false;
+            }
+
+            const auto* param_spec = findParamSpec(*pass_it->second, param.name);
+            if (!param_spec)
+            {
+                out_error = "Node " + std::to_string(node.id) + " (" + node.type +
+                    ") has unknown param \"" + param.name + "\"";
+                return false;
+            }
+
+            if (param.type != param_spec->type)
+            {
+                out_error = "Node " + std::to_string(node.id) + " param \"" + param.name +
+                    "\" type mismatch with pass schema";
+                return false;
+            }
+
+            if (!doesParamValueMatchDeclaredType(param))
+            {
+                out_error = "Node " + std::to_string(node.id) + " param \"" + param.name +
+                    "\" value does not match declared type";
+                return false;
+            }
+        }
+
+        for (const auto& param_spec : pass_it->second->params)
+        {
+            if (param_spec.optional)
+            {
+                continue;
+            }
+
+            if (!seen_param_names.contains(param_spec.name))
+            {
+                out_error = "Node " + std::to_string(node.id) + " (" + node.type +
+                    ") missing required param \"" + param_spec.name + "\"";
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 }
 
 bool compileGraphAsset(const GraphAsset& graph,
@@ -339,6 +420,7 @@ bool compileGraphAsset(const GraphAsset& graph,
         if (!validateRegisteredPassTypes(graph, *pass_registry, pass_info_by_node, out_error)) return false;
         if (!validateEdgePinsAndKinds(graph, pass_info_by_node, out_error)) return false;
         if (!validateRequiredInputPins(graph, pass_info_by_node, out_error)) return false;
+        if (!validateNodeParams(graph, pass_info_by_node, out_error)) return false;
     }
 
     const std::size_t node_count = graph.nodes.size();

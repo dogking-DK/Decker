@@ -31,6 +31,7 @@ find_package(tsl-robin-map CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
 find_package(Python COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG REQUIRED)
+find_package(nfd CONFIG REQUIRED)
 
 # ================== 收集源文件并保持分组结构 ==================
 file(GLOB_RECURSE MAIN_SOURCES "main/*.cpp" "main/*.hpp" "main/*.h")
@@ -126,6 +127,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     $<IF:$<TARGET_EXISTS:flecs::flecs>,flecs::flecs,flecs::flecs_static>
     unofficial::sqlite3::sqlite3
     pybind11::headers
+    nfd::nfd
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLM_ENABLE_EXPERIMENTAL VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -77,7 +78,10 @@ private:
     // 从 graph asset 统一注册 Image/Buffer 资源。
     bool addAssetResourcesTask(const GraphAsset& graph_asset);
     void addClearTargetsTask(RGResource<ImageDesc, FrameGraphImage>* color,
-                             RGResource<ImageDesc, FrameGraphImage>* depth);
+                             RGResource<ImageDesc, FrameGraphImage>* depth,
+                             const std::array<float, 4>& clear_color = {1.0f, 1.0f, 1.0f, 1.0f},
+                             float clear_depth = 1.0f,
+                             std::uint32_t clear_stencil = 0);
 
     vkcore::VulkanContext&            _context;
     ResourceLoader&                     _cpu_loader;

@@ -73,6 +73,23 @@ const PinSpec* findPinSpec(const PassTypeInfo& pass_info, std::string_view pin_n
     return &(*pin_it);
 }
 
+const ParamSpec* findParamSpec(const PassTypeInfo& pass_info, std::string_view param_name)
+{
+    const auto param_it = std::ranges::find_if(
+        pass_info.params,
+        [param_name](const ParamSpec& param)
+        {
+            return param.name == param_name;
+        });
+
+    if (param_it == pass_info.params.end())
+    {
+        return nullptr;
+    }
+
+    return &(*param_it);
+}
+
 const PinSpec* RenderPassRegistry::findPin(std::string_view type, std::string_view pin_name) const
 {
     const auto* pass_info = find(type);
@@ -81,6 +98,16 @@ const PinSpec* RenderPassRegistry::findPin(std::string_view type, std::string_vi
         return nullptr;
     }
     return findPinSpec(*pass_info, pin_name);
+}
+
+const ParamSpec* RenderPassRegistry::findParam(std::string_view type, std::string_view param_name) const
+{
+    const auto* pass_info = find(type);
+    if (!pass_info)
+    {
+        return nullptr;
+    }
+    return findParamSpec(*pass_info, param_name);
 }
 
 std::vector<const PassTypeInfo*> RenderPassRegistry::all() const

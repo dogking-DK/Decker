@@ -41,7 +41,23 @@
     {
       "id": 1,
       "type": "ClearTargets",
-      "params": []
+      "params": [
+        {
+          "name": "clear_color",
+          "type": "Vec4",
+          "value": [0.95, 0.96, 0.98, 1.0]
+        },
+        {
+          "name": "clear_depth",
+          "type": "Float",
+          "value": 1.0
+        },
+        {
+          "name": "clear_stencil",
+          "type": "Int",
+          "value": 0
+        }
+      ]
     },
     {
       "id": 2,
