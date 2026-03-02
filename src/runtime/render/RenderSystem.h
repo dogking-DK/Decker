@@ -13,6 +13,7 @@
 #include "render/SimulationRenderData.h"
 #include "render graph/RenderGraph.h"
 #include "render graph/GraphAsset.h"
+#include "render graph/ResourceBuffer.h"
 #include "render graph/ResourceTexture.h"
 
 namespace dk::vkcore {
@@ -68,7 +69,8 @@ private:
     bool buildGraphFromAsset();
     void buildGraphLegacy();
     void addRenderTargetResourcesTask();
-    bool addAssetImageResourcesTask(const GraphAsset& graph_asset);
+    // 从 graph asset 统一注册 Image/Buffer 资源。
+    bool addAssetResourcesTask(const GraphAsset& graph_asset);
     void addClearTargetsTask(RGResource<ImageDesc, FrameGraphImage>* color,
                              RGResource<ImageDesc, FrameGraphImage>* depth);
 
@@ -97,7 +99,9 @@ private:
     RGResource<ImageDesc, FrameGraphImage>* _rg_depth{nullptr};
     std::string _rg_color_name{"scene_color"};
     std::string _rg_depth_name{"scene_depth"};
+    // 运行时按资源名查询图中资源句柄，供节点绑定解析使用。
     std::unordered_map<std::string, RGResource<ImageDesc, FrameGraphImage>*> _named_image_resources;
+    std::unordered_map<std::string, RGResource<BufferDesc, FrameGraphBuffer>*> _named_buffer_resources;
     std::optional<FluidRenderData>       _fluid_data;
     std::optional<VoxelRenderData>       _voxel_data;
     bool                                 _debug_draw_aabb{false};

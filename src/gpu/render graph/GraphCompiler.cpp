@@ -25,6 +25,71 @@ bool validateUniqueNodeIds(const GraphAsset& graph, std::string& out_error)
     return true;
 }
 
+bool validateUniqueResourceNames(const GraphAsset& graph, std::string& out_error)
+{
+    std::unordered_set<std::string> names;
+    names.reserve(graph.resources.size());
+    for (const auto& resource : graph.resources)
+    {
+        if (resource.name.empty())
+        {
+            out_error = "Resource has empty name";
+            return false;
+        }
+        if (!names.insert(resource.name).second)
+        {
+            out_error = "Duplicate resource name: " + resource.name;
+            return false;
+        }
+    }
+    return true;
+}
+
+// 校验资源 kind 和 payload 变体一致，并做最基础 desc 合法性检查。
+bool validateResourcePayloads(const GraphAsset& graph, std::string& out_error)
+{
+    for (const auto& resource : graph.resources)
+    {
+        if (resource.kind == ResourceKind::Image)
+        {
+            if (!std::holds_alternative<GraphImageDesc>(resource.payload))
+            {
+                out_error = "Resource \"" + resource.name + "\" kind is Image but payload is not GraphImageDesc";
+                return false;
+            }
+
+            const auto& image = std::get<GraphImageDesc>(resource.payload);
+            if (image.width == 0 || image.height == 0 || image.depth == 0)
+            {
+                out_error = "Resource \"" + resource.name + "\" has invalid image extent";
+                return false;
+            }
+            continue;
+        }
+
+        if (resource.kind == ResourceKind::Buffer)
+        {
+            if (!std::holds_alternative<GraphBufferDesc>(resource.payload))
+            {
+                out_error = "Resource \"" + resource.name + "\" kind is Buffer but payload is not GraphBufferDesc";
+                return false;
+            }
+
+            const auto& buffer = std::get<GraphBufferDesc>(resource.payload);
+            if (resource.lifetime != ResourceLifetime::External && buffer.size == 0)
+            {
+                out_error = "Resource \"" + resource.name + "\" has zero buffer size";
+                return false;
+            }
+            continue;
+        }
+
+        out_error = "Resource \"" + resource.name + "\" has unsupported kind";
+        return false;
+    }
+    return true;
+}
+
 bool validateUniqueEdgeIds(const GraphAsset& graph, std::string& out_error)
 {
     std::unordered_set<GraphEdgeId> seen;
@@ -262,6 +327,8 @@ bool compileGraphAsset(const GraphAsset& graph,
     out_compiled.schemaVersion = graph.schemaVersion;
     out_compiled.resources = graph.resources;
 
+    if (!validateUniqueResourceNames(graph, out_error)) return false;
+    if (!validateResourcePayloads(graph, out_error)) return false;
     if (!validateUniqueNodeIds(graph, out_error)) return false;
     if (!validateUniqueEdgeIds(graph, out_error)) return false;
     if (!validateEdgeNodes(graph, out_error)) return false;

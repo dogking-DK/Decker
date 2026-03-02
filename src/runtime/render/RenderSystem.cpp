@@ -197,6 +197,7 @@ void RenderSystem::buildGraph()
     _rg_color_name = "scene_color";
     _rg_depth_name = "scene_depth";
     _named_image_resources.clear();
+    _named_buffer_resources.clear();
     _graph_built = false;
     _compiled = false;
 
@@ -211,6 +212,7 @@ void RenderSystem::buildGraph()
     _rg_color_name = "scene_color";
     _rg_depth_name = "scene_depth";
     _named_image_resources.clear();
+    _named_buffer_resources.clear();
     _graph_built = false;
     _compiled = false;
     buildGraphLegacy();
@@ -269,7 +271,7 @@ void RenderSystem::addRenderTargetResourcesTask()
         });
 }
 
-bool RenderSystem::addAssetImageResourcesTask(const GraphAsset& graph_asset)
+bool RenderSystem::addAssetResourcesTask(const GraphAsset& graph_asset)
 {
     const auto resources = graph_asset.resources;
 
@@ -279,105 +281,135 @@ bool RenderSystem::addAssetImageResourcesTask(const GraphAsset& graph_asset)
         {
             for (const auto& resource : resources)
             {
-                if (resource.kind != ResourceKind::Image)
+                if (resource.kind == ResourceKind::Image)
                 {
-                    continue;
-                }
+                    if (!std::holds_alternative<GraphImageDesc>(resource.payload))
+                    {
+                        continue;
+                    }
 
-                if (!std::holds_alternative<GraphImageDesc>(resource.payload))
-                {
-                    continue;
-                }
+                    const auto image_payload = std::get<GraphImageDesc>(resource.payload);
+                    ImageDesc image_desc{};
+                    image_desc.width = image_payload.width;
+                    image_desc.height = image_payload.height;
+                    image_desc.depth = image_payload.depth;
+                    image_desc.mipLevels = image_payload.mipLevels;
+                    image_desc.arrayLayers = image_payload.arrayLayers;
+                    image_desc.samples = static_cast<vk::SampleCountFlagBits>(image_payload.samples);
+                    image_desc.aspectMask = static_cast<vk::ImageAspectFlags>(image_payload.aspectMask);
+                    if (image_payload.format != 0)
+                    {
+                        image_desc.format = static_cast<vk::Format>(image_payload.format);
+                    }
+                    if (image_payload.usage != 0)
+                    {
+                        image_desc.usage = static_cast<vk::ImageUsageFlags>(image_payload.usage);
+                    }
 
-                const auto image_payload = std::get<GraphImageDesc>(resource.payload);
-                ImageDesc image_desc{};
-                image_desc.width = image_payload.width;
-                image_desc.height = image_payload.height;
-                image_desc.depth = image_payload.depth;
-                image_desc.mipLevels = image_payload.mipLevels;
-                image_desc.arrayLayers = image_payload.arrayLayers;
-                image_desc.samples = static_cast<vk::SampleCountFlagBits>(image_payload.samples);
-                image_desc.aspectMask = static_cast<vk::ImageAspectFlags>(image_payload.aspectMask);
-                if (image_payload.format != 0)
-                {
-                    image_desc.format = static_cast<vk::Format>(image_payload.format);
-                }
-                if (image_payload.usage != 0)
-                {
-                    image_desc.usage = static_cast<vk::ImageUsageFlags>(image_payload.usage);
-                }
+                    const std::string external_key = resource.externalKey.empty() ? resource.name : resource.externalKey;
+                    const std::string normalized_key = RenderPassRegistry::normalizeTypeName(external_key);
 
-                const std::string external_key = resource.externalKey.empty() ? resource.name : resource.externalKey;
-                const std::string normalized_key = RenderPassRegistry::normalizeTypeName(external_key);
+                    std::shared_ptr<vkcore::TextureResource> external_texture{};
+                    if (resource.lifetime == ResourceLifetime::External)
+                    {
+                        if (normalized_key == "scenecolor")
+                        {
+                            external_texture = _color_target;
+                        }
+                        else if (normalized_key == "scenedepth")
+                        {
+                            external_texture = _depth_target;
+                        }
+                        else
+                        {
+                            std::cerr << "[RenderSystem] Unsupported external image key: "
+                                << external_key << " for resource \"" << resource.name << "\"\n";
+                            continue;
+                        }
 
-                std::shared_ptr<vkcore::TextureResource> external_texture{};
-                if (resource.lifetime == ResourceLifetime::External)
-                {
+                        if (external_texture)
+                        {
+                            const auto extent = external_texture->getExtent();
+                            image_desc.width = extent.width;
+                            image_desc.height = extent.height;
+                            image_desc.depth = extent.depth;
+                            image_desc.format = external_texture->getFormat();
+                            if (normalized_key == "scenecolor")
+                            {
+                                image_desc.usage = vk::ImageUsageFlagBits::eColorAttachment |
+                                    vk::ImageUsageFlagBits::eTransferSrc |
+                                    vk::ImageUsageFlagBits::eStorage;
+                                image_desc.aspectMask = vk::ImageAspectFlagBits::eColor;
+                            }
+                            else
+                            {
+                                image_desc.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+                                image_desc.aspectMask = vk::ImageAspectFlagBits::eDepth;
+                            }
+                        }
+                    }
+
+                    auto* image_res = builder.create<RGResource<ImageDesc, FrameGraphImage>>(
+                        resource.name,
+                        image_desc,
+                        resource.lifetime);
+
+                    if (resource.lifetime == ResourceLifetime::External)
+                    {
+                        if (external_texture)
+                        {
+                            image_res->setExternal(external_texture);
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+
+                    _named_image_resources[resource.name] = image_res;
+
                     if (normalized_key == "scenecolor")
                     {
-                        external_texture = _color_target;
+                        _rg_color = image_res;
+                        _rg_color_name = resource.name;
                     }
                     else if (normalized_key == "scenedepth")
                     {
-                        external_texture = _depth_target;
+                        _rg_depth = image_res;
+                        _rg_depth_name = resource.name;
                     }
-                    else
+
+                    continue;
+                }
+
+                if (resource.kind == ResourceKind::Buffer)
+                {
+                    if (!std::holds_alternative<GraphBufferDesc>(resource.payload))
                     {
-                        std::cerr << "[RenderSystem] Unsupported external image key: "
+                        continue;
+                    }
+
+                    const auto buffer_payload = std::get<GraphBufferDesc>(resource.payload);
+                    BufferDesc buffer_desc{};
+                    buffer_desc.size = buffer_payload.size;
+                    if (buffer_payload.usage != 0)
+                    {
+                        buffer_desc.usage = static_cast<vk::BufferUsageFlags>(buffer_payload.usage);
+                    }
+
+                    if (resource.lifetime == ResourceLifetime::External)
+                    {
+                        const std::string external_key = resource.externalKey.empty() ? resource.name : resource.externalKey;
+                        std::cerr << "[RenderSystem] Unsupported external buffer key: "
                             << external_key << " for resource \"" << resource.name << "\"\n";
                         continue;
                     }
 
-                    if (external_texture)
-                    {
-                        const auto extent = external_texture->getExtent();
-                        image_desc.width = extent.width;
-                        image_desc.height = extent.height;
-                        image_desc.depth = extent.depth;
-                        image_desc.format = external_texture->getFormat();
-                        if (normalized_key == "scenecolor")
-                        {
-                            image_desc.usage = vk::ImageUsageFlagBits::eColorAttachment |
-                                vk::ImageUsageFlagBits::eTransferSrc |
-                                vk::ImageUsageFlagBits::eStorage;
-                            image_desc.aspectMask = vk::ImageAspectFlagBits::eColor;
-                        }
-                        else
-                        {
-                            image_desc.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
-                            image_desc.aspectMask = vk::ImageAspectFlagBits::eDepth;
-                        }
-                    }
-                }
-
-                auto* image_res = builder.create<RGResource<ImageDesc, FrameGraphImage>>(
-                    resource.name,
-                    image_desc,
-                    resource.lifetime);
-
-                if (resource.lifetime == ResourceLifetime::External)
-                {
-                    if (external_texture)
-                    {
-                        image_res->setExternal(external_texture);
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                }
-
-                _named_image_resources[resource.name] = image_res;
-
-                if (normalized_key == "scenecolor")
-                {
-                    _rg_color = image_res;
-                    _rg_color_name = resource.name;
-                }
-                else if (normalized_key == "scenedepth")
-                {
-                    _rg_depth = image_res;
-                    _rg_depth_name = resource.name;
+                    auto* buffer_res = builder.create<RGResource<BufferDesc, FrameGraphBuffer>>(
+                        resource.name,
+                        buffer_desc,
+                        resource.lifetime);
+                    _named_buffer_resources[resource.name] = buffer_res;
                 }
             }
         },
@@ -402,7 +434,7 @@ bool RenderSystem::addAssetImageResourcesTask(const GraphAsset& graph_asset)
         }
     }
 
-    return !_named_image_resources.empty();
+    return !_named_image_resources.empty() || !_named_buffer_resources.empty();
 }
 
 void RenderSystem::addClearTargetsTask(RGResource<ImageDesc, FrameGraphImage>* color,
@@ -513,9 +545,9 @@ bool RenderSystem::buildGraphFromAsset()
         node_by_id.emplace(node.id, &node);
     }
 
-    if (!addAssetImageResourcesTask(graph_asset))
+    if (!addAssetResourcesTask(graph_asset))
     {
-        std::cerr << "[RenderSystem] Graph asset has no usable image resources\n";
+        std::cerr << "[RenderSystem] Graph asset has no usable resources\n";
         return false;
     }
 
