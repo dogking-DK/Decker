@@ -26,10 +26,13 @@ public:
                  ResourceLifetime           life = ResourceLifetime::Transient);
 
     template <typename ResT>
-    ResT* read(ResT* res);
+    ResT* read(ResT* res, ResourceUsage usage = ResourceUsage::Sampled);
 
     template <typename ResT>
-    ResT* write(ResT* res);
+    ResT* write(ResT* res, ResourceUsage usage = ResourceUsage::StorageWrite);
+
+    template <typename ResT>
+    ResT* use(ResT* res, ResourceAccess access, ResourceUsage usage);
 
 private:
     RenderGraph*    _graph;

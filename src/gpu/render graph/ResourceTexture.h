@@ -59,6 +59,7 @@ public:
         _name     = n;
         _desc     = d;
         _lifetime = life;
+        _kind     = ResourceKind::Image;
     }
 
     Actual*     get() const { return actual.get(); }

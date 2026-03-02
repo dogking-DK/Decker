@@ -96,8 +96,8 @@ void GaussianBlurPass::registerToGraph(RenderGraph&                          gra
             data.src = input;
             data.dst = tempRes;
 
-            builder.read(input);
-            builder.write(tempRes);
+            builder.read(input, ResourceUsage::Sampled);
+            builder.write(tempRes, ResourceUsage::StorageWrite);
         },
         // execute 空的，这个 task 只是为了声明 temp 资源和依赖
         [](const BlurPassData&, RenderGraphContext&)
@@ -113,8 +113,8 @@ void GaussianBlurPass::registerToGraph(RenderGraph&                          gra
             data.src = input;
             data.dst = tempRes;
 
-            builder.read(input);
-            builder.write(tempRes);
+            builder.read(input, ResourceUsage::Sampled);
+            builder.write(tempRes, ResourceUsage::StorageWrite);
         },
         [this](const BlurPassData& data, RenderGraphContext& ctx)
         {
@@ -134,8 +134,8 @@ void GaussianBlurPass::registerToGraph(RenderGraph&                          gra
             data.src = tempRes;
             data.dst = output;
 
-            builder.read(tempRes);
-            builder.write(output);
+            builder.read(tempRes, ResourceUsage::Sampled);
+            builder.write(output, ResourceUsage::StorageWrite);
         },
         [this](const BlurPassData& data, RenderGraphContext& ctx)
         {

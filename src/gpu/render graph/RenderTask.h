@@ -19,6 +19,7 @@ struct  RenderTaskBase
 
     std::vector<RGResourceBase*> reads;
     std::vector<RGResourceBase*> writes;
+    std::vector<ResourceUse>     uses;
 
     virtual      ~RenderTaskBase() = default;
     virtual void execute(RenderGraphContext& ctx) = 0;

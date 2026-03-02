@@ -63,6 +63,10 @@ public:
 private:
     void buildDrawLists();
     void buildGraph();
+    bool buildGraphFromAsset();
+    void buildGraphLegacy();
+    void addRenderTargetResourcesTask();
+    void addClearTargetsTask();
 
     vkcore::VulkanContext&            _context;
     ResourceLoader&                     _cpu_loader;

@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "name": "main_render_graph",
+  "resources": [
+    {
+      "name": "scene_color",
+      "kind": "Image",
+      "lifetime": "External",
+      "external_key": "scene_color",
+      "desc": {
+        "width": 1,
+        "height": 1,
+        "depth": 1,
+        "mip_levels": 1,
+        "array_layers": 1,
+        "format": 0,
+        "usage": 0,
+        "samples": 1,
+        "aspect_mask": 0
+      }
+    },
+    {
+      "name": "scene_depth",
+      "kind": "Image",
+      "lifetime": "External",
+      "external_key": "scene_depth",
+      "desc": {
+        "width": 1,
+        "height": 1,
+        "depth": 1,
+        "mip_levels": 1,
+        "array_layers": 1,
+        "format": 0,
+        "usage": 0,
+        "samples": 1,
+        "aspect_mask": 0
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "type": "ClearTargets",
+      "params": []
+    },
+    {
+      "id": 2,
+      "type": "OpaquePass",
+      "params": []
+    },
+    {
+      "id": 3,
+      "type": "OutlinePass",
+      "params": []
+    },
+    {
+      "id": 4,
+      "type": "DebugAabbPass",
+      "params": []
+    },
+    {
+      "id": 5,
+      "type": "UiGizmoPass",
+      "params": []
+    },
+    {
+      "id": 6,
+      "type": "FluidVolumePass",
+      "params": []
+    },
+    {
+      "id": 7,
+      "type": "VoxelPass",
+      "params": []
+    }
+  ],
+  "edges": [
+    {
+      "id": 1,
+      "from_node": 1,
+      "from_pin": "color_out",
+      "to_node": 2,
+      "to_pin": "color_in"
+    },
+    {
+      "id": 2,
+      "from_node": 2,
+      "from_pin": "color_out",
+      "to_node": 3,
+      "to_pin": "color_in"
+    },
+    {
+      "id": 3,
+      "from_node": 3,
+      "from_pin": "color_out",
+      "to_node": 4,
+      "to_pin": "color_in"
+    },
+    {
+      "id": 4,
+      "from_node": 4,
+      "from_pin": "color_out",
+      "to_node": 5,
+      "to_pin": "color_in"
+    },
+    {
+      "id": 5,
+      "from_node": 5,
+      "from_pin": "color_out",
+      "to_node": 6,
+      "to_pin": "color_in"
+    },
+    {
+      "id": 6,
+      "from_node": 6,
+      "from_pin": "color_out",
+      "to_node": 7,
+      "to_pin": "color_in"
+    }
+  ]
+}
+

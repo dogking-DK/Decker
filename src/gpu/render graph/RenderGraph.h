@@ -87,24 +87,42 @@ ResT* RenderTaskBuilder::create(const std::string& name,
 }
 
 template <typename ResT>
-ResT* RenderTaskBuilder::read(ResT* res)
+ResT* RenderTaskBuilder::read(ResT* res, ResourceUsage usage)
 {
-    static_assert(std::is_base_of_v<RGResourceBase, ResT>,
-        "ResT must derive from RGResourceBase");
-    if (!res) return nullptr;
-    _task->reads.push_back(res);
-    res->readers.push_back(_task);
-    return res;
+    return use(res, ResourceAccess::Read, usage);
 }
 
 template <typename ResT>
-ResT* RenderTaskBuilder::write(ResT* res)
+ResT* RenderTaskBuilder::write(ResT* res, ResourceUsage usage)
+{
+    return use(res, ResourceAccess::Write, usage);
+}
+
+template <typename ResT>
+ResT* RenderTaskBuilder::use(ResT* res, ResourceAccess access, ResourceUsage usage)
 {
     static_assert(std::is_base_of_v<RGResourceBase, ResT>,
         "ResT must derive from RGResourceBase");
     if (!res) return nullptr;
-    _task->writes.push_back(res);
-    res->writers.push_back(_task);
+
+    _task->uses.push_back(ResourceUse{res, usage, access});
+    if (access == ResourceAccess::Read)
+    {
+        _task->reads.push_back(res);
+        res->readers.push_back(_task);
+    }
+    else if (access == ResourceAccess::Write)
+    {
+        _task->writes.push_back(res);
+        res->writers.push_back(_task);
+    }
+    else
+    {
+        _task->reads.push_back(res);
+        _task->writes.push_back(res);
+        res->readers.push_back(_task);
+        res->writers.push_back(_task);
+    }
     return res;
 }
 

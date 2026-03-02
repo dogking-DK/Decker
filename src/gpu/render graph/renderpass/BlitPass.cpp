@@ -41,8 +41,8 @@ void BlitPass::registerToGraph(RenderGraph& graph, RGResource<ImageDesc, FrameGr
             data.src = _sceneRes;
             data.dst = _swapRes;
 
-            builder.read(data.src);
-            builder.write(data.dst);
+            builder.read(data.src, ResourceUsage::TransferSrc);
+            builder.write(data.dst, ResourceUsage::TransferDst);
         },
         // execute：真正录制 FXAA 绘制命令
         [this](const BlitPassData& data, RenderGraphContext& ctx)

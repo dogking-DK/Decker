@@ -18,6 +18,7 @@ namespace vkcore {
 
 // 前置声明
 struct RenderTaskBase;
+class RGResourceBase;
 
 // 执行时要需要 VulkanContext & VMA，这里搞个简单的上下文
 struct RenderGraphContext
@@ -32,6 +33,47 @@ struct RenderGraphContext
 // ---------------------------------------------
 using ResourceId = uint32_t;
 using TaskId     = uint32_t;
+
+// ---------------------------------------------
+// 资源类型 / 访问语义
+// ---------------------------------------------
+enum class ResourceKind : std::uint8_t
+{
+    Unknown,
+    Image,
+    Buffer,
+};
+
+enum class ResourceAccess : std::uint8_t
+{
+    Read,
+    Write,
+    ReadWrite,
+};
+
+enum class ResourceUsage : std::uint16_t
+{
+    Unknown,
+    Sampled,
+    StorageRead,
+    StorageWrite,
+    ColorAttachment,
+    DepthStencilAttachment,
+    TransferSrc,
+    TransferDst,
+    Present,
+    VertexBuffer,
+    IndexBuffer,
+    UniformBuffer,
+    IndirectBuffer,
+};
+
+struct ResourceUse
+{
+    RGResourceBase* resource{nullptr};
+    ResourceUsage   usage{ResourceUsage::Unknown};
+    ResourceAccess  access{ResourceAccess::Read};
+};
 
 // ---------------------------------------------
 // 资源生命周期枚举
@@ -66,11 +108,13 @@ public:
     std::string      name() const { return _name; }
     ResourceId       id() const { return _id; }
     ResourceLifetime lifetime() const { return _lifetime; }
+    ResourceKind     kind() const { return _kind; }
 
 protected:
     ResourceId       _id = ~0u;
     std::string      _name;
     ResourceLifetime _lifetime = ResourceLifetime::Transient;
+    ResourceKind     _kind     = ResourceKind::Unknown;
 
     RenderTaskBase*              creator = nullptr;
     std::vector<RenderTaskBase*> readers;

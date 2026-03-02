@@ -2,8 +2,16 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <filesystem>
+#include <iostream>
+#include <string_view>
+#include <unordered_map>
 
 #include "BVH/Frustum.hpp"
+#include "gpu/vk_types.h"
+#include "render graph/GraphAssetIO.h"
+#include "render graph/GraphCompiler.h"
 #include "gpu/render graph/renderpass/DebugAabbPass.h"
 #include "gpu/render graph/renderpass/OutlinePass.h"
 #include "gpu/render graph/renderpass/UiGizmoPass.h"
@@ -11,6 +19,23 @@
 #include "render/RenderTypes.h"
 #include "Vulkan/CommandBuffer.h"
 #include "Vulkan/Texture.h"
+
+namespace {
+std::string normalize_node_type(std::string_view raw)
+{
+    std::string out;
+    out.reserve(raw.size());
+    for (const char ch : raw)
+    {
+        if (ch == ' ' || ch == '_' || ch == '-' || ch == '\t')
+        {
+            continue;
+        }
+        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+    }
+    return out;
+}
+}
 
 namespace dk::render {
 RenderSystem::RenderSystem(vkcore::VulkanContext& ctx, vkcore::UploadContext& upload_ctx, ResourceLoader& loader)
@@ -151,6 +176,21 @@ void RenderSystem::buildGraph()
     _graph_built = false;
     _compiled = false;
 
+    if (buildGraphFromAsset())
+    {
+        return;
+    }
+
+    _graph = RenderGraph{};
+    _rg_color = nullptr;
+    _rg_depth = nullptr;
+    _graph_built = false;
+    _compiled = false;
+    buildGraphLegacy();
+}
+
+void RenderSystem::addRenderTargetResourcesTask()
+{
     struct TargetData
     {
     };
@@ -196,7 +236,10 @@ void RenderSystem::buildGraph()
         [](const TargetData&, RenderGraphContext&)
         {
         });
+}
 
+void RenderSystem::addClearTargetsTask()
+{
     struct ClearTargetsData
     {
         RGResource<ImageDesc, FrameGraphImage>* color{nullptr};
@@ -211,11 +254,11 @@ void RenderSystem::buildGraph()
             data.depth = _rg_depth;
             if (data.color)
             {
-                builder.write(data.color);
+                builder.write(data.color, ResourceUsage::ColorAttachment);
             }
             if (data.depth)
             {
-                builder.write(data.depth);
+                builder.write(data.depth, ResourceUsage::DepthStencilAttachment);
             }
         },
         [](const ClearTargetsData& data, RenderGraphContext& ctx)
@@ -260,6 +303,132 @@ void RenderSystem::buildGraph()
             command_buffer.beginRenderingColor(render_area, color_attachment, &depth_attachment);
             command_buffer.endRendering();
         });
+}
+
+bool RenderSystem::buildGraphFromAsset()
+{
+    namespace fs = std::filesystem;
+    const fs::path asset_path = absolute(get_exe_dir() / "assets/config/render_graph.json");
+
+    GraphAsset graph_asset{};
+    std::string load_error;
+    if (!loadGraphAssetFromJsonFile(asset_path, graph_asset, load_error))
+    {
+        std::cerr << "[RenderSystem] Graph asset load failed: " << load_error << "\n";
+        return false;
+    }
+
+    CompiledGraphAsset compiled_asset{};
+    std::string compile_error;
+    if (!compileGraphAsset(graph_asset, compiled_asset, compile_error))
+    {
+        std::cerr << "[RenderSystem] Graph asset compile failed: " << compile_error << "\n";
+        return false;
+    }
+
+    std::unordered_map<GraphNodeId, const GraphNodeAsset*> node_by_id;
+    node_by_id.reserve(graph_asset.nodes.size());
+    for (const auto& node : graph_asset.nodes)
+    {
+        node_by_id.emplace(node.id, &node);
+    }
+
+    addRenderTargetResourcesTask();
+
+    bool clear_added = false;
+    bool has_render_passes = false;
+
+    for (const auto node_id : compiled_asset.executionOrder)
+    {
+        const auto node_it = node_by_id.find(node_id);
+        if (node_it == node_by_id.end())
+        {
+            continue;
+        }
+
+        const std::string normalized_type = normalize_node_type(node_it->second->type);
+        if (normalized_type == "cleartargets" || normalized_type == "clearrendertargets")
+        {
+            addClearTargetsTask();
+            clear_added = true;
+            continue;
+        }
+
+        if (normalized_type == "opaquepass")
+        {
+            _opaque_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+            has_render_passes = true;
+            continue;
+        }
+
+        if (normalized_type == "outlinepass")
+        {
+            _outline_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+            has_render_passes = true;
+            continue;
+        }
+
+        if (normalized_type == "debugaabbpass")
+        {
+            _debug_aabb_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+            has_render_passes = true;
+            continue;
+        }
+
+        if (normalized_type == "uigizmopass")
+        {
+            _ui_gizmo_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+            has_render_passes = true;
+            continue;
+        }
+
+        if (normalized_type == "fluidvolumepass")
+        {
+            _graph.addTask<int>(
+                "Fluid Volume Pass",
+                [](int&, RenderTaskBuilder&) {},
+                [](const int&, RenderGraphContext&)
+                {
+                    // TODO: 接入体渲染/体素流体的 Raymarch 或参与光照的体积合成。
+                });
+            continue;
+        }
+
+        if (normalized_type == "voxelpass")
+        {
+            _graph.addTask<int>(
+                "Voxel Pass",
+                [](int&, RenderTaskBuilder&) {},
+                [](const int&, RenderGraphContext&)
+                {
+                    // TODO: 接入体素表面或 SDF 可视化。
+                });
+            continue;
+        }
+
+        std::cerr << "[RenderSystem] Unknown graph node type: " << node_it->second->type
+            << " (id=" << node_id << ")\n";
+    }
+
+    if (!clear_added)
+    {
+        addClearTargetsTask();
+    }
+    if (!has_render_passes)
+    {
+        _opaque_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+    }
+
+    _graph.compile();
+    _compiled = true;
+    _graph_built = true;
+    return true;
+}
+
+void RenderSystem::buildGraphLegacy()
+{
+    addRenderTargetResourcesTask();
+    addClearTargetsTask();
 
     _opaque_pass->registerToGraph(_graph, _rg_color, _rg_depth);
     _outline_pass->registerToGraph(_graph, _rg_color, _rg_depth);

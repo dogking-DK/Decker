@@ -78,8 +78,8 @@ void DistortionPass::registerToGraph(RenderGraph&                          graph
             data.src = input;
             data.dst = output;
 
-            builder.read(input);
-            builder.write(output);
+            builder.read(input, ResourceUsage::Sampled);
+            builder.write(output, ResourceUsage::StorageWrite);
         },
         [this](const DistortionPassData& data, RenderGraphContext& ctx)
         {

@@ -87,11 +87,11 @@ void UiGizmoPass::registerToGraph(RenderGraph& graph,
             data.depth = depth;
             if (data.color)
             {
-                builder.write(data.color);
+                builder.write(data.color, ResourceUsage::ColorAttachment);
             }
             if (data.depth)
             {
-                builder.read(data.depth);
+                builder.read(data.depth, ResourceUsage::DepthStencilAttachment);
             }
         },
         [this](const UiGizmoPassData& data, RenderGraphContext& ctx)
