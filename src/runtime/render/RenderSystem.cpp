@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <string_view>
 #include <unordered_map>
@@ -22,20 +22,16 @@
 #include "Vulkan/Texture.h"
 
 namespace {
-std::string normalize_node_type(std::string_view raw)
+using ImageRGResource = dk::RGResource<dk::ImageDesc, dk::FrameGraphImage>;
+
+// 节点解析后的标准输入，供分发表统一消费。
+struct ResolvedNodeInputs
 {
-    std::string out;
-    out.reserve(raw.size());
-    for (const char ch : raw)
-    {
-        if (ch == ' ' || ch == '_' || ch == '-' || ch == '\t')
-        {
-            continue;
-        }
-        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
-    }
-    return out;
-}
+    std::string colorName;
+    std::string depthName;
+    ImageRGResource* color{nullptr};
+    ImageRGResource* depth{nullptr};
+};
 
 const std::string* find_string_param(const dk::GraphNodeAsset* node, std::string_view name)
 {
@@ -311,7 +307,7 @@ bool RenderSystem::addAssetImageResourcesTask(const GraphAsset& graph_asset)
                 }
 
                 const std::string external_key = resource.externalKey.empty() ? resource.name : resource.externalKey;
-                const std::string normalized_key = normalize_node_type(external_key);
+                const std::string normalized_key = RenderPassRegistry::normalizeTypeName(external_key);
 
                 std::shared_ptr<vkcore::TextureResource> external_texture{};
                 if (resource.lifetime == ResourceLifetime::External)
@@ -573,6 +569,164 @@ bool RenderSystem::buildGraphFromAsset()
     bool clear_added = false;
     bool has_render_passes = false;
 
+    // 运行时 pass 绑定回调：把节点翻译为真实 RenderGraph task 注册。
+    using NodeHandler = std::function<bool(
+        const CompiledGraphNode&,
+        const GraphNodeAsset&,
+        const ResolvedNodeInputs&,
+        NodeOutputs&)>;
+    std::unordered_map<std::string, NodeHandler> node_handlers;
+    node_handlers.reserve(8);
+
+    auto write_outputs = [](NodeOutputs& outputs,
+                            const ResolvedNodeInputs& inputs,
+                            bool write_color,
+                            bool write_depth)
+    {
+        if (write_color && inputs.color)
+        {
+            outputs["color_out"] = inputs.colorName;
+        }
+        if (write_depth && inputs.depth)
+        {
+            outputs["depth_out"] = inputs.depthName;
+        }
+    };
+
+    auto require_color_depth_inputs = [](std::string_view pass_name, const ResolvedNodeInputs& inputs) -> bool
+    {
+        if (inputs.color && inputs.depth)
+        {
+            return true;
+        }
+        std::cerr << "[RenderSystem] " << pass_name << " missing color/depth inputs\n";
+        return false;
+    };
+
+    // 统一注册「读写 color/depth」的常规图形 pass。
+    auto register_raster_pass_handler = [&](std::string_view type,
+                                            const std::function<void(ImageRGResource*, ImageRGResource*)>& register_fn,
+                                            std::string_view pass_name)
+    {
+        node_handlers.emplace(
+            RenderPassRegistry::normalizeTypeName(type),
+            [&, register_fn, pass_name = std::string(pass_name)](
+                const CompiledGraphNode&,
+                const GraphNodeAsset&,
+                const ResolvedNodeInputs& inputs,
+                NodeOutputs& outputs) -> bool
+            {
+                if (!require_color_depth_inputs(pass_name, inputs))
+                {
+                    return false;
+                }
+
+                register_fn(inputs.color, inputs.depth);
+                has_render_passes = true;
+                write_outputs(outputs, inputs, true, true);
+                return true;
+            });
+    };
+
+    const NodeHandler clear_handler =
+        [&](const CompiledGraphNode&,
+            const GraphNodeAsset&,
+            const ResolvedNodeInputs& raw_inputs,
+            NodeOutputs& outputs) -> bool
+        {
+            ResolvedNodeInputs inputs = raw_inputs;
+            if (!inputs.color)
+            {
+                inputs.color = _rg_color;
+                inputs.colorName = _rg_color_name;
+            }
+            if (!inputs.depth)
+            {
+                inputs.depth = _rg_depth;
+                inputs.depthName = _rg_depth_name;
+            }
+            if (!require_color_depth_inputs("ClearTargets", inputs))
+            {
+                return false;
+            }
+
+            addClearTargetsTask(inputs.color, inputs.depth);
+            clear_added = true;
+            write_outputs(outputs, inputs, true, true);
+            return true;
+        };
+
+    node_handlers.emplace(RenderPassRegistry::normalizeTypeName("ClearTargets"), clear_handler);
+    node_handlers.emplace(RenderPassRegistry::normalizeTypeName("ClearRenderTargets"), clear_handler);
+
+    register_raster_pass_handler(
+        "OpaquePass",
+        [this](ImageRGResource* color, ImageRGResource* depth)
+        {
+            _opaque_pass->registerToGraph(_graph, color, depth);
+        },
+        "OpaquePass");
+
+    register_raster_pass_handler(
+        "OutlinePass",
+        [this](ImageRGResource* color, ImageRGResource* depth)
+        {
+            _outline_pass->registerToGraph(_graph, color, depth);
+        },
+        "OutlinePass");
+
+    register_raster_pass_handler(
+        "DebugAabbPass",
+        [this](ImageRGResource* color, ImageRGResource* depth)
+        {
+            _debug_aabb_pass->registerToGraph(_graph, color, depth);
+        },
+        "DebugAabbPass");
+
+    register_raster_pass_handler(
+        "UiGizmoPass",
+        [this](ImageRGResource* color, ImageRGResource* depth)
+        {
+            _ui_gizmo_pass->registerToGraph(_graph, color, depth);
+        },
+        "UiGizmoPass");
+
+    node_handlers.emplace(
+        RenderPassRegistry::normalizeTypeName("FluidVolumePass"),
+        [&](const CompiledGraphNode&,
+            const GraphNodeAsset&,
+            const ResolvedNodeInputs& inputs,
+            NodeOutputs& outputs) -> bool
+        {
+            _graph.addTask<int>(
+                "Fluid Volume Pass",
+                [](int&, RenderTaskBuilder&) {},
+                [](const int&, RenderGraphContext&)
+                {
+                    // TODO: 接入体渲染/体素流体的 Raymarch 或参与光照的体积合成。
+                });
+            write_outputs(outputs, inputs, true, true);
+            return true;
+        });
+
+    node_handlers.emplace(
+        RenderPassRegistry::normalizeTypeName("VoxelPass"),
+        [&](const CompiledGraphNode&,
+            const GraphNodeAsset&,
+            const ResolvedNodeInputs& inputs,
+            NodeOutputs& outputs) -> bool
+        {
+            _graph.addTask<int>(
+                "Voxel Pass",
+                [](int&, RenderTaskBuilder&) {},
+                [](const int&, RenderGraphContext&)
+                {
+                    // TODO: 接入体素表面或 SDF 可视化。
+                });
+            write_outputs(outputs, inputs, true, true);
+            return true;
+        });
+
     for (const auto& compiled_node : compiled_asset.nodes)
     {
         const auto node_it = node_by_id.find(compiled_node.id);
@@ -582,125 +736,26 @@ bool RenderSystem::buildGraphFromAsset()
         }
 
         const GraphNodeAsset* node_asset = node_it->second;
-        const std::string normalized_type = normalize_node_type(compiled_node.type);
-        std::string color_name = resolve_input_resource_name(compiled_node, node_asset, "color_in", _rg_color_name);
-        std::string depth_name = resolve_input_resource_name(compiled_node, node_asset, "depth_in", _rg_depth_name);
+        ResolvedNodeInputs inputs{};
+        inputs.colorName = resolve_input_resource_name(compiled_node, node_asset, "color_in", _rg_color_name);
+        inputs.depthName = resolve_input_resource_name(compiled_node, node_asset, "depth_in", _rg_depth_name);
+        inputs.color = find_image(inputs.colorName);
+        inputs.depth = find_image(inputs.depthName);
 
-        auto* color_res = find_image(color_name);
-        auto* depth_res = find_image(depth_name);
         auto& outputs = node_outputs[compiled_node.id];
-
-        if (normalized_type == "cleartargets" || normalized_type == "clearrendertargets")
+        const std::string normalized_type = RenderPassRegistry::normalizeTypeName(compiled_node.type);
+        const auto handler_it = node_handlers.find(normalized_type);
+        if (handler_it == node_handlers.end())
         {
-            if (!color_res)
-            {
-                color_res = _rg_color;
-                color_name = _rg_color_name;
-            }
-            if (!depth_res)
-            {
-                depth_res = _rg_depth;
-                depth_name = _rg_depth_name;
-            }
-            if (!color_res || !depth_res)
-            {
-                std::cerr << "[RenderSystem] ClearTargets missing input resources\n";
-                continue;
-            }
-
-            addClearTargetsTask(color_res, depth_res);
-            clear_added = true;
-            outputs["color_out"] = color_name;
-            outputs["depth_out"] = depth_name;
+            std::cerr << "[RenderSystem] Unknown graph node type: " << compiled_node.type
+                << " (id=" << compiled_node.id << ")\n";
             continue;
         }
 
-        if (normalized_type == "opaquepass")
+        if (!handler_it->second(compiled_node, *node_asset, inputs, outputs))
         {
-            if (!color_res || !depth_res)
-            {
-                std::cerr << "[RenderSystem] OpaquePass missing color/depth inputs\n";
-                continue;
-            }
-            _opaque_pass->registerToGraph(_graph, color_res, depth_res);
-            has_render_passes = true;
-            outputs["color_out"] = color_name;
-            outputs["depth_out"] = depth_name;
             continue;
         }
-
-        if (normalized_type == "outlinepass")
-        {
-            if (!color_res || !depth_res)
-            {
-                std::cerr << "[RenderSystem] OutlinePass missing color/depth inputs\n";
-                continue;
-            }
-            _outline_pass->registerToGraph(_graph, color_res, depth_res);
-            has_render_passes = true;
-            outputs["color_out"] = color_name;
-            outputs["depth_out"] = depth_name;
-            continue;
-        }
-
-        if (normalized_type == "debugaabbpass")
-        {
-            if (!color_res || !depth_res)
-            {
-                std::cerr << "[RenderSystem] DebugAabbPass missing color/depth inputs\n";
-                continue;
-            }
-            _debug_aabb_pass->registerToGraph(_graph, color_res, depth_res);
-            has_render_passes = true;
-            outputs["color_out"] = color_name;
-            outputs["depth_out"] = depth_name;
-            continue;
-        }
-
-        if (normalized_type == "uigizmopass")
-        {
-            if (!color_res || !depth_res)
-            {
-                std::cerr << "[RenderSystem] UiGizmoPass missing color/depth inputs\n";
-                continue;
-            }
-            _ui_gizmo_pass->registerToGraph(_graph, color_res, depth_res);
-            has_render_passes = true;
-            outputs["color_out"] = color_name;
-            outputs["depth_out"] = depth_name;
-            continue;
-        }
-
-        if (normalized_type == "fluidvolumepass")
-        {
-            _graph.addTask<int>(
-                "Fluid Volume Pass",
-                [](int&, RenderTaskBuilder&) {},
-                [](const int&, RenderGraphContext&)
-                {
-                    // TODO: 接入体渲染/体素流体的 Raymarch 或参与光照的体积合成。
-                });
-            if (color_res) outputs["color_out"] = color_name;
-            if (depth_res) outputs["depth_out"] = depth_name;
-            continue;
-        }
-
-        if (normalized_type == "voxelpass")
-        {
-            _graph.addTask<int>(
-                "Voxel Pass",
-                [](int&, RenderTaskBuilder&) {},
-                [](const int&, RenderGraphContext&)
-                {
-                    // TODO: 接入体素表面或 SDF 可视化。
-                });
-            if (color_res) outputs["color_out"] = color_name;
-            if (depth_res) outputs["depth_out"] = depth_name;
-            continue;
-        }
-
-        std::cerr << "[RenderSystem] Unknown graph node type: " << compiled_node.type
-            << " (id=" << compiled_node.id << ")\n";
     }
 
     if (!clear_added)

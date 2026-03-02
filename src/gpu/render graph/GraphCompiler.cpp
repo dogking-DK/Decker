@@ -1,6 +1,7 @@
 #include "GraphCompiler.h"
 
 #include <queue>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -170,6 +171,85 @@ bool validateEdgePinsAndKinds(const GraphAsset& graph,
     return true;
 }
 
+// 仅接受字符串参数作为资源名覆盖输入（与 RenderSystem 的解析约定一致）。
+bool hasStringParam(const GraphNodeAsset& node, std::string_view param_name)
+{
+    for (const auto& param : node.params)
+    {
+        if (param.name != param_name)
+        {
+            continue;
+        }
+        return std::holds_alternative<std::string>(param.value);
+    }
+    return false;
+}
+
+std::string pinAliasWithoutInputSuffix(const std::string& pin_name)
+{
+    constexpr std::string_view suffix = "_in";
+    if (pin_name.size() <= suffix.size())
+    {
+        return pin_name;
+    }
+
+    const std::string_view name_view{pin_name};
+    if (!name_view.ends_with(suffix))
+    {
+        return pin_name;
+    }
+
+    return pin_name.substr(0, pin_name.size() - suffix.size());
+}
+
+// 校验非 optional 输入 pin 至少有一条来源：edge 或字符串参数覆盖。
+bool validateRequiredInputPins(const GraphAsset& graph,
+                               const std::unordered_map<GraphNodeId, const PassTypeInfo*>& pass_info_by_node,
+                               std::string& out_error)
+{
+    std::unordered_map<GraphNodeId, std::unordered_set<std::string>> incoming_input_pins;
+    incoming_input_pins.reserve(graph.nodes.size());
+    for (const auto& edge : graph.edges)
+    {
+        incoming_input_pins[edge.toNode].insert(edge.toPin);
+    }
+
+    for (const auto& node : graph.nodes)
+    {
+        const auto pass_it = pass_info_by_node.find(node.id);
+        if (pass_it == pass_info_by_node.end())
+        {
+            out_error = "Internal compile error: missing pass info for node " + std::to_string(node.id);
+            return false;
+        }
+
+        const auto inputs_it = incoming_input_pins.find(node.id);
+        const auto* incoming = (inputs_it != incoming_input_pins.end()) ? &inputs_it->second : nullptr;
+
+        for (const auto& pin : pass_it->second->pins)
+        {
+            if (pin.direction != PinDirection::Input || pin.optional)
+            {
+                continue;
+            }
+
+            const bool has_edge_binding = incoming ? incoming->contains(pin.name) : false;
+            const std::string alias = pinAliasWithoutInputSuffix(pin.name);
+            const bool has_param_binding = hasStringParam(node, pin.name) ||
+                (alias != pin.name && hasStringParam(node, alias));
+
+            if (!has_edge_binding && !has_param_binding)
+            {
+                out_error = "Node " + std::to_string(node.id) + " (" + node.type +
+                    ") missing required input pin \"" + pin.name + "\"";
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 }
 
 bool compileGraphAsset(const GraphAsset& graph,
@@ -191,6 +271,7 @@ bool compileGraphAsset(const GraphAsset& graph,
         std::unordered_map<GraphNodeId, const PassTypeInfo*> pass_info_by_node;
         if (!validateRegisteredPassTypes(graph, *pass_registry, pass_info_by_node, out_error)) return false;
         if (!validateEdgePinsAndKinds(graph, pass_info_by_node, out_error)) return false;
+        if (!validateRequiredInputPins(graph, pass_info_by_node, out_error)) return false;
     }
 
     const std::size_t node_count = graph.nodes.size();
