@@ -11,6 +11,7 @@
 #include "BVH/Frustum.hpp"
 #include "gpu/vk_types.h"
 #include "render graph/GraphAssetIO.h"
+#include "render graph/BuiltinPassRegistry.h"
 #include "render graph/GraphCompiler.h"
 #include "gpu/render graph/renderpass/DebugAabbPass.h"
 #include "gpu/render graph/renderpass/OutlinePass.h"
@@ -34,6 +35,29 @@ std::string normalize_node_type(std::string_view raw)
         out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
     }
     return out;
+}
+
+const std::string* find_string_param(const dk::GraphNodeAsset* node, std::string_view name)
+{
+    if (!node)
+    {
+        return nullptr;
+    }
+
+    for (const auto& param : node->params)
+    {
+        if (param.name != name)
+        {
+            continue;
+        }
+        if (const auto* text = std::get_if<std::string>(&param.value))
+        {
+            return text;
+        }
+        return nullptr;
+    }
+
+    return nullptr;
 }
 }
 
@@ -173,6 +197,9 @@ void RenderSystem::buildGraph()
     _graph = RenderGraph{};
     _rg_color = nullptr;
     _rg_depth = nullptr;
+    _rg_color_name = "scene_color";
+    _rg_depth_name = "scene_depth";
+    _named_image_resources.clear();
     _graph_built = false;
     _compiled = false;
 
@@ -184,6 +211,9 @@ void RenderSystem::buildGraph()
     _graph = RenderGraph{};
     _rg_color = nullptr;
     _rg_depth = nullptr;
+    _rg_color_name = "scene_color";
+    _rg_depth_name = "scene_depth";
+    _named_image_resources.clear();
     _graph_built = false;
     _compiled = false;
     buildGraphLegacy();
@@ -216,6 +246,8 @@ void RenderSystem::addRenderTargetResourcesTask()
                 ResourceLifetime::External);
             color_res->setExternal(_color_target);
             _rg_color = color_res;
+            _rg_color_name = "scene_color";
+            _named_image_resources[_rg_color_name] = color_res;
 
             const auto depth_extent = _depth_target->getExtent();
             ImageDesc depth_desc{};
@@ -232,13 +264,152 @@ void RenderSystem::addRenderTargetResourcesTask()
                 ResourceLifetime::External);
             depth_res->setExternal(_depth_target);
             _rg_depth = depth_res;
+            _rg_depth_name = "scene_depth";
+            _named_image_resources[_rg_depth_name] = depth_res;
         },
         [](const TargetData&, RenderGraphContext&)
         {
         });
 }
 
-void RenderSystem::addClearTargetsTask()
+bool RenderSystem::addAssetImageResourcesTask(const GraphAsset& graph_asset)
+{
+    const auto resources = graph_asset.resources;
+
+    _graph.addTask<int>(
+        "Render Targets",
+        [this, resources](int&, RenderTaskBuilder& builder)
+        {
+            for (const auto& resource : resources)
+            {
+                if (resource.kind != ResourceKind::Image)
+                {
+                    continue;
+                }
+
+                if (!std::holds_alternative<GraphImageDesc>(resource.payload))
+                {
+                    continue;
+                }
+
+                const auto image_payload = std::get<GraphImageDesc>(resource.payload);
+                ImageDesc image_desc{};
+                image_desc.width = image_payload.width;
+                image_desc.height = image_payload.height;
+                image_desc.depth = image_payload.depth;
+                image_desc.mipLevels = image_payload.mipLevels;
+                image_desc.arrayLayers = image_payload.arrayLayers;
+                image_desc.samples = static_cast<vk::SampleCountFlagBits>(image_payload.samples);
+                image_desc.aspectMask = static_cast<vk::ImageAspectFlags>(image_payload.aspectMask);
+                if (image_payload.format != 0)
+                {
+                    image_desc.format = static_cast<vk::Format>(image_payload.format);
+                }
+                if (image_payload.usage != 0)
+                {
+                    image_desc.usage = static_cast<vk::ImageUsageFlags>(image_payload.usage);
+                }
+
+                const std::string external_key = resource.externalKey.empty() ? resource.name : resource.externalKey;
+                const std::string normalized_key = normalize_node_type(external_key);
+
+                std::shared_ptr<vkcore::TextureResource> external_texture{};
+                if (resource.lifetime == ResourceLifetime::External)
+                {
+                    if (normalized_key == "scenecolor")
+                    {
+                        external_texture = _color_target;
+                    }
+                    else if (normalized_key == "scenedepth")
+                    {
+                        external_texture = _depth_target;
+                    }
+                    else
+                    {
+                        std::cerr << "[RenderSystem] Unsupported external image key: "
+                            << external_key << " for resource \"" << resource.name << "\"\n";
+                        continue;
+                    }
+
+                    if (external_texture)
+                    {
+                        const auto extent = external_texture->getExtent();
+                        image_desc.width = extent.width;
+                        image_desc.height = extent.height;
+                        image_desc.depth = extent.depth;
+                        image_desc.format = external_texture->getFormat();
+                        if (normalized_key == "scenecolor")
+                        {
+                            image_desc.usage = vk::ImageUsageFlagBits::eColorAttachment |
+                                vk::ImageUsageFlagBits::eTransferSrc |
+                                vk::ImageUsageFlagBits::eStorage;
+                            image_desc.aspectMask = vk::ImageAspectFlagBits::eColor;
+                        }
+                        else
+                        {
+                            image_desc.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+                            image_desc.aspectMask = vk::ImageAspectFlagBits::eDepth;
+                        }
+                    }
+                }
+
+                auto* image_res = builder.create<RGResource<ImageDesc, FrameGraphImage>>(
+                    resource.name,
+                    image_desc,
+                    resource.lifetime);
+
+                if (resource.lifetime == ResourceLifetime::External)
+                {
+                    if (external_texture)
+                    {
+                        image_res->setExternal(external_texture);
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                _named_image_resources[resource.name] = image_res;
+
+                if (normalized_key == "scenecolor")
+                {
+                    _rg_color = image_res;
+                    _rg_color_name = resource.name;
+                }
+                else if (normalized_key == "scenedepth")
+                {
+                    _rg_depth = image_res;
+                    _rg_depth_name = resource.name;
+                }
+            }
+        },
+        [](const int&, RenderGraphContext&)
+        {
+        });
+
+    if (!_rg_color)
+    {
+        if (const auto it = _named_image_resources.find("scene_color"); it != _named_image_resources.end())
+        {
+            _rg_color = it->second;
+            _rg_color_name = it->first;
+        }
+    }
+    if (!_rg_depth)
+    {
+        if (const auto it = _named_image_resources.find("scene_depth"); it != _named_image_resources.end())
+        {
+            _rg_depth = it->second;
+            _rg_depth_name = it->first;
+        }
+    }
+
+    return !_named_image_resources.empty();
+}
+
+void RenderSystem::addClearTargetsTask(RGResource<ImageDesc, FrameGraphImage>* color,
+                                       RGResource<ImageDesc, FrameGraphImage>* depth)
 {
     struct ClearTargetsData
     {
@@ -248,10 +419,10 @@ void RenderSystem::addClearTargetsTask()
 
     _graph.addTask<ClearTargetsData>(
         "Clear Render Targets",
-        [this](ClearTargetsData& data, RenderTaskBuilder& builder)
+        [color, depth](ClearTargetsData& data, RenderTaskBuilder& builder)
         {
-            data.color = _rg_color;
-            data.depth = _rg_depth;
+            data.color = color;
+            data.depth = depth;
             if (data.color)
             {
                 builder.write(data.color, ResourceUsage::ColorAttachment);
@@ -320,7 +491,8 @@ bool RenderSystem::buildGraphFromAsset()
 
     CompiledGraphAsset compiled_asset{};
     std::string compile_error;
-    if (!compileGraphAsset(graph_asset, compiled_asset, compile_error))
+    const RenderPassRegistry pass_registry = createBuiltinRenderPassRegistry();
+    if (!compileGraphAsset(graph_asset, compiled_asset, compile_error, &pass_registry))
     {
         std::cerr << "[RenderSystem] Graph asset compile failed: " << compile_error << "\n";
         return false;
@@ -333,52 +505,169 @@ bool RenderSystem::buildGraphFromAsset()
         node_by_id.emplace(node.id, &node);
     }
 
-    addRenderTargetResourcesTask();
+    if (!addAssetImageResourcesTask(graph_asset))
+    {
+        std::cerr << "[RenderSystem] Graph asset has no usable image resources\n";
+        return false;
+    }
+
+    if (!_rg_color || !_rg_depth)
+    {
+        std::cerr << "[RenderSystem] Graph asset must provide scene color/depth resources\n";
+        return false;
+    }
+
+    using NodeOutputs = std::unordered_map<std::string, std::string>;
+    std::unordered_map<GraphNodeId, NodeOutputs> node_outputs;
+    node_outputs.reserve(compiled_asset.nodes.size());
+
+    auto find_image = [this](const std::string& name) -> RGResource<ImageDesc, FrameGraphImage>*
+    {
+        const auto it = _named_image_resources.find(name);
+        if (it == _named_image_resources.end())
+        {
+            return nullptr;
+        }
+        return it->second;
+    };
+
+    auto resolve_input_resource_name = [&node_outputs](
+        const CompiledGraphNode& compiled_node,
+        const GraphNodeAsset*    node_asset,
+        std::string_view         pin_name,
+        std::string_view         fallback_name) -> std::string
+    {
+        if (const auto bind_it = compiled_node.inputPins.find(std::string(pin_name));
+            bind_it != compiled_node.inputPins.end())
+        {
+            const auto outputs_it = node_outputs.find(bind_it->second.sourceNode);
+            if (outputs_it != node_outputs.end())
+            {
+                const auto source_pin_it = outputs_it->second.find(bind_it->second.sourcePin);
+                if (source_pin_it != outputs_it->second.end())
+                {
+                    return source_pin_it->second;
+                }
+            }
+        }
+
+        if (const auto* direct = find_string_param(node_asset, pin_name))
+        {
+            return *direct;
+        }
+
+        std::string alias{pin_name};
+        constexpr std::string_view input_suffix = "_in";
+        if (alias.ends_with(input_suffix))
+        {
+            alias.resize(alias.size() - input_suffix.size());
+        }
+        if (const auto* by_alias = find_string_param(node_asset, alias))
+        {
+            return *by_alias;
+        }
+
+        return std::string{fallback_name};
+    };
 
     bool clear_added = false;
     bool has_render_passes = false;
 
-    for (const auto node_id : compiled_asset.executionOrder)
+    for (const auto& compiled_node : compiled_asset.nodes)
     {
-        const auto node_it = node_by_id.find(node_id);
+        const auto node_it = node_by_id.find(compiled_node.id);
         if (node_it == node_by_id.end())
         {
             continue;
         }
 
-        const std::string normalized_type = normalize_node_type(node_it->second->type);
+        const GraphNodeAsset* node_asset = node_it->second;
+        const std::string normalized_type = normalize_node_type(compiled_node.type);
+        std::string color_name = resolve_input_resource_name(compiled_node, node_asset, "color_in", _rg_color_name);
+        std::string depth_name = resolve_input_resource_name(compiled_node, node_asset, "depth_in", _rg_depth_name);
+
+        auto* color_res = find_image(color_name);
+        auto* depth_res = find_image(depth_name);
+        auto& outputs = node_outputs[compiled_node.id];
+
         if (normalized_type == "cleartargets" || normalized_type == "clearrendertargets")
         {
-            addClearTargetsTask();
+            if (!color_res)
+            {
+                color_res = _rg_color;
+                color_name = _rg_color_name;
+            }
+            if (!depth_res)
+            {
+                depth_res = _rg_depth;
+                depth_name = _rg_depth_name;
+            }
+            if (!color_res || !depth_res)
+            {
+                std::cerr << "[RenderSystem] ClearTargets missing input resources\n";
+                continue;
+            }
+
+            addClearTargetsTask(color_res, depth_res);
             clear_added = true;
+            outputs["color_out"] = color_name;
+            outputs["depth_out"] = depth_name;
             continue;
         }
 
         if (normalized_type == "opaquepass")
         {
-            _opaque_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+            if (!color_res || !depth_res)
+            {
+                std::cerr << "[RenderSystem] OpaquePass missing color/depth inputs\n";
+                continue;
+            }
+            _opaque_pass->registerToGraph(_graph, color_res, depth_res);
             has_render_passes = true;
+            outputs["color_out"] = color_name;
+            outputs["depth_out"] = depth_name;
             continue;
         }
 
         if (normalized_type == "outlinepass")
         {
-            _outline_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+            if (!color_res || !depth_res)
+            {
+                std::cerr << "[RenderSystem] OutlinePass missing color/depth inputs\n";
+                continue;
+            }
+            _outline_pass->registerToGraph(_graph, color_res, depth_res);
             has_render_passes = true;
+            outputs["color_out"] = color_name;
+            outputs["depth_out"] = depth_name;
             continue;
         }
 
         if (normalized_type == "debugaabbpass")
         {
-            _debug_aabb_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+            if (!color_res || !depth_res)
+            {
+                std::cerr << "[RenderSystem] DebugAabbPass missing color/depth inputs\n";
+                continue;
+            }
+            _debug_aabb_pass->registerToGraph(_graph, color_res, depth_res);
             has_render_passes = true;
+            outputs["color_out"] = color_name;
+            outputs["depth_out"] = depth_name;
             continue;
         }
 
         if (normalized_type == "uigizmopass")
         {
-            _ui_gizmo_pass->registerToGraph(_graph, _rg_color, _rg_depth);
+            if (!color_res || !depth_res)
+            {
+                std::cerr << "[RenderSystem] UiGizmoPass missing color/depth inputs\n";
+                continue;
+            }
+            _ui_gizmo_pass->registerToGraph(_graph, color_res, depth_res);
             has_render_passes = true;
+            outputs["color_out"] = color_name;
+            outputs["depth_out"] = depth_name;
             continue;
         }
 
@@ -391,6 +680,8 @@ bool RenderSystem::buildGraphFromAsset()
                 {
                     // TODO: 接入体渲染/体素流体的 Raymarch 或参与光照的体积合成。
                 });
+            if (color_res) outputs["color_out"] = color_name;
+            if (depth_res) outputs["depth_out"] = depth_name;
             continue;
         }
 
@@ -403,16 +694,18 @@ bool RenderSystem::buildGraphFromAsset()
                 {
                     // TODO: 接入体素表面或 SDF 可视化。
                 });
+            if (color_res) outputs["color_out"] = color_name;
+            if (depth_res) outputs["depth_out"] = depth_name;
             continue;
         }
 
-        std::cerr << "[RenderSystem] Unknown graph node type: " << node_it->second->type
-            << " (id=" << node_id << ")\n";
+        std::cerr << "[RenderSystem] Unknown graph node type: " << compiled_node.type
+            << " (id=" << compiled_node.id << ")\n";
     }
 
     if (!clear_added)
     {
-        addClearTargetsTask();
+        addClearTargetsTask(_rg_color, _rg_depth);
     }
     if (!has_render_passes)
     {
@@ -428,7 +721,7 @@ bool RenderSystem::buildGraphFromAsset()
 void RenderSystem::buildGraphLegacy()
 {
     addRenderTargetResourcesTask();
-    addClearTargetsTask();
+    addClearTargetsTask(_rg_color, _rg_depth);
 
     _opaque_pass->registerToGraph(_graph, _rg_color, _rg_depth);
     _outline_pass->registerToGraph(_graph, _rg_color, _rg_depth);

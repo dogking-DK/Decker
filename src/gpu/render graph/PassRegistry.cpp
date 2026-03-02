@@ -1,21 +1,54 @@
 #include "PassRegistry.h"
 
+#include <algorithm>
+#include <cctype>
+
 namespace dk {
+
+namespace {
+std::string normalize_type_name(std::string_view type)
+{
+    std::string normalized;
+    normalized.reserve(type.size());
+
+    for (const char ch : type)
+    {
+        if (ch == ' ' || ch == '_' || ch == '-' || ch == '\t')
+        {
+            continue;
+        }
+        normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+    }
+
+    return normalized;
+}
+}
+
+std::string RenderPassRegistry::normalizeTypeName(std::string_view type)
+{
+    return normalize_type_name(type);
+}
 
 bool RenderPassRegistry::registerType(PassTypeInfo info)
 {
-    if (info.type.empty())
+    const std::string key = normalize_type_name(info.type);
+    if (key.empty())
     {
         return false;
     }
 
-    _types.insert_or_assign(info.type, std::move(info));
+    if (info.displayName.empty())
+    {
+        info.displayName = info.type;
+    }
+
+    _types.insert_or_assign(key, std::move(info));
     return true;
 }
 
 const PassTypeInfo* RenderPassRegistry::find(std::string_view type) const
 {
-    const auto it = _types.find(std::string(type));
+    const auto it = _types.find(normalize_type_name(type));
     if (it == _types.end())
     {
         return nullptr;
@@ -23,12 +56,40 @@ const PassTypeInfo* RenderPassRegistry::find(std::string_view type) const
     return &it->second;
 }
 
+const PinSpec* findPinSpec(const PassTypeInfo& pass_info, std::string_view pin_name)
+{
+    const auto pin_it = std::ranges::find_if(
+        pass_info.pins,
+        [pin_name](const PinSpec& pin)
+        {
+            return pin.name == pin_name;
+        });
+
+    if (pin_it == pass_info.pins.end())
+    {
+        return nullptr;
+    }
+
+    return &(*pin_it);
+}
+
+const PinSpec* RenderPassRegistry::findPin(std::string_view type, std::string_view pin_name) const
+{
+    const auto* pass_info = find(type);
+    if (!pass_info)
+    {
+        return nullptr;
+    }
+    return findPinSpec(*pass_info, pin_name);
+}
+
 std::vector<const PassTypeInfo*> RenderPassRegistry::all() const
 {
     std::vector<const PassTypeInfo*> out;
     out.reserve(_types.size());
-    for (const auto& [_, info] : _types)
+    for (const auto& [key, info] : _types)
     {
+        (void)key;
         out.push_back(&info);
     }
     return out;

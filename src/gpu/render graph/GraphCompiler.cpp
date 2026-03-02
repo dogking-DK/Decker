@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "PassRegistry.h"
+
 namespace dk {
 namespace {
 
@@ -62,9 +64,118 @@ bool validateEdgeNodes(const GraphAsset& graph, std::string& out_error)
     return true;
 }
 
+bool validateUniqueInputPins(const GraphAsset& graph, std::string& out_error)
+{
+    std::unordered_map<GraphNodeId, std::unordered_set<std::string>> used_pins;
+    used_pins.reserve(graph.nodes.size());
+
+    for (const auto& edge : graph.edges)
+    {
+        if (edge.fromPin.empty())
+        {
+            out_error = "Edge " + std::to_string(edge.id) + " has empty from_pin";
+            return false;
+        }
+        if (edge.toPin.empty())
+        {
+            out_error = "Edge " + std::to_string(edge.id) + " has empty to_pin";
+            return false;
+        }
+
+        auto& pin_set = used_pins[edge.toNode];
+        if (!pin_set.insert(edge.toPin).second)
+        {
+            out_error = "Node " + std::to_string(edge.toNode) +
+                " has multiple incoming edges bound to pin \"" + edge.toPin + "\"";
+            return false;
+        }
+    }
+    return true;
 }
 
-bool compileGraphAsset(const GraphAsset& graph, CompiledGraphAsset& out_compiled, std::string& out_error)
+bool validateRegisteredPassTypes(const GraphAsset& graph,
+                                 const RenderPassRegistry& pass_registry,
+                                 std::unordered_map<GraphNodeId, const PassTypeInfo*>& out_pass_info,
+                                 std::string& out_error)
+{
+    out_pass_info.clear();
+    out_pass_info.reserve(graph.nodes.size());
+
+    for (const auto& node : graph.nodes)
+    {
+        const auto* pass_info = pass_registry.find(node.type);
+        if (!pass_info)
+        {
+            out_error = "Node " + std::to_string(node.id) +
+                " references unknown pass type \"" + node.type + "\"";
+            return false;
+        }
+        out_pass_info.emplace(node.id, pass_info);
+    }
+    return true;
+}
+
+bool validateEdgePinsAndKinds(const GraphAsset& graph,
+                              const std::unordered_map<GraphNodeId, const PassTypeInfo*>& pass_info_by_node,
+                              std::string& out_error)
+{
+    for (const auto& edge : graph.edges)
+    {
+        const auto from_node_it = pass_info_by_node.find(edge.fromNode);
+        const auto to_node_it = pass_info_by_node.find(edge.toNode);
+        if (from_node_it == pass_info_by_node.end() || to_node_it == pass_info_by_node.end())
+        {
+            out_error = "Internal compile error: missing pass info for edge " + std::to_string(edge.id);
+            return false;
+        }
+
+        const auto* from_pin = findPinSpec(*from_node_it->second, edge.fromPin);
+        if (!from_pin)
+        {
+            out_error = "Edge " + std::to_string(edge.id) + " references missing output pin \"" + edge.fromPin +
+                "\" on node " + std::to_string(edge.fromNode) + " (" + from_node_it->second->type + ")";
+            return false;
+        }
+        if (from_pin->direction != PinDirection::Output)
+        {
+            out_error = "Edge " + std::to_string(edge.id) + " uses non-output pin \"" + edge.fromPin +
+                "\" as source on node " + std::to_string(edge.fromNode);
+            return false;
+        }
+
+        const auto* to_pin = findPinSpec(*to_node_it->second, edge.toPin);
+        if (!to_pin)
+        {
+            out_error = "Edge " + std::to_string(edge.id) + " references missing input pin \"" + edge.toPin +
+                "\" on node " + std::to_string(edge.toNode) + " (" + to_node_it->second->type + ")";
+            return false;
+        }
+        if (to_pin->direction != PinDirection::Input)
+        {
+            out_error = "Edge " + std::to_string(edge.id) + " uses non-input pin \"" + edge.toPin +
+                "\" as destination on node " + std::to_string(edge.toNode);
+            return false;
+        }
+
+        if (from_pin->kind != ResourceKind::Unknown &&
+            to_pin->kind != ResourceKind::Unknown &&
+            from_pin->kind != to_pin->kind)
+        {
+            out_error = "Edge " + std::to_string(edge.id) + " kind mismatch: \"" + edge.fromPin + "\" (" +
+                std::to_string(static_cast<std::uint32_t>(from_pin->kind)) + ") -> \"" + edge.toPin + "\" (" +
+                std::to_string(static_cast<std::uint32_t>(to_pin->kind)) + ")";
+            return false;
+        }
+    }
+    return true;
+}
+
+}
+
+bool compileGraphAsset(const GraphAsset& graph,
+                       CompiledGraphAsset& out_compiled,
+                       std::string& out_error,
+                       const RenderPassRegistry* pass_registry)
 {
     out_compiled = CompiledGraphAsset{};
     out_compiled.name = graph.name;
@@ -74,6 +185,13 @@ bool compileGraphAsset(const GraphAsset& graph, CompiledGraphAsset& out_compiled
     if (!validateUniqueNodeIds(graph, out_error)) return false;
     if (!validateUniqueEdgeIds(graph, out_error)) return false;
     if (!validateEdgeNodes(graph, out_error)) return false;
+    if (!validateUniqueInputPins(graph, out_error)) return false;
+    if (pass_registry)
+    {
+        std::unordered_map<GraphNodeId, const PassTypeInfo*> pass_info_by_node;
+        if (!validateRegisteredPassTypes(graph, *pass_registry, pass_info_by_node, out_error)) return false;
+        if (!validateEdgePinsAndKinds(graph, pass_info_by_node, out_error)) return false;
+    }
 
     const std::size_t node_count = graph.nodes.size();
     std::unordered_map<GraphNodeId, std::size_t> node_index;
@@ -131,6 +249,41 @@ bool compileGraphAsset(const GraphAsset& graph, CompiledGraphAsset& out_compiled
     {
         out_error = "Cycle detected in graph asset";
         return false;
+    }
+
+    std::unordered_map<GraphNodeId, std::unordered_map<std::string, CompiledPinSource>> input_bindings;
+    input_bindings.reserve(node_count);
+    for (const auto& edge : graph.edges)
+    {
+        input_bindings[edge.toNode].emplace(
+            edge.toPin,
+            CompiledPinSource{
+                .sourceNode = edge.fromNode,
+                .sourcePin = edge.fromPin
+            });
+    }
+
+    out_compiled.nodes.reserve(node_count);
+    for (const auto node_id : out_compiled.executionOrder)
+    {
+        const auto idx_it = node_index.find(node_id);
+        if (idx_it == node_index.end())
+        {
+            out_error = "Internal compile error: node id not found in index";
+            return false;
+        }
+
+        const auto& src_node = graph.nodes[idx_it->second];
+        CompiledGraphNode compiled_node{};
+        compiled_node.id = src_node.id;
+        compiled_node.type = src_node.type;
+
+        if (const auto bind_it = input_bindings.find(node_id); bind_it != input_bindings.end())
+        {
+            compiled_node.inputPins = bind_it->second;
+        }
+
+        out_compiled.nodes.push_back(std::move(compiled_node));
     }
 
     return true;

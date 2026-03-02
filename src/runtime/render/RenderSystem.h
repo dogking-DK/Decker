@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_map>
 
 #include <vulkan/vulkan.hpp>
 
@@ -11,6 +12,7 @@
 #include "render/UiRenderService.h"
 #include "render/SimulationRenderData.h"
 #include "render graph/RenderGraph.h"
+#include "render graph/GraphAsset.h"
 #include "render graph/ResourceTexture.h"
 
 namespace dk::vkcore {
@@ -66,7 +68,9 @@ private:
     bool buildGraphFromAsset();
     void buildGraphLegacy();
     void addRenderTargetResourcesTask();
-    void addClearTargetsTask();
+    bool addAssetImageResourcesTask(const GraphAsset& graph_asset);
+    void addClearTargetsTask(RGResource<ImageDesc, FrameGraphImage>* color,
+                             RGResource<ImageDesc, FrameGraphImage>* depth);
 
     vkcore::VulkanContext&            _context;
     ResourceLoader&                     _cpu_loader;
@@ -91,6 +95,9 @@ private:
     std::shared_ptr<vkcore::TextureResource> _depth_target{};
     RGResource<ImageDesc, FrameGraphImage>* _rg_color{nullptr};
     RGResource<ImageDesc, FrameGraphImage>* _rg_depth{nullptr};
+    std::string _rg_color_name{"scene_color"};
+    std::string _rg_depth_name{"scene_depth"};
+    std::unordered_map<std::string, RGResource<ImageDesc, FrameGraphImage>*> _named_image_resources;
     std::optional<FluidRenderData>       _fluid_data;
     std::optional<VoxelRenderData>       _voxel_data;
     bool                                 _debug_draw_aabb{false};
