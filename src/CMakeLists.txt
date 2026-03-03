@@ -29,6 +29,10 @@ find_package(Stb REQUIRED)
 find_package(stduuid CONFIG REQUIRED)
 find_package(tsl-robin-map CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
+find_package(Python COMPONENTS Interpreter Development)
+find_package(pybind11 CONFIG REQUIRED)
+find_package(nfd CONFIG REQUIRED)
+find_package(unofficial-imgui-node-editor CONFIG REQUIRED)
 
 # ================== 收集源文件并保持分组结构 ==================
 file(GLOB_RECURSE MAIN_SOURCES "main/*.cpp" "main/*.hpp" "main/*.h")
@@ -123,6 +127,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     stduuid
     $<IF:$<TARGET_EXISTS:flecs::flecs>,flecs::flecs,flecs::flecs_static>
     unofficial::sqlite3::sqlite3
+    pybind11::headers
+    nfd::nfd
+    unofficial::imgui-node-editor::imgui-node-editor
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLM_ENABLE_EXPERIMENTAL VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
@@ -151,7 +158,7 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 )
 
 # (可选) 设置一些包含路径
-target_include_directories(${PROJECT_NAME} PRIVATE 
+target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_SOURCE_DIR}/src"
 )
 
