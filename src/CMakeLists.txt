@@ -167,6 +167,11 @@ if(EXISTS "${RENDER_GRAPH_PYBIND_SOURCE}")
         GLM_ENABLE_EXPERIMENTAL
         VULKAN_HPP_DISPATCH_LOADER_DYNAMIC
     )
+    # Keep python module next to Decker.exe for easier runtime script import.
+    set_target_properties(decker_render_graph PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin/$<CONFIG>"
+        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin/$<CONFIG>"
+    )
     if(MSVC)
         target_compile_options(decker_render_graph PRIVATE /utf-8)
     endif()

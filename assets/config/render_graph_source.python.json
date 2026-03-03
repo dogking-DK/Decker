@@ -1,0 +1,5 @@
+{
+  "graph_json": "assets/config/render_graph.json",
+  "generator_command": "python assets/config/render_graph_gen.py --out assets/config/render_graph.json",
+  "working_directory": "."
+}

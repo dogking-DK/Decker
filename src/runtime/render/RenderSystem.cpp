@@ -3,12 +3,16 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
+
+#include <nlohmann/json.hpp>
 
 #include "BVH/Frustum.hpp"
 #include "gpu/vk_types.h"
@@ -29,6 +33,136 @@ using ImageRGResource = dk::RGResource<dk::ImageDesc, dk::FrameGraphImage>;
 using BufferRGResource = dk::RGResource<dk::BufferDesc, dk::FrameGraphBuffer>;
 using ResolvedNodeResources = dk::render::RenderSystem::ResolvedNodeResources;
 using NodeOutputs = dk::render::RenderSystem::NodeOutputs;
+using json = nlohmann::json;
+
+struct RenderGraphSourceConfig
+{
+    // Final graph JSON path consumed by GraphAssetIO.
+    std::filesystem::path graphJsonPath{};
+    // Optional working directory for generator command.
+    std::filesystem::path workingDirectory{};
+    // Optional pre-load command (for Python generation, etc.).
+    std::string generatorCommand{};
+};
+
+std::filesystem::path resolvePathAgainst(const std::filesystem::path& base, const std::string& raw_path)
+{
+    if (raw_path.empty())
+    {
+        return {};
+    }
+
+    std::filesystem::path path{raw_path};
+    if (path.is_absolute())
+    {
+        return path;
+    }
+    return base / path;
+}
+
+bool loadRenderGraphSourceConfig(const std::filesystem::path& exe_dir,
+                                 RenderGraphSourceConfig& out_config,
+                                 std::string& out_error)
+{
+    out_config = RenderGraphSourceConfig{};
+    out_config.graphJsonPath = exe_dir / "assets/config/render_graph.json";
+    out_config.workingDirectory = exe_dir;
+
+    const auto config_path = exe_dir / "assets/config/render_graph_source.json";
+    if (!std::filesystem::exists(config_path))
+    {
+        return true;
+    }
+
+    std::ifstream in(config_path, std::ios::binary);
+    if (!in.is_open())
+    {
+        out_error = "Failed to open render graph source config: " + config_path.string();
+        return false;
+    }
+
+    try
+    {
+        const json root = json::parse(in);
+        if (const auto graph_json_it = root.find("graph_json");
+            graph_json_it != root.end())
+        {
+            if (!graph_json_it->is_string())
+            {
+                out_error = "\"graph_json\" must be a string in " + config_path.string();
+                return false;
+            }
+            out_config.graphJsonPath = resolvePathAgainst(exe_dir, graph_json_it->get<std::string>());
+        }
+
+        if (const auto command_it = root.find("generator_command");
+            command_it != root.end())
+        {
+            if (!command_it->is_string())
+            {
+                out_error = "\"generator_command\" must be a string in " + config_path.string();
+                return false;
+            }
+            out_config.generatorCommand = command_it->get<std::string>();
+        }
+
+        if (const auto working_directory_it = root.find("working_directory");
+            working_directory_it != root.end())
+        {
+            if (!working_directory_it->is_string())
+            {
+                out_error = "\"working_directory\" must be a string in " + config_path.string();
+                return false;
+            }
+            const std::string raw_working_directory = working_directory_it->get<std::string>();
+            if (!raw_working_directory.empty())
+            {
+                out_config.workingDirectory = resolvePathAgainst(exe_dir, raw_working_directory);
+            }
+        }
+    }
+    catch (const std::exception& e)
+    {
+        out_error = "Failed to parse render graph source config: " + std::string(e.what());
+        return false;
+    }
+
+    return true;
+}
+
+bool runRenderGraphGenerator(const RenderGraphSourceConfig& config, std::string& out_error)
+{
+    if (config.generatorCommand.empty())
+    {
+        return true;
+    }
+
+    if (!config.workingDirectory.empty() && !std::filesystem::exists(config.workingDirectory))
+    {
+        out_error = "Render graph generator working directory does not exist: " + config.workingDirectory.string();
+        return false;
+    }
+
+    const std::string working_directory = config.workingDirectory.empty()
+        ? std::filesystem::current_path().string()
+        : config.workingDirectory.string();
+
+#if defined(_WIN32)
+    std::string command = "cmd /C \"cd /D \\\"" + working_directory + "\\\" && " + config.generatorCommand + "\"";
+#else
+    std::string command = "cd \"" + working_directory + "\" && " + config.generatorCommand;
+#endif
+
+    const int command_exit_code = std::system(command.c_str());
+    if (command_exit_code != 0)
+    {
+        out_error = "Render graph generator command failed (exit=" + std::to_string(command_exit_code)
+            + "): " + config.generatorCommand;
+        return false;
+    }
+
+    return true;
+}
 
 std::string pin_alias_without_input_suffix(std::string_view pin_name)
 {
@@ -827,7 +961,23 @@ void RenderSystem::addClearTargetsTask(RGResource<ImageDesc, FrameGraphImage>* c
 bool RenderSystem::buildGraphFromAsset()
 {
     namespace fs = std::filesystem;
-    const fs::path asset_path = absolute(get_exe_dir() / "assets/config/render_graph.json");
+    const fs::path exe_dir = get_exe_dir();
+
+    RenderGraphSourceConfig source_config{};
+    std::string source_error;
+    if (!loadRenderGraphSourceConfig(exe_dir, source_config, source_error))
+    {
+        std::cerr << "[RenderSystem] Graph source config load failed: " << source_error << "\n";
+        return false;
+    }
+
+    if (!runRenderGraphGenerator(source_config, source_error))
+    {
+        std::cerr << "[RenderSystem] Graph source generator failed: " << source_error << "\n";
+        return false;
+    }
+
+    const fs::path asset_path = absolute(source_config.graphJsonPath);
 
     GraphAsset graph_asset{};
     std::string load_error;
