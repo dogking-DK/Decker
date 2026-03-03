@@ -15,6 +15,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <fstream>
 #include <filesystem>
 #include <unordered_set>
@@ -67,6 +68,7 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include "ui/tools/RotateTool.h"
 #include "ui/tools/TranslateTool.h"
 #include "ui/tools/ToolContext.h"
+#include "RenderGraphEditorPanel.h"
 
 template <>
 struct fmt::formatter<glm::vec3>
@@ -190,6 +192,7 @@ void VulkanEngine::init()
     fmt::print("build render data\n");
 
     init_imgui();
+    _render_graph_editor_panel = std::make_unique<ui::RenderGraphEditorPanel>();
 
     _input_backend           = std::make_unique<input::InputBackend>(_input_state);
     _input_router            = std::make_unique<input::InputRouter>();
@@ -421,6 +424,8 @@ void VulkanEngine::cleanup()
             delete frame._command_pool_transfer;
             frame._command_pool_transfer = nullptr;
         }
+
+        _render_graph_editor_panel.reset();
 
         _mainDeletionQueue.flush();
 
@@ -825,6 +830,10 @@ void VulkanEngine::run()
         ImGui::End();
         // 资源树
         hierarchy_panel.onGui();
+        if (_render_graph_editor_panel)
+        {
+            _render_graph_editor_panel->draw(_render_system ? _render_system->graphAssetSnapshot() : nullptr);
+        }
         // 顶部工具栏
         if (ImGui::BeginMainMenuBar())
         {
@@ -849,6 +858,22 @@ void VulkanEngine::run()
                 if (ImGui::MenuItem("复制", "Ctrl+C"))
                 {
                     // 复制操作
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("窗口"))
+            {
+                if (_render_graph_editor_panel)
+                {
+                    bool panel_visible = _render_graph_editor_panel->visible();
+                    if (ImGui::MenuItem("Render Graph", nullptr, &panel_visible))
+                    {
+                        _render_graph_editor_panel->setVisible(panel_visible);
+                        if (panel_visible)
+                        {
+                            _render_graph_editor_panel->requestFocus();
+                        }
+                    }
                 }
                 ImGui::EndMenu();
             }

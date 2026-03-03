@@ -17,6 +17,7 @@
 #include "BVH/Frustum.hpp"
 #include "gpu/vk_types.h"
 #include "render graph/GraphAssetIO.h"
+#include "render graph/GraphAssetViz.h"
 #include "render graph/BuiltinPassRegistry.h"
 #include "render graph/GraphCompiler.h"
 #include "render graph/PassRegistryJson.h"
@@ -631,6 +632,7 @@ void RenderSystem::buildGraph()
     _named_buffer_resources.clear();
     _graph_built = false;
     _compiled = false;
+    _has_graph_asset_snapshot = false;
 
     if (buildGraphFromAsset())
     {
@@ -986,6 +988,17 @@ bool RenderSystem::buildGraphFromAsset()
         std::cerr << "[RenderSystem] Graph asset load failed: " << load_error << "\n";
         return false;
     }
+    _graph_asset_snapshot = graph_asset;
+    _has_graph_asset_snapshot = true;
+    // Export runtime DOT for graph visualization tools (Graphviz, editor import, etc.).
+    {
+        std::string dot_error;
+        const fs::path dot_path = absolute(get_exe_dir() / "assets/config/render_graph_runtime.dot");
+        if (!saveGraphAssetToDotFile(graph_asset, dot_path, dot_error))
+        {
+            std::cerr << "[RenderSystem] Graph dot export failed: " << dot_error << "\n";
+        }
+    }
 
     CompiledGraphAsset compiled_asset{};
     std::string compile_error;
@@ -1235,6 +1248,8 @@ bool RenderSystem::buildGraphFromAsset()
 
 void RenderSystem::buildGraphLegacy()
 {
+    _has_graph_asset_snapshot = false;
+    _graph_asset_snapshot = GraphAsset{};
     addRenderTargetResourcesTask();
     addClearTargetsTask(_rg_color, _rg_depth);
 

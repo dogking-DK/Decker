@@ -30,5 +30,6 @@ vcpkg install --recurse spirv-cross
 vcpkg install --recurse sqlite3
 vcpkg install --recurse entt
 vcpkg install --recurse nativefiledialog-extended
+vcpkg install --recurse imgui-node-editor
 echo press any button to continue...
 read -n 1

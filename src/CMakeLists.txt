@@ -32,6 +32,7 @@ find_package(unofficial-sqlite3 CONFIG REQUIRED)
 find_package(Python COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(nfd CONFIG REQUIRED)
+find_package(unofficial-imgui-node-editor CONFIG REQUIRED)
 
 # ================== 收集源文件并保持分组结构 ==================
 file(GLOB_RECURSE MAIN_SOURCES "main/*.cpp" "main/*.hpp" "main/*.h")
@@ -134,6 +135,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     unofficial::sqlite3::sqlite3
     pybind11::headers
     nfd::nfd
+    unofficial::imgui-node-editor::imgui-node-editor
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLM_ENABLE_EXPERIMENTAL VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
@@ -143,6 +145,7 @@ if(EXISTS "${RENDER_GRAPH_PYBIND_SOURCE}")
         "${RENDER_GRAPH_PYBIND_SOURCE}"
         "${CMAKE_SOURCE_DIR}/src/gpu/render graph/GraphAssetBuilder.cpp"
         "${CMAKE_SOURCE_DIR}/src/gpu/render graph/GraphAssetIO.cpp"
+        "${CMAKE_SOURCE_DIR}/src/gpu/render graph/GraphAssetViz.cpp"
         "${CMAKE_SOURCE_DIR}/src/gpu/render graph/GraphCompiler.cpp"
         "${CMAKE_SOURCE_DIR}/src/gpu/render graph/PassRegistry.cpp"
         "${CMAKE_SOURCE_DIR}/src/gpu/render graph/BuiltinPassRegistry.cpp"

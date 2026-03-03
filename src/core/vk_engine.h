@@ -60,6 +60,9 @@ namespace fastgltf
 {
     struct Mesh;
 }
+namespace dk::ui {
+class RenderGraphEditorPanel;
+}
 
 namespace dk {
 struct ImageDesc;
@@ -122,6 +125,7 @@ public:
     bool        _show_aabb_bounds{false};
     bool        _translate_gizmo_enabled{true};
     bool        _rotate_gizmo_enabled{true};
+    std::unique_ptr<ui::RenderGraphEditorPanel> _render_graph_editor_panel;
 
     HierarchyPanel hierarchy_panel;
 

@@ -10,6 +10,7 @@
 #include "gpu/render graph/BuiltinPassRegistry.h"
 #include "gpu/render graph/GraphAssetBuilder.h"
 #include "gpu/render graph/GraphAssetIO.h"
+#include "gpu/render graph/GraphAssetViz.h"
 
 namespace py = pybind11;
 
@@ -223,11 +224,32 @@ PYBIND11_MODULE(decker_render_graph, m)
                 return json_text;
             })
         .def(
+            "to_dot_text",
+            [](const dk::GraphAssetBuilder& builder)
+            {
+                std::string dot_text;
+                std::string error;
+                if (!dk::saveGraphAssetToDotText(builder.asset(), dot_text, error))
+                {
+                    throw std::runtime_error(error);
+                }
+                return dot_text;
+            })
+        .def(
             "save_json",
             [](const dk::GraphAssetBuilder& builder, const std::string& path)
             {
                 std::string error;
                 const bool ok = dk::saveGraphAssetToJsonFile(path, builder.asset(), error);
+                return py::make_tuple(ok, error);
+            },
+            py::arg("path"))
+        .def(
+            "save_dot",
+            [](const dk::GraphAssetBuilder& builder, const std::string& path)
+            {
+                std::string error;
+                const bool ok = dk::saveGraphAssetToDotFile(builder.asset(), path, error);
                 return py::make_tuple(ok, error);
             },
             py::arg("path"));

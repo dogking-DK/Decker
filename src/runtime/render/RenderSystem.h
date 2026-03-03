@@ -91,6 +91,8 @@ public:
     void beginUiFrame() { _ui_render_service.beginFrame(); }
     void finalizeUiFrame() { _ui_render_service.finalize(); }
     UiRenderService& uiRenderService() { return _ui_render_service; }
+    // Latest asset snapshot used to build runtime render graph, for tooling UI.
+    const GraphAsset* graphAssetSnapshot() const { return _has_graph_asset_snapshot ? &_graph_asset_snapshot : nullptr; }
 
     const FrameStats& stats() const { return _stats; }
     const RenderWorld& getRenderWorld() const { return _render_world; }
@@ -144,6 +146,8 @@ private:
         bool contributesRenderPass{false};
     };
     std::unordered_map<std::string, RuntimePassExecutorEntry> _runtime_pass_executors;
+    GraphAsset                            _graph_asset_snapshot{};
+    bool                                  _has_graph_asset_snapshot{false};
     std::optional<FluidRenderData>       _fluid_data;
     std::optional<VoxelRenderData>       _voxel_data;
     bool                                 _debug_draw_aabb{false};
