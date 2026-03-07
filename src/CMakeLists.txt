@@ -29,6 +29,7 @@ find_package(Stb REQUIRED)
 find_package(stduuid CONFIG REQUIRED)
 find_package(tsl-robin-map CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
+find_package(nfd CONFIG REQUIRED)
 
 # ================== 收集源文件并保持分组结构 ==================
 file(GLOB_RECURSE MAIN_SOURCES "main/*.cpp" "main/*.hpp" "main/*.h")
@@ -121,6 +122,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     spdlog::spdlog
     tsl::robin_map
     stduuid
+    nfd::nfd
     $<IF:$<TARGET_EXISTS:flecs::flecs>,flecs::flecs,flecs::flecs_static>
     unofficial::sqlite3::sqlite3
 )
